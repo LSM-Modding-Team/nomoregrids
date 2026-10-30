@@ -460,3 +460,14 @@ anterior. No cambia la interpretación del guardado ni las versiones fijadas.
 Consulta estática de ChunkWatchEvent.Sent y PacketDistributor en NeoForge exacto,
 y chunkMap/getPlayers con javap del cliente oficial 26.2. Comprobaciones estáticas
 del repositorio y whitespace; compilación, tests Java y Minecraft no ejecutados.
+
+## Entrega: contorno del componente seleccionado
+
+El evento exacto ExtractBlockOutlineRenderStateEvent sustituye el contorno agregado
+por aristas de la pieza seleccionada, con profundidad y alto contraste. Para cajas
+se eliminan costuras coplanares y se conservan esquinas cóncavas; para PB se usan
+los planos convexos, incluida la pendiente, y la transformación externa una vez.
+Se conserva el contorno vanilla como fallback ante un error de proyección.
+Pruebas escritas para teselación desigual, 24 rotaciones, negativos, escaleras y
+presupuesto; no ejecutadas. Parser, recursos y whitespace comprobados sin compilar.
+Decisión: no declarar una matriz visual completada sin ejecutar el juego.

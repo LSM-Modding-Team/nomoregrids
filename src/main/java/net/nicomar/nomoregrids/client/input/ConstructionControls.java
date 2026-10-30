@@ -38,7 +38,7 @@ public final class ConstructionControls {
     private static int lengthSelection;
     private static Map<String,String> alignmentProperties=Map.of();
     private ConstructionControls(){}
-    public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
+    public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::outline);NeoForge.EVENT_BUS.addListener(ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
     private static void payloads(net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event){
         event.register(net.nicomar.nomoregrids.network.CellFragmentPayload.TYPE,(packet,context)->context.enqueueWork(()->net.nicomar.nomoregrids.client.selection.ClientCellReplication.accept(packet)));
         event.register(net.nicomar.nomoregrids.network.SessionPayload.TYPE,(packet,context)->context.enqueueWork(()->{
@@ -118,6 +118,13 @@ public final class ConstructionControls {
     private static void middle(InputEvent.MouseButton.Pre event){var mc=Minecraft.getInstance();if(mc.player==null||mc.gui.screen()!=null||event.getButton()!=GLFW.GLFW_MOUSE_BUTTON_MIDDLE||event.getAction()!=GLFW.GLFW_PRESS)return;
         if(ADJUSTED.isDown()){lengthSelection=0;MODES.adjusted=true;mc.player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.length_auto"));event.setCanceled(true);}
         else if(mc.hasAltDown()){MODES.cycleAxis(false);event.setCanceled(true);}}
+    private static void outline(ExtractBlockOutlineRenderStateEvent event){
+        var mc=Minecraft.getInstance();if(mc.player==null||!(event.getLevel().getBlockEntity(event.getBlockPos()) instanceof net.nicomar.nomoregrids.world.CompositeCellEntity cell)||!cell.valid())return;
+        try{var selected=net.nicomar.nomoregrids.platform.ComponentSelection.select(mc.player,cell.view(),MODES.candidate());if(selected.isEmpty())return;
+            try(var ignored=event.getLevelExtractor().collectPerFrameMainThreadGizmos()){net.nicomar.nomoregrids.client.selection.ComponentOutline.draw(selected.orElseThrow(),event.isHighContrast()?0xffffffff:0xff151515);}
+            event.setCanceled(true);
+        }catch(RuntimeException invalid){net.nicomar.nomoregrids.client.selection.ComponentOutline.clear();}
+    }
     private static void extract(ExtractLevelRenderStateEvent event){
         PieceRecord p=preview;if(p==null)return;
         try(var ignored=event.getLevelExtractor().collectPerFrameMainThreadGizmos()){
