@@ -15,7 +15,11 @@
     "MinecartBehaviorAccess",
     "ComponentRailMovementMixin",
     "ComponentMinecartItemMixin",
-    "ComponentMovementFactorsMixin"
+    "ComponentMovementFactorsMixin",
+    "PaintableMenuMixin",
+    "PaintableWorkstationActionMixin",
+    "PaintableBucketActionMixin",
+    "PaintableBucketInteractionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -146,7 +146,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         try(var nativeView=new WorldNativeView(original.effects())){var plan=fluids.prepare(functionals.prepare(circuits.prepare(WorldRails.prepare(this,WorldGroups.prepare(this,level,original)))));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}}
     }
-    public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
+    public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);if(WorldFunctionals.piece(p)&&!WorldFunctionals.eligible(NativeStates.resolve(p)))return false;NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
     public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index,p->!available(p)).replicas(),fluids.at(c));}
     public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null){if(archive==null)return false;try{var stamp=archive.operation(operation);if(stamp.isEmpty())return false;if(!stamp.orElseThrow().actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
     private boolean repeated(UUID id,ServerPlayer actor,OperationPlan.Kind kind){
@@ -183,8 +183,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             var sourceBlock=NativeStates.resolve(candidate).getBlock();
             if(net.nicomar.nomoregrids.material.FragmentItem.cuttable(sourceBlock))NativeInventory.takeFragment(slots,sourceBlock,net.nicomar.nomoregrids.material.FragmentItem.length(candidate.itemPayload()));
             else{if(slots.get(slot).isEmpty())throw new IllegalArgumentException("INVENTORY_MISSING");slots.get(slot).shrink(1);}
-            if(replaced!=null&&!preview){boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(replaced.pieceId())){recoverLoot(player,snapshot().records().get(member),slots,damage);damage=false;}}
+
         }
+        if(replaced!=null&&!preview){boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(replaced.pieceId())){var old=snapshot().records().get(member);if(!player.isCreative()||WorldFunctionals.piece(old))recoverLoot(player,old,slots,!player.isCreative()&&damage);damage=false;}}
         completeSupport(player,changes,slots,preview);
         return new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.PLACE,changes,before,NativeInventory.encode(player,slots));
     }
@@ -196,7 +197,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         PieceRecord target=snapshot().records().get(id);if(target==null)throw new IllegalArgumentException("STALE_REVISION");adapters.require(target);
         if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks",WorldFunctionals.ADAPTER,WorldDecorations.ADAPTER,WorldGroups.ADAPTER,WorldCircuits.ADAPTER,WorldRails.ADAPTER).contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
-        var changes=new ArrayList<OperationPlan.Change>();boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(id)){var old=snapshot().records().get(member);if(!player.isCreative()){recoverLoot(player,old,slots,damage);damage=false;}changes.add(new OperationPlan.Change(member,Optional.of(old),Optional.empty()));}completeSupport(player,changes,slots);
+        var changes=new ArrayList<OperationPlan.Change>();boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(id)){var old=snapshot().records().get(member);if(!player.isCreative()||WorldFunctionals.piece(old)){recoverLoot(player,old,slots,!player.isCreative()&&damage);damage=false;}changes.add(new OperationPlan.Change(member,Optional.of(old),Optional.empty()));}completeSupport(player,changes,slots);
         var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.REMOVE,changes,before,NativeInventory.encode(player,slots));executePrepared(plan);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots){
@@ -269,7 +270,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         double reach=player.blockInteractionRange();var eye=player.getEyePosition();
         boolean inReach=plan.changes().stream().flatMap(c->java.util.stream.Stream.concat(c.before().stream(),c.after().stream())).anyMatch(p->{
             var b=p.worldOccupation().bounds();double x=Math.max(b.min().x()/16.0,Math.min(b.max().x()/16.0,eye.x)),y=Math.max(b.min().y()/16.0,Math.min(b.max().y()/16.0,eye.y)),z=Math.max(b.min().z()/16.0,Math.min(b.max().z()/16.0,eye.z));return eye.distanceToSqr(new Vec3(x,y,z))<=reach*reach;});
-        if(plan.kind()==OperationPlan.Kind.CLAIM||plan.kind()==OperationPlan.Kind.TRANSFER||plan.kind()==OperationPlan.Kind.EDIT&&plan.changes().isEmpty())inReach=plan.affectedCells().stream().allMatch(c->eye.distanceToSqr(new Vec3(c.x()+0.5,c.y()+0.5,c.z()+0.5))<=16);
+        if(plan.kind()==OperationPlan.Kind.CLAIM||plan.kind()==OperationPlan.Kind.TRANSFER||plan.kind()==OperationPlan.Kind.EDIT&&plan.changes().isEmpty()){double auxiliaryReach=plan.kind()==OperationPlan.Kind.TRANSFER&&WorldFunctionals.managed(player.containerMenu)?64:Math.pow(reach+0.8660254038,2);inReach=plan.affectedCells().stream().allMatch(c->eye.distanceToSqr(new Vec3(c.x()+0.5,c.y()+0.5,c.z()+0.5))<=auxiliaryReach);}
         if(!inReach)throw new IllegalArgumentException("Interaction out of reach");
         if(plan.kind()==OperationPlan.Kind.PLACE){
             var p=plan.changes().reversed().stream().flatMap(c->c.after().stream()).findFirst().orElseThrow();var b=p.worldOccupation().bounds();

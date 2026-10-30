@@ -894,3 +894,28 @@ solo el hash previo conocido y se guarda rules-before-<hash>.json antes de
 actualizarlo. Un hash desconocido sigue requiriendo migración explícita.
 Pruebas puras de espesores, uniones y DDA escritas, no ejecutadas. Revisión
 sintáctica/imports/recursos, sin compilación, fuego o explosiones en Minecraft.
+
+## Funcionales Paintable Blocks con sus menús nativos
+
+Se inspeccionaron además las APIs de estaciones, máquinas de pintura y cubos PB
+(schema de diseños 2). Un perfil separado dentro del adaptador funcional captura
+sus inventarios, unidades de producción/pintura y progreso. Los slots existen una
+vez en FunctionalStore.State; el NBT de producción omite su lista de ítems al
+persistir, y la reconstruye únicamente en una copia temporal. El loot es un único
+ítem portátil PB con los contenidos actuales. Las máquinas usan su tick nativo y
+la automatización respeta sus reglas por cara.
+Los menús PB nativos reciben una BE temporal estable por un hook limitado a su
+constructor; sus botones, fabricación, conversión, depósitos y retiros se preparan
+con el inventario del jugador y se confirman por recibo durable. Se conserva el
+cursor y se restaura la copia antes del commit. El cliente recibe identidad/tier,
+y los slots mediante el canal privado de menú; ningún inventario se publica en
+CellView. Mezclas de varios funcionales por host abren el UUID seleccionado.
+Pinceles y pintura interactúan con el cubo por la misma preparación transaccional.
+Los mixins son opcionales (@Pseudo) y las firmas PB se comprueban antes de ofrecer
+el perfil. Un cambio de API se protege como adaptador no disponible.
+Se conserva energía al modificar slots, incluso dentro de la misma transacción;
+la retirada/reemplazo creativo conserva contenidos funcionales. Un menú PB se
+cierra si su pieza cambia de posición. Protocolo de red 9.
+Revisión estática de sintaxis, recursos e imports de Minecraft/NeoForge; las
+firmas PB se contrastaron con sus fuentes. No se ejecutaron compilación, menús,
+transferencias ni procesos de producción en Minecraft.
