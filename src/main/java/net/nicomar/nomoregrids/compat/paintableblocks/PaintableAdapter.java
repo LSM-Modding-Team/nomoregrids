@@ -26,7 +26,7 @@ public final class PaintableAdapter implements PieceAdapter {
     }
     @Override public ResourceId id(){return new ResourceId("nomoregrids:paintableblocks");}
     @Override public int dataVersion(){return 1;}
-    @Override public Set<Capability> capabilities(){return Set.of(Capability.OFFSET,Capability.ROTATE,Capability.COMPOSE,Capability.INTERACT);}
+    @Override public Set<Capability> capabilities(){return Set.of(Capability.OFFSET,Capability.ROTATE,Capability.COMPOSE,Capability.INTERACT,Capability.MOVE);}
     public BinaryData capture(Object nativeDesign){
         if(!designClass.isInstance(nativeDesign))throw new IllegalArgumentException("Not PB design");
         String json=codec.encodeStart(JsonOps.INSTANCE,nativeDesign).getOrThrow().toString();

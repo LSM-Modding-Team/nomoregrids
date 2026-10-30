@@ -29,6 +29,18 @@ public final class ConvexVolume {
             new Plane(new Vec(0,-1,0),-y0),new Plane(new Vec(0,1,0),y1),new Plane(new Vec(0,0,-1),-z0),new Plane(new Vec(0,0,1),z1)));
     }
     public ConvexVolume clipped(Plane plane){var next=new ArrayList<>(planes);next.add(plane);return new ConvexVolume(next);}
+    /** Exact Minkowski sum with a translation segment, including the extruded edge facets. */
+    public ConvexVolume swept(Vec delta){
+        if(delta.length()==0)return this;var points=new ArrayList<>(vertices);vertices.forEach(v->points.add(v.add(delta)));var hull=new ArrayList<Plane>();
+        for(var p:planes)addPlane(hull,new Plane(p.normal,p.distance+Math.max(0,p.normal.dot(delta))));
+        for(var edge:edges()){
+            var normal=edge.cross(delta);if(normal.length()<1e-10)continue;normal=normal.scale(1/normal.length());double low=Double.POSITIVE_INFINITY,high=Double.NEGATIVE_INFINITY;for(var v:points){double d=normal.dot(v);low=Math.min(low,d);high=Math.max(high,d);}
+            // Only support planes containing an original edge are facets of the extrusion.
+            for(var candidate:List.of(new Plane(normal,high),new Plane(normal.scale(-1),-low)))if(vertices.stream().filter(v->Math.abs(candidate.normal.dot(v)-candidate.distance)<EPS).count()>=2)addPlane(hull,candidate);
+        }
+        return new ConvexVolume(hull);
+    }
+    private static void addPlane(List<Plane> planes,Plane p){if(planes.stream().noneMatch(q->q.normal.sub(p.normal).length()<1e-10&&Math.abs(q.distance-p.distance)<EPS))planes.add(p);}
     private static List<Vec> vertices(List<Plane> planes){
         var result=new ArrayList<Vec>();
         for(int i=0;i<planes.size();i++)for(int j=i+1;j<planes.size();j++)for(int k=j+1;k<planes.size();k++){

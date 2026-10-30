@@ -23,14 +23,14 @@ public final class WorldConnections {
     public static void complete(ServerLevel level,PieceIndex before,ArrayList<OperationPlan.Change> changes,VanillaCatalog catalog,Set<CellPos> observed){
         UUID primary=changes.reversed().stream().flatMap(c->c.after().stream()).map(PieceRecord::pieceId).findFirst().orElse(null);
         Map<UUID,PieceRecord> work=new HashMap<>(before.records());for(var c:changes){if(c.after().isPresent())work.put(c.id(),c.after().orElseThrow());else work.remove(c.id());}
-        Set<CellPos> touched=new HashSet<>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
+        Set<CellPos> touched=new HashSet<>();for(var c:changes){c.nativeSource().ifPresent(touched::add);c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
         for(UUID id:WorldSupport.nearby(before,observed))touched.addAll(before.records().get(id).worldOccupation().cells(8));
         boolean stable=false;for(int pass=0;pass<16;pass++){
             // Drafts may overlap before redundant arms are removed. They never escape this planner.
             var draft=PieceIndex.restored(work.values(),(a,b)->false);Set<UUID> nearby=WorldSupport.nearby(draft,touched);boolean captured=false;
             for(UUID id:nearby){var p=work.get(id);if(FamilyPorts.family(p)==Family.NONE)continue;
                 Set<CellPos> contacts=contacts(p);for(var cell:contacts){var at=WorldService.pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION: connection");
-                    if(!draft.at(cell).isEmpty()||touched.contains(cell))continue;var state=level.getBlockState(at);if(!catalog.eligible(state))continue;
+                    if(!draft.at(cell).isEmpty()||touched.contains(cell))continue;var state=WorldNativeView.at(cell).orElseGet(()->level.getBlockState(at));if(!catalog.eligible(state))continue;
                     var nativePiece=NativeStates.capture(state,level,at,UUID.randomUUID());if(!related(p,nativePiece))continue;
                     work.put(nativePiece.pieceId(),nativePiece);touched.add(cell);captured=true;
                     if(diffCount(before,work)>128)throw new IllegalArgumentException("COMPLEXITY_LIMIT: connected native region");
@@ -57,8 +57,9 @@ public final class WorldConnections {
             if(next.equals(work)){stable=true;break;}work=next;
         }
         if(!stable)throw new IllegalArgumentException("COMPLEXITY_LIMIT: connections did not stabilize");
+        var sources=new HashMap<UUID,CellPos>();for(var c:changes)c.nativeSource().ifPresent(source->sources.put(c.id(),source));
         Set<UUID> ids=new TreeSet<>(before.records().keySet());ids.addAll(work.keySet());changes.clear();
-        for(UUID id:ids){var old=before.records().get(id);var next=work.get(id);if(!Objects.equals(old,next))changes.add(new OperationPlan.Change(id,Optional.ofNullable(old),Optional.ofNullable(next)));}
+        for(UUID id:ids){var old=before.records().get(id);var next=work.get(id);if(!Objects.equals(old,next))changes.add(new OperationPlan.Change(id,Optional.ofNullable(old),Optional.ofNullable(next),Optional.ofNullable(sources.get(id))));}
         if(primary!=null){var selected=changes.stream().filter(c->c.id().equals(primary)).findFirst();selected.ifPresent(c->{changes.remove(c);changes.add(c);});}
         if(changes.size()>128)throw new IllegalArgumentException("COMPLEXITY_LIMIT: connection update batch");
         // Final overlap checks run with the actual adapter resolver in OperationEngine.
@@ -80,7 +81,7 @@ public final class WorldConnections {
                     var other=draft.records().get(id);for(var peer:FamilyPorts.ports(other))if(FamilyPorts.match(port,peer))return true;
                     if(FamilyPorts.family(other)==Family.NONE&&(other.adapterId().value().equals("nomoregrids:box")||WorldFunctionals.piece(other))&&!other.flags().contains(PieceRecord.Flag.SUBSTITUTE))surfaces.addAll(SupportPatches.surfaces(other.worldOccupation()));
                 }
-            }else{var state=level.getBlockState(at);if(catalog.eligible(state)){var other=NativeStates.capture(state,level,at,UUID.randomUUID());if(FamilyPorts.family(other)==Family.NONE)surfaces.addAll(SupportPatches.surfaces(other.worldOccupation()));}}
+            }else{var state=WorldNativeView.at(cell).orElseGet(()->level.getBlockState(at));if(catalog.eligible(state)){var other=NativeStates.capture(state,level,at,UUID.randomUUID());if(FamilyPorts.family(other)==Family.NONE)surfaces.addAll(SupportPatches.surfaces(other.worldOccupation()));}}
         }return SupportResolver.covered(port.area(),surfaces);
     }
     private static PieceRecord reshaped(PieceRecord p,Map<String,String> properties,PieceRecord original){
@@ -93,7 +94,7 @@ public final class WorldConnections {
             var at=WorldService.pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION: wall cap");
             if(touched.contains(cell)||!draft.at(cell).isEmpty())for(UUID id:draft.at(cell)){
                 if(!id.equals(piece.pieceId())&&seen.add(id)){var p=draft.records().get(id);if((p.adapterId().value().equals("nomoregrids:box")||WorldFunctionals.piece(p))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))surfaces.addAll(SupportPatches.surfaces(p.worldOccupation()));}
-            }else{var state=level.getBlockState(at);if(catalog.eligible(state))surfaces.addAll(SupportPatches.surfaces(NativeStates.capture(state,level,at,UUID.randomUUID()).worldOccupation()));}
+            }else{var state=WorldNativeView.at(cell).orElseGet(()->level.getBlockState(at));if(catalog.eligible(state))surfaces.addAll(SupportPatches.surfaces(NativeStates.capture(state,level,at,UUID.randomUUID()).worldOccupation()));}
         }return SupportResolver.covered(patch,surfaces);
     }
     private static BoxUnion crop(BoxUnion shape,int length){var out=new ArrayList<Box16>();for(var b:shape.boxes())if(b.min().y()<length)out.add(Box16.of(b.min().x(),b.min().y(),b.min().z(),b.max().x(),Math.min(length,b.max().y()),b.max().z()));return new BoxUnion(out);}

@@ -13,10 +13,10 @@ public final class OperationCodec {
     public static byte[] encode(OperationPlan plan) throws IOException {
         var bytes = new ByteArrayOutputStream();
         var out = new DataOutputStream(bytes);
-        out.writeInt(3); uuid(out,plan.id()); uuid(out,plan.actor()); out.writeUTF(plan.kind().name());
+        out.writeInt(4); uuid(out,plan.id()); uuid(out,plan.actor()); out.writeUTF(plan.kind().name());
         out.writeInt(plan.changes().size());
         for (var c : plan.changes()) {
-            uuid(out,c.id()); piece(out,c.before()); piece(out,c.after());
+            uuid(out,c.id()); piece(out,c.before()); piece(out,c.after());out.writeBoolean(c.nativeSource().isPresent());if(c.nativeSource().isPresent()){var source=c.nativeSource().orElseThrow();out.writeLong(source.x());out.writeLong(source.y());out.writeLong(source.z());}
             if (bytes.size()>MAX_BYTES-2*BinaryData.MAX_BYTES-8) throw new IOException("Operation too large");
         }
         blob(out,plan.resourcesBefore().copy()); blob(out,plan.resourcesAfter().copy());
@@ -31,13 +31,13 @@ public final class OperationCodec {
         if (bytes.length>MAX_BYTES) throw new IOException("Operation too large");
         var in = new DataInputStream(new ByteArrayInputStream(bytes));
         try {
-            int schema=in.readInt();if(schema!=1&&schema!=2&&schema!=3) throw new IOException("Unsupported operation schema");
+            int schema=in.readInt();if(schema!=1&&schema!=2&&schema!=3&&schema!=4) throw new IOException("Unsupported operation schema");
             UUID id=uuid(in), actor=uuid(in);
             String kind=in.readUTF();
             int count=in.readInt();
             if (count<0 || count>128) throw new IOException("Invalid operation count");
             var changes=new ArrayList<OperationPlan.Change>(count);
-            for (int i=0;i<count;i++) changes.add(new OperationPlan.Change(uuid(in),piece(in,schema),piece(in,schema)));
+            for (int i=0;i<count;i++){var pieceId=uuid(in);var previous=piece(in,schema);var next=piece(in,schema);Optional<net.nicomar.nomoregrids.core.CellPos> source=Optional.empty();if(schema>=4){int marker=in.readUnsignedByte();if(marker>1)throw new IOException("Native capture marker");if(marker==1)source=Optional.of(new net.nicomar.nomoregrids.core.CellPos(in.readLong(),in.readLong(),in.readLong()));}changes.add(new OperationPlan.Change(pieceId,previous,next,source));}
             var before=new BinaryData(blob(in,BinaryData.MAX_BYTES));
             var after=new BinaryData(blob(in,BinaryData.MAX_BYTES));
             var effects=new ArrayList<OperationPlan.Effect>();if(schema>=2){int n=in.readInt();if(n<0||n>512)throw new IOException("Effect budget");for(int i=0;i<n;i++){String key=in.readUTF();var owner=new net.nicomar.nomoregrids.core.CellPos(in.readLong(),in.readLong(),in.readLong());var previous=schema>=3?new net.nicomar.nomoregrids.core.CellPos(in.readLong(),in.readLong(),in.readLong()):owner;effects.add(new OperationPlan.Effect(key,owner,data(in),data(in),previous));}}

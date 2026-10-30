@@ -133,8 +133,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var plan=fluids.prepare(WorldGroups.prepare(this,level,placementPlan(player,hand,hit,mode,UUID.randomUUID(),true)));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
     }
     public void executePrepared(OperationPlan original)throws IOException{
-        var plan=fluids.prepare(functionals.prepare(WorldGroups.prepare(this,level,original)));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
-        try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}
+        try(var nativeView=new WorldNativeView(original.effects())){var plan=fluids.prepare(functionals.prepare(WorldGroups.prepare(this,level,original)));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
+        try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}}
     }
     public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
     public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index,p->!available(p)).replicas(),fluids.at(c));}
@@ -283,8 +283,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(state.getBlock()==NmgContent.CELL.get()){
                 if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("INVALID_DATA");
             }else if(!state.isAir()&&!(state.getBlock() instanceof LiquidBlock)&&nativeProjection(cell,before).filter(state::equals).isEmpty()){
-                boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
-                if(!captured)throw new IllegalArgumentException("World changed before conversion");
+                boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.nativeSource().orElse(c.after().orElseThrow().origin16().cell()).equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
+                if(!captured&&plan.effects().stream().noneMatch(e->e.key().equals(nativeKey(cell))&&e.after().isPresent()))throw new IllegalArgumentException("World changed before conversion");
             }
             try{if(CellView.from(cell,after).encode().length>SnapshotAssembler.MAX)throw new IllegalArgumentException("COMPLEXITY_LIMIT: public cell update exceeds 2 MiB");}
             catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: cell encoding",ex);}
@@ -325,8 +325,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
                 if(nativeProjection(cell,before).filter(state::equals).isEmpty()&&(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid()||!entity.view().equals(cellView(cell,before))))throw new IllegalArgumentException("STALE_REVISION: replica requires recovery");
             }else if(state.getBlock()==NmgContent.CELL.get())throw new IllegalArgumentException("INVALID_DATA: unrecognized cell is retained");
             else if(!state.isAir()&&!(state.getBlock() instanceof LiquidBlock)){
-                boolean expected=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
-                if(!expected)throw new IllegalArgumentException("STALE_REVISION: native world changed");
+                boolean expected=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.nativeSource().orElse(c.after().orElseThrow().origin16().cell()).equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
+                if(!expected&&plan.effects().stream().noneMatch(e->e.key().equals(nativeKey(cell))&&e.after().isPresent()))throw new IllegalArgumentException("STALE_REVISION: native world changed");
             }
         }
     }
@@ -348,10 +348,11 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var section:sections)store.write(section,sequence,after.ownedBy(section).stream().map(after.records()::get).toList());
     }
     private Map<String,WorldEffectStore.Value> sectionEffects(SectionPos section){var result=new TreeMap<String,WorldEffectStore.Value>();effects.forEach((key,value)->{if(value.owner().section().equals(section))result.put(key,value);});return result;}
+    private static boolean nativeImageAir(BinaryData data){try{var image=NativeStateImage.decode(data);return NativeStates.resolve(image.block(),image.properties()).isAir();}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: native image",ex);}}
     private void validateEffects(OperationPlan plan){
         for(var e:plan.effects())if(!Objects.equals(Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data),e.before())||effects.containsKey(e.key())&&!effects.get(e.key()).owner().equals(e.previousOwner()))throw new IllegalArgumentException("STALE_REVISION: world effects");
         var afterIndex=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
-        for(var e:plan.effects())if(e.key().startsWith("native:")&&e.after().isPresent()&&!afterIndex.at(e.owner()).isEmpty())throw new IllegalArgumentException("OVERLAP: native mechanism goal");
+        for(var e:plan.effects())if(e.key().startsWith("native:")&&e.after().isPresent()&&!afterIndex.at(e.owner()).isEmpty()&&!nativeImageAir(e.after().orElseThrow()))throw new IllegalArgumentException("OVERLAP: native mechanism goal");
         var proposed=new TreeMap<>(effects);for(var e:plan.effects()){if(e.after().isPresent())proposed.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else proposed.remove(e.key());}
         for(var section:plan.effects().stream().flatMap(e->java.util.stream.Stream.of(e.owner().section(),e.previousOwner().section())).distinct().toList()){
             var values=new TreeMap<String,WorldEffectStore.Value>();proposed.forEach((k,v)->{if(v.owner().section().equals(section))values.put(k,v);});try{WorldEffectStore.encode(1,values);}catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: section effects",ex);}
@@ -375,7 +376,20 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var event=new BeforeOperationEvent(level,plan);NeoForge.EVENT_BUS.post(event);if(event.isCanceled())throw new IllegalArgumentException("PROTECTED");validateEffects(plan);validateWorldImages(plan,before);
     }
     public void executeWorld(List<OperationPlan.Change> changes,List<OperationPlan.Effect> effects)throws IOException{
-        if(changes.isEmpty()&&effects.isEmpty())return;executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,changes,BinaryData.EMPTY,BinaryData.EMPTY,effects));
+        if(changes.isEmpty()&&effects.isEmpty())return;
+        var completed=new ArrayList<>(changes);var auxiliary=new ArrayList<>(effects);
+        if(!completed.isEmpty()||effects.stream().anyMatch(e->e.key().startsWith("native:")))try(var nativeView=new WorldNativeView(effects)){
+            var queued=new HashSet<UUID>();boolean stable=false;
+            for(int pass=0;pass<16;pass++){
+                if(!completed.isEmpty())WorldGroups.complete(this,level,completed);WorldConnections.complete(level,snapshot(),completed,catalog);
+                var proposed=snapshot().changed(completed.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var touched=new HashSet<CellPos>();for(var c:completed){c.nativeSource().ifPresent(touched::add);c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}for(var e:effects)if(e.key().startsWith("native:"))touched.add(e.owner());
+                boolean removed=false;for(var id:WorldSupport.nearby(proposed,touched)){var p=proposed.records().get(id);if(!available(p)||WorldSupport.supported(level,proposed,touched,p,catalog))continue;
+                    if(!snapshot().records().containsKey(id))throw new IllegalArgumentException("NO_SUPPORT: captured native member");
+                    for(var member:WorldGroups.registry(snapshot()).members(id))if(proposed.records().containsKey(member)){var old=snapshot().records().get(member);completed.removeIf(c->c.id().equals(member));completed.add(new OperationPlan.Change(member,Optional.of(old),Optional.empty()));if(queued.add(member)&&completed.stream().anyMatch(c->c.id().equals(member)&&c.before().isPresent()))WorldLoot.queue(level,old,auxiliary);removed=true;}
+                }if(!removed){stable=true;break;}
+            }if(!stable)throw new IllegalArgumentException("COMPLEXITY_LIMIT: world support closure");
+        }
+        executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,completed,BinaryData.EMPTY,BinaryData.EMPTY,auxiliary));
     }
     public static String nativeKey(CellPos c){return "native:"+c.x()+":"+c.y()+":"+c.z();}
     public Optional<net.minecraft.world.level.block.state.BlockState> nativeGoal(CellPos cell){var value=effects.get(nativeKey(cell));if(value==null)return Optional.empty();try{var image=NativeStateImage.decode(value.data());return Optional.of(NativeStates.resolve(image.block(),image.properties()));}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: native goal",ex);}}
@@ -383,7 +397,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void releaseNativeGoal(CellPos cell)throws IOException{var old=effects.get(nativeKey(cell));if(old!=null)executeWorld(List.of(),List.of(new OperationPlan.Effect(nativeKey(cell),cell,Optional.of(old.data()),Optional.empty())));}
     private void syncCell(CellPos cell,PieceIndex index)throws IOException{
         BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IOException("Region unloaded during commit");
-        var goal=nativeGoal(cell);if(goal.isPresent()){
+        var goal=nativeGoal(cell);if(goal.isPresent()&&(!goal.orElseThrow().isAir()||index.at(cell).isEmpty()&&fluids.at(cell).isEmpty())){
             if(!index.at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native goal conflicts with component authority");if(!level.getBlockState(at).equals(goal.orElseThrow())&&!level.setBlock(at,goal.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native mechanism projection rejected");return;
         }
         var nativeState=fluids.at(cell).isEmpty()?nativeProjection(cell,index):Optional.<net.minecraft.world.level.block.state.BlockState>empty();if(nativeState.isPresent()){

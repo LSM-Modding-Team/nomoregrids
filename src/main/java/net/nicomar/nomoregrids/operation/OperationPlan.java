@@ -21,8 +21,10 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
             if(!key.matches("(fluid|machine|loot|circuit|group|native|cursor|decoration):[a-zA-Z0-9_:.-]{1,192}")||before.equals(after)&&owner.equals(previousOwner))throw new IllegalArgumentException("Invalid world effect");}
     }
     public OperationPlan(UUID id,UUID actor,Kind kind,List<Change> changes,BinaryData before,BinaryData after){this(id,actor,kind,changes,before,after,List.of());}
-    public record Change(UUID id, Optional<PieceRecord> before, Optional<PieceRecord> after) {
+    public record Change(UUID id, Optional<PieceRecord> before, Optional<PieceRecord> after,Optional<CellPos> nativeSource) {
+        public Change(UUID id,Optional<PieceRecord> before,Optional<PieceRecord> after){this(id,before,after,Optional.empty());}
         public Change {
+            java.util.Objects.requireNonNull(nativeSource);if(nativeSource.isPresent()&&(before.isPresent()||after.isEmpty()))throw new IllegalArgumentException("Native source requires a capture");
             if (before.isEmpty() && after.isEmpty()) throw new IllegalArgumentException("Empty change");
             if (before.isPresent() && !before.orElseThrow().pieceId().equals(id)
                 || after.isPresent() && !after.orElseThrow().pieceId().equals(id)) throw new IllegalArgumentException("Identity changed");
@@ -48,7 +50,7 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
     private static Set<CellPos> cells(List<Change> changes) {
         Set<CellPos> cells = new HashSet<>();
         for (Change c : changes) {
-            c.before.ifPresent(p -> cells.addAll(p.worldOccupation().cells(8)));
+            c.nativeSource.ifPresent(cells::add);c.before.ifPresent(p -> cells.addAll(p.worldOccupation().cells(8)));
             c.after.ifPresent(p -> cells.addAll(p.worldOccupation().cells(8)));
         }
         return Set.copyOf(cells);

@@ -47,16 +47,16 @@ public final class WorldFluids {
                 if(v.hasVolume())solids.add(v.transformed(0,GridPoint.ZERO,new GridPoint(-x,-y,-z)));
             }
         }
-        if(boxes.isEmpty()&&solids.isEmpty()&&index.at(c).isEmpty()&&!edited.contains(c)){
-            var state=level.getBlockState(WorldService.pos(c));if(!(state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)&&!(state.getBlock() instanceof LiquidBlock)&&!state.isAir()){
+        if(boxes.isEmpty()&&solids.isEmpty()&&index.at(c).isEmpty()&&(!edited.contains(c)||index!=service.snapshot()&&WorldNativeView.at(c).isPresent())){
+            var state=index!=service.snapshot()?WorldNativeView.at(c).orElseGet(()->level.getBlockState(WorldService.pos(c))):level.getBlockState(WorldService.pos(c));if(!(state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)&&!(state.getBlock() instanceof LiquidBlock)&&!state.isAir()){
                 try{var clipped=new ArrayList<Box16>();for(var b:NativeStates.boxes(state.getCollisionShape(level,WorldService.pos(c))).boxes()){long x0=Math.max(0,b.min().x()),y0=Math.max(0,b.min().y()),z0=Math.max(0,b.min().z()),x1=Math.min(16,b.max().x()),y1=Math.min(16,b.max().y()),z1=Math.min(16,b.max().z());if(x0<x1&&y0<y1&&z0<z1)clipped.add(Box16.of(x0,y0,z0,x1,y1,z1));}return CavityCell.blocked(new BoxUnion(clipped));}catch(IllegalArgumentException nonIntegral){var closed=new BitSet(4096);closed.set(0,4096);return closed;}
             }
         }
         if(solids.size()>4096)throw new IllegalArgumentException("COMPLEXITY_LIMIT: cavity geometry");var direct=CavityCell.blocked(new BoxUnion(boxes));if(solids.isEmpty())return direct;var build=new CavityMaskJob(solids);build.advance(4096);direct.or(build.result());return direct;
     }
     public OperationPlan prepare(OperationPlan plan)throws IOException{
-        if(plan.changes().isEmpty()||plan.actor().equals(OperationPlan.WORLD_ACTOR)&&plan.effects().stream().anyMatch(e->e.key().startsWith("fluid:")))return plan;var before=service.snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
-        Set<CellPos> touched=plan.pieceCells();boolean wet=false;for(var c:touched)if(at(c).isPresent()||!level.getFluidState(WorldService.pos(c)).isEmpty())wet=true;if(!wet)return plan;
+        if(plan.changes().isEmpty()&&plan.effects().stream().noneMatch(e->e.key().startsWith("native:"))||plan.actor().equals(OperationPlan.WORLD_ACTOR)&&plan.effects().stream().anyMatch(e->e.key().startsWith("fluid:")))return plan;var before=service.snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
+        Set<CellPos> touched=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("native:")).forEach(e->touched.add(e.owner()));boolean wet=false;for(var c:touched)if(at(c).isPresent()||!level.getFluidState(WorldService.pos(c)).isEmpty())wet=true;if(!wet)return plan;
         var previous=new TreeMap<CellPos,CavityCell>();var masks=new TreeMap<CellPos,BitSet>();var region=new LinkedHashSet<CellPos>();var pending=new ArrayDeque<CellPos>();touched.stream().sorted().forEach(c->{region.add(c);pending.add(c);});
         while(!pending.isEmpty()){
             var c=pending.removeFirst();if(region.size()>256)throw new IllegalArgumentException("COMPLEXITY_LIMIT: fluid redistribution region");

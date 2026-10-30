@@ -790,3 +790,21 @@ También se permite una imagen geométrica sin cambios para planes de solo efect
 (inventarios, fluidos, cursor), conservando la misma instancia de PieceIndex.
 Pruebas puras de cierre de grupos escritas, no ejecutadas. Revisión sintáctica y
 de recursos; siguen pendientes compilación, inyección de mixins y juego.
+
+## Pistones mixtos y barridos convexos
+
+El hook descubre componentes detrás de cadenas nativas y contactos laterales
+adhesivos. El cierre captura perfiles nativos admitidos y mueve UUID existentes,
+incluidos grupos y diseños PB, con límite global de 12 miembros. El volumen barrido
+es la suma convexa exacta con un segmento: incluye las caras extruidas de aristas,
+no solamente una caja envolvente. Se comprueban entidades, regiones cargadas,
+reacción de movimiento y todos los obstáculos antes del commit. Frágiles nativos
+admitidos usan retirada/loot durable. El movimiento continúa siendo instantáneo.
+El codec privado de operaciones 4 conserva las coordenadas originales de captura
+y lee 1–3. Base/cabezal y vacantes nativas pertenecen al mismo plan; los apoyos y
+cavidades consultan imágenes propuestas sin instalar un mundo temporal. El cierre
+de apoyos y conexiones se completa antes de escribir el diario. Máquinas migran
+sus datos privados una vez y conservan ediciones preparadas al cambiar de sección.
+Se corrigió además una variable local que ocultaba el parámetro de tipos de fluido.
+Prueba pura de extrusión de una pendiente escrita, no ejecutada. Revisión de
+sintaxis/imports/recursos; pendientes compilación y pruebas reales de mecanismos.

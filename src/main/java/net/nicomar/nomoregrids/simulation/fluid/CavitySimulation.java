@@ -23,7 +23,7 @@ public final class CavitySimulation {
         public FlowJob(Map<CellPos,CavityCell> loaded){this(loaded,Set.of(Kind.WATER,Kind.LAVA));}
         public FlowJob(Map<CellPos,CavityCell> loaded,Set<Kind> active){
             previous=Map.copyOf(loaded);
-            var active=new HashMap<SectionPos,Integer>();for(var pos:loaded.keySet())if(active.merge(pos.section(),1,Integer::sum)>256)throw new IllegalArgumentException("Fluid section budget");
+            var sectionLoad=new HashMap<SectionPos,Integer>();for(var pos:loaded.keySet())if(sectionLoad.merge(pos.section(),1,Integer::sum)>256)throw new IllegalArgumentException("Fluid section budget");
             for(var cell:loaded.keySet().stream().sorted().toList()){
                 CavityCell state=loaded.get(cell);byte[] retained=state.fluids();for(int i=0;i<4096;i++)if(active.contains(state.at(i)))retained[i]=0;desired.put(cell,retained);
                 if(active.contains(state.source()))for(int i=0;i<4096;i++)queue.add(new Step(point(cell,i),state.source(),0));

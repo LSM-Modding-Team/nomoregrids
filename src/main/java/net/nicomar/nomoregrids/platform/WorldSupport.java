@@ -19,7 +19,7 @@ public final class WorldSupport {
             List<SupportResolver.Patch> surfaces=new ArrayList<>();Set<UUID> seen=new HashSet<>();
             for(var cell:SupportPatches.contactCells(requirement).cells(8)){
                 var pos=WorldService.pos(cell);if(!level.isLoaded(pos))throw new IllegalArgumentException("UNLOADED_REGION: support");
-                if(changed.contains(cell)||!index.at(cell).isEmpty()){
+                if(!index.at(cell).isEmpty()||changed.contains(cell)&&WorldNativeView.at(cell).isEmpty()){
                     for(UUID id:index.at(cell))if(!id.equals(dependent.pieceId())&&seen.add(id)){
                         var p=index.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||!SupportPatches.required(p).isEmpty())continue;
                         net.nicomar.nomoregrids.geometry.BoxUnion support;
@@ -29,7 +29,7 @@ public final class WorldSupport {
                         surfaces.addAll(SupportPatches.surfaces(support.transform(net.nicomar.nomoregrids.geometry.Rotation.of(p.orientation()),p.pivot16(),p.origin16())));
                     }
                 }else{
-                    var state=level.getBlockState(pos);if(state.isAir()||state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)continue;
+                    var state=WorldNativeView.at(cell).orElseGet(()->level.getBlockState(pos));if(state.isAir()||state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)continue;
                     var nativePiece=catalog.eligible(state)?NativeStates.capture(state,level,pos,UUID.randomUUID()):null;
                     if(nativePiece!=null&&!SupportPatches.required(nativePiece).isEmpty())continue;
                     Direction face=Direction.valueOf(requirement.normal().opposite().name());

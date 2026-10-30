@@ -69,10 +69,10 @@ public final class WorldFunctionals {
         var effects=new ArrayList<>(plan.effects());for(var c:plan.changes()){
             if(c.after().isPresent()&&piece(c.after().orElseThrow())){
                 var p=c.after().orElseThrow();var value=service.effects().get(key(p.pieceId()));if(value==null){BaseContainerBlockEntity be;
-                    var actual=level.getBlockEntity(WorldService.pos(p.origin16().cell()));if(actual instanceof BaseContainerBlockEntity nativeBE&&matchesNative(p,nativeBE.getBlockPos()))be=nativeBE;else if(p.itemPayload().size()==0)be=fresh(p);else throw new IllegalArgumentException("STALE_REVISION: native inventory");
+                    var actual=level.getBlockEntity(WorldService.pos(c.nativeSource().orElse(p.origin16().cell())));if(actual instanceof BaseContainerBlockEntity nativeBE&&matchesNative(p,nativeBE.getBlockPos()))be=nativeBE;else if(p.itemPayload().size()==0)be=fresh(p);else throw new IllegalArgumentException("STALE_REVISION: native inventory");
                     effects.add(new OperationPlan.Effect(key(p.pieceId()),p.origin16().cell(),Optional.empty(),Optional.of(encode(p,capture(p,be,0)))));
                 }else if(!value.owner().equals(p.origin16().cell())){
-                    var data=encode(p,state(p));effects.removeIf(e->e.key().equals(key(p.pieceId())));effects.add(new OperationPlan.Effect(key(p.pieceId()),p.origin16().cell(),Optional.of(value.data()),Optional.of(data),value.owner()));
+                    var pending=effects.stream().filter(e->e.key().equals(key(p.pieceId()))).findFirst();var migrated=state(p);if(pending.isPresent()&&pending.orElseThrow().after().isPresent())try{migrated=SimulationCodec.decode(pending.orElseThrow().after().orElseThrow().copy()).functionals().get(p.pieceId());}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: migrating functional state",ex);}var data=encode(p,migrated);effects.removeIf(e->e.key().equals(key(p.pieceId())));effects.add(new OperationPlan.Effect(key(p.pieceId()),p.origin16().cell(),Optional.of(value.data()),Optional.of(data),value.owner()));
                 }
             }else if(c.before().isPresent()&&piece(c.before().orElseThrow())){var p=c.before().orElseThrow();var old=service.effects().get(key(p.pieceId()));if(old==null)throw new IllegalArgumentException("INVALID_DATA: missing functional authority");effects.add(new OperationPlan.Effect(key(p.pieceId()),old.owner(),Optional.of(old.data()),Optional.empty()));}
         }
