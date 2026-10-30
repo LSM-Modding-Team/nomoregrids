@@ -1,0 +1,23 @@
+{
+  "key.categories.nomoregrids": "No More Grids",
+  "key.nomoregrids.toggle_orientation": "Toggle extended orientation",
+  "key.nomoregrids.toggle_precision": "Toggle precise placement",
+  "key.nomoregrids.toggle_resize": "Toggle full/fitted piece",
+  "key.nomoregrids.lock_alignment": "Lock or release alignment",
+  "key.nomoregrids.side_orientation": "Side orientation",
+  "key.nomoregrids.adjust_position": "Adjust position",
+  "key.nomoregrids.cycle_axis": "Cycle adjustment axis",
+  "key.nomoregrids.cycle_component": "Cycle accessible components",
+  "key.nomoregrids.replace": "Replace component",
+  "key.nomoregrids.lock_connections": "Lock or release connections",
+  "message.nomoregrids.overlap": "The piece overlaps another piece.",
+  "message.nomoregrids.no_support": "The surface does not provide enough support.",
+  "message.nomoregrids.unloaded_region": "A required region is not loaded.",
+  "message.nomoregrids.unsupported_adapter": "This block does not support this operation yet.",
+  "message.nomoregrids.stale_revision": "The piece changed; update your selection.",
+  "message.nomoregrids.complexity_limit": "The operation exceeds the complexity limit.",
+  "message.nomoregrids.entity_blocked": "An entity blocks placement.",
+  "message.nomoregrids.protected": "You do not have permission throughout the affected area.",
+  "message.nomoregrids.inventory_missing": "Materials or inventory space for leftovers are missing.",
+  "message.nomoregrids.invalid_data": "The piece data needs review."
+}
