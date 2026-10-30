@@ -55,6 +55,9 @@ public final class CompositeCellEntity extends BlockEntity {
         if(!valid)return Shapes.block();var cached=collision?collisionCache:selectionCache;if(cached!=null)return cached;VoxelShape shape=Shapes.empty();
         long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
         for(var piece:view.replicas()){
+            if(net.nicomar.nomoregrids.platform.WorldDecorations.piece(piece)&&!piece.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)){
+                for(var volume:net.nicomar.nomoregrids.compat.vanilla.DecorationAdapter.boxes(piece,collision?"collision":"selection")){var world=volume.transformed(piece.orientation(),piece.pivot16(),piece.origin16());double x0=Double.POSITIVE_INFINITY,y0=x0,z0=x0,x1=Double.NEGATIVE_INFINITY,y1=x1,z1=x1;for(var v:world.vertices()){x0=Math.min(x0,v.x());y0=Math.min(y0,v.y());z0=Math.min(z0,v.z());x1=Math.max(x1,v.x());y1=Math.max(y1,v.y());z1=Math.max(z1,v.z());}shape=Shapes.or(shape,Block.box(x0-bx,y0-by,z0-bz,x1-bx,y1-by,z1-bz));}continue;
+            }
             BoxUnion local=collision?piece.geometry().collision():piece.geometry().selection();
             for(var box:local.transform(Rotation.of(piece.orientation()),piece.pivot16(),piece.origin16()).boxes())
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));

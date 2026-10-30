@@ -17,11 +17,20 @@ public final class SupportPatches {
             local.add(new SupportResolver.Patch(anchor,anchor.sign()>0?16:0,6,3,10,13));
         }else if(id.equals("minecraft:lantern")||id.equals("minecraft:soul_lantern")){
             boolean hanging=Boolean.parseBoolean(piece.sourceState().getOrDefault("hanging","false"));local.add(new SupportResolver.Patch(hanging?Direction6.UP:Direction6.DOWN,hanging?16:0,6,6,10,10));
-        }else if(id.equals("minecraft:ladder")){
+        }else if(id.endsWith("_wall_sign")||id.endsWith("_wall_banner")){
+            Direction6 anchor=Direction6.valueOf(piece.sourceState().getOrDefault("facing","north").toUpperCase(Locale.ROOT)).opposite();local.add(new SupportResolver.Patch(anchor,anchor.sign()>0?16:0,7,7,9,9));
+        }else if(id.endsWith("_hanging_sign"))local.add(new SupportResolver.Patch(Direction6.UP,16,6,6,10,10));
+        else if(id.endsWith("_sign")||id.endsWith("_banner"))local.add(new SupportResolver.Patch(Direction6.DOWN,0,7,7,9,9));
+        else if(id.equals("minecraft:ladder")){
             Direction6 anchor=Direction6.valueOf(piece.sourceState().getOrDefault("facing","north").toUpperCase(Locale.ROOT)).opposite();
             local.add(new SupportResolver.Patch(anchor,anchor.sign()>0?16:0,2,2,14,6));local.add(new SupportResolver.Patch(anchor,anchor.sign()>0?16:0,2,10,14,14));
         }
         return local.stream().map(p->transform(p,piece)).toList();
+    }
+    public static List<List<SupportResolver.Patch>> alternatives(PieceRecord p){
+        if(!p.sourceBlockId().value().endsWith("_wall_hanging_sign"))return List.of(required(p));
+        Direction6 facing=Direction6.valueOf(p.sourceState().getOrDefault("facing","north").toUpperCase(Locale.ROOT));Direction6 side=facing.axis()==0?Direction6.NORTH:Direction6.EAST;
+        return List.of(List.of(transform(new SupportResolver.Patch(side,side.sign()>0?16:0,6,14,10,16),p)),List.of(transform(new SupportResolver.Patch(side.opposite(),side.sign()>0?0:16,6,14,10,16),p)));
     }
     private static SupportResolver.Patch patch(BoxMesh.Face face){var r=face.rect();return new SupportResolver.Patch(face.normal(),face.plane(),r.u0(),r.v0(),r.u1(),r.v1());}
     public static List<SupportResolver.Patch> surfaces(BoxUnion shape){return BoxMesh.extract(shape,4096).stream().map(SupportPatches::patch).toList();}

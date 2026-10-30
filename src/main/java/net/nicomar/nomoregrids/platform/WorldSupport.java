@@ -12,7 +12,10 @@ import net.nicomar.nomoregrids.world.PieceIndex;
 public final class WorldSupport {
     private WorldSupport(){}
     public static boolean supported(ServerLevel level,PieceIndex index,Set<CellPos> changed,PieceRecord dependent,VanillaCatalog catalog){
-        for(var requirement:SupportPatches.required(dependent)){
+        for(var alternative:SupportPatches.alternatives(dependent))if(supported(level,index,changed,dependent,catalog,alternative))return true;return false;
+    }
+    private static boolean supported(ServerLevel level,PieceIndex index,Set<CellPos> changed,PieceRecord dependent,VanillaCatalog catalog,List<SupportResolver.Patch> requirements){
+        for(var requirement:requirements){
             List<SupportResolver.Patch> surfaces=new ArrayList<>();Set<UUID> seen=new HashSet<>();
             for(var cell:SupportPatches.contactCells(requirement).cells(8)){
                 var pos=WorldService.pos(cell);if(!level.isLoaded(pos))throw new IllegalArgumentException("UNLOADED_REGION: support");

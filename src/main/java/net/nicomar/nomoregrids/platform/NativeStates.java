@@ -16,6 +16,7 @@ public final class NativeStates {
     private NativeStates(){}
     public static BlockState resolve(PieceRecord piece){return resolve(piece.sourceBlockId(),piece.sourceState());}
     public static BlockState original(PieceRecord piece){
+        if(WorldDecorations.piece(piece))return resolve(piece.sourceBlockId(),WorldDecorations.original(piece));
         if(piece.adapterId().value().equals("nomoregrids:paintableblocks")&&piece.itemPayload().size()>0){
             var envelope=com.google.gson.JsonParser.parseString(new String(piece.itemPayload().copy(),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();if(envelope.get("schema").getAsInt()!=1)throw new IllegalArgumentException("Unknown PB recovery image");
             if(envelope.has("native")){var properties=new HashMap<String,String>();envelope.getAsJsonObject("native").getAsJsonObject("state").entrySet().forEach(e->properties.put(e.getKey(),e.getValue().getAsString()));return resolve(piece.sourceBlockId(),properties);}

@@ -15,6 +15,7 @@ import net.nicomar.nomoregrids.operation.OperationPlan;
 public final class WorldLoot {
     private WorldLoot(){}
     public static void queue(ServerLevel level,PieceRecord p,List<OperationPlan.Effect> effects){
+        if(WorldDecorations.piece(p)){var drops=WorldDecorations.drops(p,level,null);if(!drops.isEmpty())effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),p.origin16().cell(),Optional.empty(),Optional.of(encode(level,drops))));return;}
         if(WorldFunctionals.piece(p)){var drops=NmgRuntime.existing(level).functionals().drops(p,null);if(!drops.isEmpty())effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),p.origin16().cell(),Optional.empty(),Optional.of(encode(level,drops))));return;}
         if(!p.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: world loot");
         var state=NativeStates.resolve(p);var items=Block.getDrops(state,level,WorldService.pos(p.origin16().cell()),null);int length=FragmentItem.length(p.itemPayload());var drops=new ArrayList<ItemStack>();

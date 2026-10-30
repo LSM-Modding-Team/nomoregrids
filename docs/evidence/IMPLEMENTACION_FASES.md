@@ -758,3 +758,19 @@ por dimensión para conservar herramientas PB nativas cuando NMG está desactiva
 el listener de herramientas tiene prioridad para evitar doble despacho. Protocolo 8.
 Prueba pura de empaquetado escrita, no ejecutada; parser, recursos y whitespace
 revisados. Sin compilación, Gradle, CI ni Minecraft.
+
+## Decoración nativa con datos y edición de carteles
+
+Perfil explícito de carteles normales/colgantes, banderas y cabezas vanilla.
+La autoridad guarda el NBT completo privado; la réplica publica únicamente texto,
+patrones y perfiles de render. Selección/colisión conservan coordenadas nativas
+fraccionarias, y un renderer de BE extrae las copias decorativas sin instalarlas
+en el mundo. Colocación incorpora componentes/datos del ítem, recuperación usa
+loot con la BE privada. Apoyos de suelo/techo/pared y alternativas de barra lateral
+se comprueban geométricamente. El editor de carteles filtra texto en servidor,
+valida revisión, visibilidad, permisos y cera; tintes/tinta/cera usan recibos.
+No se generaliza esta captura a BEs de otros mods o inventarios arbitrarios.
+También se corrige la creación PB de piezas cuyo recorte conserva el cubo entero
+y se limita antes de leer el archivo de intención de transferencias.
+Revisión estática: 203 fuentes, imports explícitos, recursos y whitespace.
+Sin compilación, pruebas Java ni Minecraft; render y apoyos requieren ejecución.

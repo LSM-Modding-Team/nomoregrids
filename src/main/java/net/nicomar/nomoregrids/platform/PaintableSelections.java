@@ -69,7 +69,7 @@ public final class PaintableSelections {
             }
         }
         for(var target:originals.values()){
-            var edit=bridge.volume(target,s.region,direction,s.upper,true,slots);if(edit.after().equals(Optional.of(target))||s.create&&edit.after().isEmpty())continue;edits.put(target.pieceId(),edit);
+            var edit=bridge.volume(target,s.region,direction,s.upper,true,slots);if(!s.create&&edit.after().equals(Optional.of(target))||s.create&&edit.after().isEmpty())continue;edits.put(target.pieceId(),edit);
             if(!p.isCreative()){int slot=s.hand==InteractionHand.MAIN_HAND?p.getInventory().getSelectedSlot():net.minecraft.world.entity.player.Inventory.SLOT_OFFHAND;var tool=slots.get(slot);if(tool.isEmpty())throw new IllegalArgumentException("INVENTORY_MISSING: former durability");tool.setDamageValue(tool.getDamageValue()+1);if(tool.getDamageValue()>=tool.getMaxDamage())slots.set(slot,ItemStack.EMPTY);}
         }
         if(!edits.isEmpty())service.commitPaintable(p,s.hand,edits,captures(service,originals),slots,UUID.randomUUID());SELECTIONS.remove(p.getUUID());send(p,null);

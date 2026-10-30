@@ -47,7 +47,7 @@ public final class NmgRuntime {
     public static void failed(ServerLevel level,Exception ex){quarantine(level,ex);}
     private static WorldService open(ServerLevel level)throws IOException{
         WorldService existing=SERVICES.get(level);if(existing!=null)return existing;
-        var adapters=new AdapterRegistry();adapters.register(new BoxAdapter());adapters.register(new net.nicomar.nomoregrids.compat.vanilla.FunctionalAdapter());
+        var adapters=new AdapterRegistry();adapters.register(new BoxAdapter());adapters.register(new net.nicomar.nomoregrids.compat.vanilla.DecorationAdapter());adapters.register(new net.nicomar.nomoregrids.compat.vanilla.FunctionalAdapter());
         if(ModList.get().isLoaded("paintableblocks"))try{adapters.register(new PaintableAdapter(NmgRuntime.class.getClassLoader()));}
         catch(ReflectiveOperationException|RuntimeException|LinkageError ex){NoMoreGrids.LOGGER.warn("PB adapter unavailable; data will be retained",ex);}
         adapters.freeze();var service=new WorldService(level,adapters);SERVICES.put(level,service);return service;
@@ -114,7 +114,7 @@ public final class NmgRuntime {
                     var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.remove(player,piece.pieceId(),packet.operation());
                 }
                 case INTERACT->{
-                    if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No functional component");var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(!WorldFunctionals.piece(piece)||!player.level().mayInteract(player,block.getBlockPos()))throw new IllegalArgumentException("PROTECTED");service.functionals().open(player,service.snapshot().records().get(piece.pieceId()));
+                    if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No functional component");var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if((!WorldFunctionals.piece(piece)&&!WorldDecorations.piece(piece))||!player.level().mayInteract(player,block.getBlockPos()))throw new IllegalArgumentException("PROTECTED");if(WorldDecorations.piece(piece))WorldDecorations.use(service,player,hand,service.snapshot().records().get(piece.pieceId()),block);else service.functionals().open(player,service.snapshot().records().get(piece.pieceId()));
                 }
                 case BUCKET->{service.fluids().bucket(player,hand,new net.nicomar.nomoregrids.core.CellPos(block.getBlockPos().getX(),block.getBlockPos().getY(),block.getBlockPos().getZ()),packet.operation());}
                 case EDIT->{
