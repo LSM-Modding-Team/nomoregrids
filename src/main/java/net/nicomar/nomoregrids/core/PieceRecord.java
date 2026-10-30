@@ -49,6 +49,7 @@ public record PieceRecord(UUID pieceId, long revision, ResourceId adapterId, int
 
     public PieceRecord moved(GridPoint origin, int rotation) {
         if (flags.contains(Flag.SUBSTITUTE)) throw new IllegalStateException("Substitute cannot be edited");
+        if (groupId.isPresent()) throw new IllegalStateException("Group movement requires a group adapter");
         return new PieceRecord(pieceId, Math.incrementExact(revision), adapterId, adapterVersion,
             sourceBlockId, sourceState, origin, rotation, pivot16, geometry, geometryPayload,
             materialPayload, itemPayload, groupId, flags);

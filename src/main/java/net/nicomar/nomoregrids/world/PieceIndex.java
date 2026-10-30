@@ -52,10 +52,14 @@ public final class PieceIndex {
 
     public static PieceIndex empty() { return new PieceIndex(List.of()); }
 
-    /** Validates a supplied snapshot; no filesystem or region loading occurs here. */
-    public static PieceIndex from(Collection<PieceRecord> pieces, Limits limits) {
+    /**
+     * Reconstructs an already committed snapshot, with structural/overlap checks.
+     * Current administrative count limits cannot prevent existing pieces loading.
+     * New placements must use changed(), including when the index was empty.
+     * No filesystem or region loading occurs here.
+     */
+    public static PieceIndex restored(Collection<PieceRecord> pieces) {
         PieceIndex index = new PieceIndex(pieces);
-        index.checkBudgets(limits, null);
         index.checkOverlaps(index.records.keySet());
         return index;
     }
@@ -88,11 +92,13 @@ public final class PieceIndex {
             }
             if (old != null) {
                 if (old.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Substitute cannot be edited");
+                if (old.groupId().isPresent()) throw new IndexException(INVALID_DATA,"Group operations require an adapter");
                 affected.addAll(old.worldOccupation().cells(8));
             }
             if (change.replacement().isPresent()) {
                 PieceRecord replacement = change.replacement().orElseThrow();
                 if (replacement.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Cannot place substitute");
+                if (replacement.groupId().isPresent()) throw new IndexException(INVALID_DATA,"Group operations require an adapter");
                 next.put(change.pieceId(), replacement);
                 affected.addAll(replacement.worldOccupation().cells(8));
             } else {
@@ -122,9 +128,9 @@ public final class PieceIndex {
     }
 
     private void checkBudgets(Limits limits, PieceIndex previous) {
-        checkCounts(cells, previous == null ? Map.of() : previous.cells, limits.perCell);
-        checkCounts(owners, previous == null ? Map.of() : previous.owners, limits.ownedPerSection);
-        checkCounts(references, previous == null ? Map.of() : previous.references, limits.referencesPerSection);
+        checkCounts(cells, previous.cells, limits.perCell);
+        checkCounts(owners, previous.owners, limits.ownedPerSection);
+        checkCounts(references, previous.references, limits.referencesPerSection);
     }
 
     private static <K> void checkCounts(Map<K, Set<UUID>> current, Map<K, Set<UUID>> previous, int limit) {

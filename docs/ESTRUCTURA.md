@@ -11,11 +11,11 @@
 | src/main/resources/assets/nomoregrids | Idiomas y carpetas de recursos |
 | src/main/resources/data/nomoregrids | Carpetas de perfiles, etiquetas, recetas y loot |
 | src/generated/resources | Salida futura de generación de recursos |
-| src/test | Reserva para pruebas del núcleo |
+| src/test | Pruebas JUnit del núcleo escritas, no ejecutadas |
 | src/gametest | Reserva para integración futura; no conectada a Gradle |
 | docs/obsidian/NoMoreGrids | Bóveda completa y actualización del estado |
 | docs/evidence | Reserva para evidencia ejecutada |
-| tools | Reserva para herramientas futuras |
+| tools | Comprobaciones estáticas de estructura y sintaxis, sin compilación |
 
 Ahora existen PieceRecord, geometría de cajas e índices puros de región, más tests escritos. No hay adaptadores, contenedores de Minecraft ni registros de contenido. Ver docs/evidence para el avance parcial de F1. Los archivos .gitkeep conservan carpetas en Git y se excluyen del JAR de recursos.
 
@@ -28,3 +28,4 @@ El repositorio usa Git. No se incluyen binarios compilados del mod, carpetas run
 - `world`: PieceIndex inmutable, cambios por lote y rechazos tipados; sin acceso a Minecraft.
 - `src/test/java`: pruebas JUnit escritas, no ejecutadas.
 - `tools/check_repository.py`: comprobación estructural sin compilación ni juego.
+- `persistence/BoxPieceCodec`: serialización acotada de registros de cajas, sin acceso al mundo o disco.

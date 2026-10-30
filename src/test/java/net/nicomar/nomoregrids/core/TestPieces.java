@@ -16,4 +16,10 @@ public final class TestPieces {
             new BoxGeometrySnapshot(shape, shape, shape), BinaryData.EMPTY, BinaryData.EMPTY,
             BinaryData.EMPTY, Optional.empty(), Set.of());
     }
+
+    public static PieceRecord withGroupAndFlags(PieceRecord base, Optional<UUID> group, Set<PieceRecord.Flag> flags) {
+        return new PieceRecord(base.pieceId(),base.revision(),base.adapterId(),base.adapterVersion(),base.sourceBlockId(),
+            base.sourceState(),base.origin16(),base.orientation(),base.pivot16(),base.geometry(),base.geometryPayload(),
+            base.materialPayload(),base.itemPayload(),group,flags);
+    }
 }

@@ -25,3 +25,7 @@ Implementados en fuente coordenadas, rotaciones, cajas, cuantización y selecci�
 ## Identidad e índices de F1
 
 `PieceRecord`, datos opacos inmutables, geometrías de consulta separadas y `PieceIndex` con cambios por lote ya están escritos. No hay transacciones de mundo/inventario. Ver `docs/evidence/F1-identidad-indices.md`; pruebas Java NO EJECUTADAS.
+
+## Codec experimental de F1
+
+Añadido `BoxPieceCodec` acotado a 256 KiB, con checksum y conservación de versiones futuras. Solo serialización en memoria; no es guardado de chunks ni diario. Ver `docs/evidence/F1-codec-cajas.md`. El estado consolidado está en `docs/ESTADO_DESARROLLO.md`.

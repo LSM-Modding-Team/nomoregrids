@@ -30,3 +30,4 @@ Estado en la edición documental 1.0: solo diseño. En la edición 1.1 se añade
 - Sin compilación, tests Java ni arranque; F0 y F1 abiertas. Evidencia en `docs/evidence`.
 
 - Añadidos registros de pieza inmutables, geometrías de consulta separadas e índices de región con cambios validados por lote. Sin puente al juego, persistencia ni red.
+- Añadido codec experimental de cajas con presupuesto, checksum, preservación de versiones futuras y casos de corrupción escritos. Sin conexión al guardado del mundo.
