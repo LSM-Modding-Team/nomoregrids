@@ -20,7 +20,8 @@
     "PaintableWorkstationActionMixin",
     "PaintableBucketActionMixin",
     "PaintableBucketInteractionMixin",
-    "NativeInventoryRemovalMixin"
+    "NativeInventoryRemovalMixin",
+    "CapturedNativeTickerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

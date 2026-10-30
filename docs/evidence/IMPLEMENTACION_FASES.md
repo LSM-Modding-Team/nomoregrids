@@ -958,3 +958,18 @@ una raíz nativa/NMG, con detección de ciclos y presupuesto de profundidad/trab
 Pruebas puras de pulso aplazado y corriente por gradiente escritas, no ejecutadas.
 Se revisaron firmas de notificación de vecinos de 26.2 y sintaxis/imports/recursos;
 no se probaron relojes, corrientes ni cadenas en Minecraft.
+
+## Revisión final de copias y chunks antiguos
+
+Las copias funcionales no introducen notificaciones de inventario en el mundo
+mientras se cargan, planifican recetas o preparan un menú. Las notificaciones
+ocurren después del commit. El ticker de una máquina nativa antigua se suspende
+cuando su posición ya pertenece a la autoridad funcional NMG, o conserva una
+vacante con recibo exacto; así no ejecuta un segundo horno mientras se repara el
+chunk. El inventario funcional también expone su señal analógica en las caras
+admitidas. Una comprobación adicional de nombres/imports detectó y corrigió los
+imports de PistonBaseBlock/PistonHeadBlock en el paquete piston de 26.2.
+Se escribieron casos de codec 4, lectura de operaciones 3, recibos nativos y
+orden canónico JSON. Revisión estática: 239 fuentes sintácticamente válidas, 92
+imports explícitos de Minecraft/NeoForge presentes, recursos y whitespace.
+Estas cifras no acreditan tipos, inyección de mixins, compilación ni ejecución.

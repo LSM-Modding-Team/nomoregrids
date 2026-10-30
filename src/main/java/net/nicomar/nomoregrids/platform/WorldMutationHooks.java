@@ -25,6 +25,7 @@ public final class WorldMutationHooks {
         try{service.releaseNative(cell);return true;}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
     }
     public static void changed(ServerLevel level,BlockPos pos){
+        if(WorldFunctionals.planningCopy())return;
         var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing())return;
         service.circuits().observeNative(pos);service.fluids().changed(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
         var dirty=DIRTY.computeIfAbsent(level,k->new LinkedHashSet<>());if(dirty.size()<4096)dirty.add(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
