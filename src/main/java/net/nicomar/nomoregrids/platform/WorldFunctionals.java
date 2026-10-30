@@ -40,9 +40,11 @@ public final class WorldFunctionals {
     private static String key(UUID id){return "machine:"+id;}
     private static BinaryData tag(ServerLevel level,CompoundTag tag){return new BinaryData(CompoundTag.CODEC.encodeStart(level.registryAccess().createSerializationContext(JsonOps.INSTANCE),tag).getOrThrow().toString().getBytes(StandardCharsets.UTF_8));}
     private static CompoundTag tag(ServerLevel level,BinaryData data){return CompoundTag.CODEC.parse(level.registryAccess().createSerializationContext(JsonOps.INSTANCE),JsonParser.parseString(new String(data.copy(),StandardCharsets.UTF_8))).getOrThrow();}
-    public static PieceRecord capture(BlockState state,Level world,BlockPos at,UUID id){
+    public static PieceRecord placement(BlockState state,Level world,BlockPos at,UUID id){return capture(state,world,at,id,false);}
+    public static PieceRecord capture(BlockState state,Level world,BlockPos at,UUID id){return capture(state,world,at,id,true);}
+    private static PieceRecord capture(BlockState state,Level world,BlockPos at,UUID id,boolean nativeSource){
         if(!eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: functional profile");var selection=NativeStates.boxes(state.getShape(world,at));var collision=NativeStates.boxes(state.getCollisionShape(world,at));BinaryData original=BinaryData.EMPTY;
-        if(world instanceof ServerLevel server&&world.getBlockEntity(at)!=null)original=new BinaryData(net.nicomar.nomoregrids.network.SnapshotAssembler.sha256(tag(server,world.getBlockEntity(at).saveWithoutMetadata(server.registryAccess())).copy()));
+        if(nativeSource&&world instanceof ServerLevel server&&world.getBlockEntity(at)!=null)original=new BinaryData(net.nicomar.nomoregrids.network.SnapshotAssembler.sha256(tag(server,world.getBlockEntity(at).saveWithoutMetadata(server.registryAccess())).copy()));
         var source=new ResourceId(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());return new PieceRecord(id,0,new ResourceId(ADAPTER),1,source,NativeStates.properties(state),new GridPoint(at.getX()*16L,at.getY()*16L,at.getZ()*16L),0,GridPoint.BLOCK_CENTER,new BoxGeometrySnapshot(selection,collision,selection),new NativeStateImage(source,NativeStates.properties(state)).encode(),BinaryData.EMPTY,original,Optional.empty(),Set.of());
     }
     public boolean matchesNative(PieceRecord p,BlockPos at){if(p.itemPayload().size()!=32||level.getBlockEntity(at)==null)return false;return Arrays.equals(p.itemPayload().copy(),net.nicomar.nomoregrids.network.SnapshotAssembler.sha256(tag(level,level.getBlockEntity(at).saveWithoutMetadata(level.registryAccess())).copy()));}

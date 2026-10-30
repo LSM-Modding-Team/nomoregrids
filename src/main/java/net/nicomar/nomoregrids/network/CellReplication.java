@@ -20,7 +20,7 @@ public final class CellReplication {
         if(!player.level().getChunkSource().chunkMap.getPlayers(new net.minecraft.world.level.ChunkPos(pos),false).contains(player))return;
         if(player.level().isLoaded(pos)&&player.level().getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.valid())snapshot(player,cell);
     }
-    public static void snapshot(ServerPlayer player,CompositeCellEntity cell){try{send(player.level(),cell.getBlockPos(),false,cell.view().encode(),player);}catch(IOException ex){throw new IllegalStateException("Cannot encode public cell",ex);}}
+    public static void snapshot(ServerPlayer player,CompositeCellEntity cell){try{if(cell.getLevel() instanceof ServerLevel level)send(level,cell.getBlockPos(),false,cell.view().encode(),player);}catch(IOException ex){throw new IllegalStateException("Cannot encode public cell",ex);}}
     public static void changed(ServerLevel level,BlockPos pos,CellView before,CellView after){
         try{if(before.equals(after))return;byte[] full=after.encode(),delta;try{delta=CellDelta.encode(before,after);}catch(IOException oversized){delta=full;}send(level,pos,delta.length<full.length,delta.length<full.length?delta:full,null);}
         catch(IOException ex){throw new IllegalStateException("Cannot encode public cell",ex);}

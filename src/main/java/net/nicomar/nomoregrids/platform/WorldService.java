@@ -80,7 +80,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         Map<Long,UUID> owners=new HashMap<>();sequences.forEach((id,seq)->owners.put(seq,history.get(id).actor()));
         var actors=new HashSet<UUID>();if(archive!=null)actors.addAll(archive.state().receipts().keySet());history.values().stream().map(OperationPlan::actor).filter(id->!id.equals(OperationPlan.WORLD_ACTOR)).forEach(actors::add);
         for(UUID actor:actors){
-            long marker=watermark(actor);if(marker!=0&&(marker<=baseSequence?!Objects.equals(archive.state().receipts().get(actor),marker):!actor.equals(owners.get(marker))))throw new IOException("Player receipt does not belong to this journal history; data retained");
+            long marker=watermark(actor);if(archive!=null&&marker<archive.state().receipts().getOrDefault(actor,0L))throw new IOException("Player receipt predates compacted history; original retained");if(marker!=0&&(marker<=baseSequence?!Objects.equals(archive.state().receipts().get(actor),marker):!actor.equals(owners.get(marker))))throw new IOException("Player receipt does not belong to this journal history; data retained");
         }
         for(var p:List.copyOf(records.values()))try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);}catch(RuntimeException ex){
             var flags=new HashSet<>(p.flags());flags.add(PieceRecord.Flag.SUBSTITUTE);records.put(p.pieceId(),new PieceRecord(p.pieceId(),p.revision(),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),flags));
@@ -102,6 +102,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(receipt(plan,sequence))return;
         if(recovering)for(var change:plan.changes())for(var p:List.of(change.before(),change.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()>=sequence)
             throw new IOException("World checkpoint exists without its player receipt; operation quarantined");
+        if(recovering)for(var effect:plan.effects())if(effectStore.checkpoint(effect.owner().section())>=sequence)throw new IOException("Effects checkpoint exists without its player receipt; operation quarantined");
         ServerPlayer actor=level.getServer().getPlayerList().getPlayer(plan.actor());
         if(actor==null)throw new IOException("Recovery waiting for actor "+plan.actor()+"; no resources replayed");
         if(!recovering&&!NativeInventory.matches(actor,plan.resourcesBefore()))throw new IOException("Resource image changed before live commit application");
@@ -400,7 +401,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         writing++;try{repairCells(existingCells);}finally{writing--;}
     }
     private void repairCells(Collection<BlockPos> existingCells)throws IOException{
-        if(engine.quarantined())throw new IOException("Committed operation requires recovery; replicas retained");
+        if(quarantined())throw new IOException("Committed operation requires recovery; replicas retained");
         Set<CellPos> cells=new HashSet<>();for(var p:existingCells)cells.add(new CellPos(p.getX(),p.getY(),p.getZ()));
         for(var cell:cells){
             var state=level.getBlockState(pos(cell));

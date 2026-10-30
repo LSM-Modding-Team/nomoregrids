@@ -22,8 +22,8 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 
 - `python tools/check_repository.py`: recursos JSON, TOML, MIT, checksum del
   wrapper, enlaces wiki e independencia del núcleo.
-- Parser Tree-sitter: 147 fuentes Java sin errores sintácticos; no resuelve tipos ni firmas de APIs.
-- Archivo de APIs: 58 imports explícitos presentes en los jars consultados;
+- Parser Tree-sitter: 178 fuentes Java sin errores sintácticos; no resuelve tipos ni firmas de APIs.
+- Archivo de APIs: 64 imports explícitos presentes en los jars consultados;
   no comprueba miembros, comodines ni extensiones parcheadas.
 - `git diff --check`: whitespace.
 - Lectura de fuentes NeoForge 26.2.0.88, parches userdev, jars oficiales 26.2 y
@@ -90,3 +90,28 @@ componentes NMG: barrido, entidades y límite 12; extensión/retracción de base
 cabezal pertenecen al mismo plan durable. El movimiento se aplica de forma
 instantánea. Faltan empujes mixtos de bloques nativos, grupos y movimiento PB;
 se rechazan. Redstone y raíles todavía no tienen un puente completo al mundo.
+
+## Alcance todavía sin implementar al cerrar esta entrega
+
+Esta entrega amplía la integración y publica sus commits en `26.2`, pero **no
+termina todo el trabajo solicitado**. Estos pendientes son de código, además
+de la compilación/ejecución expresamente no realizadas:
+
+- F1: recuperación intermod con pérdida/restauración de adaptadores y todas las
+  representaciones nativas orientadas; la restauración actual exige marco exacto.
+- F4: decoración con BE/datos, contactos avanzados y propagación exacta de energía
+  de explosiones para geometría arbitraria.
+- F5: partición consistente de redes activas mayores a 256 celdas y contacto
+  físico exacto de entidades con cada microvolumen; completar/verificar puente
+  de flujos vanilla en todos los casos de fuente y carga.
+- F6: volúmenes mixtos con PB nativo y convertido, y creación volumétrica conjunta.
+- F7: capacidades de transferencia/energía entre mods, grupos, cursor/drag/autofill
+  y XP transaccionales, cadencia a escala y migración de autoridad al mover.
+- F8: circuitos/redstone y raíles conectados al mundo; pistones de lotes mixtos,
+  grupos, PB y trayectorias convexas exactas; cierre de apoyos en la misma operación
+  cuando intervienen los estados nativos del mecanismo.
+- F9: compactación incremental/automática y límites globales adicionales, con
+  mediciones reales pendientes.
+
+F2/F3 necesitan completar su matriz de comprobaciones geométricas/visuales y
+corregir lo que revele la ejecución; no se consideran aceptadas.

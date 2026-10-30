@@ -6,9 +6,9 @@ version="${mod_version}"
 displayName="${mod_name}"
 authors="Nicolás Marquina Díaz"
 description='''
-Base de desarrollo de No More Grids.
+Implementación experimental de No More Grids.
 El diseño permite piezas independientes que comparten casillas y colocación precisa.
-Este esqueleto todavía no implementa esas funciones.
+Integraciones avanzadas parciales; pendientes de compilación y validación en juego.
 '''
 
 [[dependencies.${mod_id}]]

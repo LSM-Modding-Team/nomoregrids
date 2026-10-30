@@ -43,7 +43,7 @@ public final class ConstructionCandidate {
             state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);
         }
         if(mode.expanded()&&!slab&&!stair&&NativeStates.properties(state).containsKey("axis")){var values=new HashMap<>(NativeStates.properties(state));values.put("axis","z");state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);}
-        var piece=WorldFunctionals.eligible(state)?WorldFunctionals.capture(state,player.level(),context.getClickedPos(),id):paintable==null?NativeStates.capture(state,player.level(),context.getClickedPos(),id):paintable.placement(context,id);
+        var piece=WorldFunctionals.eligible(state)?WorldFunctionals.placement(state,player.level(),context.getClickedPos(),id):paintable==null?NativeStates.capture(state,player.level(),context.getClickedPos(),id):paintable.placement(context,id);
         if(paintable!=null&&mode.aligned()&&mode.alignmentProperties().containsKey("pb_orientation"))piece=paintable.oriented(piece,Integer.parseInt(mode.alignmentProperties().get("pb_orientation")));
         if(mode.lateral()&&normal.axis()!=1&&(slab||stair)){
             if(stair){var look=player.getLookAngle();orientation=PlacementSolver.stairOrientation(normal,look.x,look.y,look.z,0);}

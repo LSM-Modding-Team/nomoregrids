@@ -616,3 +616,19 @@ no se promete coste por tick ni escalado ilimitado. Se escriben pruebas de
 generaciones, deduplicación, UUID retirados y fallo previo a publicar; no se
 ejecutan. Parser, recursos y whitespace pasan. Compilación, Java tests, juego,
 inyección de fallos real y benchmarks siguen sin ejecutarse.
+
+## Revisión estática de cierre de la entrega
+
+Se corrigen snapshots durante transferencia de dimensión (se usa el mundo de
+la celda), se distingue captura nativa de colocación funcional vacía, y se exige
+recibo persistido también para checkpoints de efectos sin cambios geométricos.
+Un recibo que retrocede por debajo del checkpoint compactado bloquea recuperación
+en vez de inferir materiales. Las máscaras fluidas de cajas usan recorte entero
+directo; los convexos conservan el algoritmo exacto conservador.
+
+Se amplían casos escritos de delta para sustitución, remoción, UUID nuevo y base
+desactualizada. Resultado estático: 178 fuentes Java parseadas sin errores de
+sintaxis, 64 imports explícitos presentes, recursos/enlaces y whitespace válidos.
+**No se han compilado fuentes ni ejecutado tests Java, Gradle, CI o Minecraft.**
+El estado enumera expresamente pendientes de implementación; esta entrega no
+acredita que todo F0–F9 esté implementado o aceptado.
