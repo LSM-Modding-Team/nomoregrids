@@ -21,7 +21,8 @@ public final class OperationEngine {
     private final Host host;
     private final PieceIndex.Limits limits;
     private PieceIndex index;
-    private boolean quarantined;
+    private boolean quarantined,busy;
+    public boolean busy(){return busy;}
     private final net.nicomar.nomoregrids.diagnostic.TimingSamples timings=new net.nicomar.nomoregrids.diagnostic.TimingSamples(1024);
     public net.nicomar.nomoregrids.diagnostic.TimingSamples timings(){return timings;}
 
@@ -32,7 +33,8 @@ public final class OperationEngine {
     public PieceIndex snapshot(){return index;}
     public boolean quarantined(){return quarantined;}
     public void execute(OperationPlan plan) throws IOException {
-        long started=System.nanoTime();try{executeTimed(plan);}finally{timings.add(System.nanoTime()-started);}
+        host.assertServerThread();if(busy)throw new IllegalStateException("Operation validation/application is already in progress");busy=true;
+        long started=System.nanoTime();try{executeTimed(plan);}finally{busy=false;timings.add(System.nanoTime()-started);}
     }
     private void executeTimed(OperationPlan plan)throws IOException{
         host.assertServerThread();if(quarantined)throw new IOException("Operation engine quarantined");
@@ -48,12 +50,12 @@ public final class OperationEngine {
         PieceIndex next=index.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),limits);
         host.validate(plan,index,next);
         journal.commit(plan);
-        try {host.install(plan,next);index=next;host.afterCommit(plan);}
+        try {host.install(plan,next);index=next;busy=false;host.afterCommit(plan);}
         catch(IOException | RuntimeException ex){quarantined=true;throw new IOException("Committed operation requires recovery: "+plan.id(),ex);}
     }
     /** Replay only records whose actual state is before or after; never consume resources blindly. */
     public void recover() throws IOException {
-        host.assertServerThread();
+        host.assertServerThread();if(busy)throw new IllegalStateException("Operation validation/application is already in progress");busy=true;
         try {
             for(var plan:journal.committed()) {
                 if(host.alreadyApplied(plan.id()))continue;
@@ -67,6 +69,6 @@ public final class OperationEngine {
                 host.install(plan,next);index=next;
             }
             quarantined=false;
-        } catch(IOException | RuntimeException ex){quarantined=true;throw new IOException("Recovery conflict; data retained",ex);}
+        } catch(IOException | RuntimeException ex){quarantined=true;throw new IOException("Recovery conflict; data retained",ex);}finally{busy=false;}
     }
 }

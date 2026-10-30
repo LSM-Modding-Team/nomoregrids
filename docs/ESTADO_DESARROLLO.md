@@ -23,7 +23,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 - `python tools/check_repository.py`: recursos JSON, TOML, MIT, checksum del
   wrapper, enlaces wiki e independencia del núcleo.
 - Parser Tree-sitter: 178 fuentes Java sin errores sintácticos; no resuelve tipos ni firmas de APIs.
-- Archivo de APIs: 64 imports explícitos presentes en los jars consultados;
+- Archivo de APIs: 69 imports explícitos presentes en los jars consultados;
   no comprueba miembros, comodines ni extensiones parcheadas.
 - `git diff --check`: whitespace.
 - Lectura de fuentes NeoForge 26.2.0.88, parches userdev, jars oficiales 26.2 y

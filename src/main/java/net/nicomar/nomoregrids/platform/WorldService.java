@@ -462,7 +462,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     private boolean knownPiece(UUID id){if(knownIds.contains(id))return true;if(archive==null)return false;try{return archive.knownPiece(id);}catch(IOException ex){throw new UncheckedIOException(ex);}}
     public long compact()throws IOException{
-        assertServerThread();if(quarantined())throw new IOException("Recovery required before compaction");long sequence=baseSequence+sequences.size();if(sequence==baseSequence)return sequence;
+        assertServerThread();if(engine.busy())throw new IOException("Operation in progress; compaction deferred");if(quarantined())throw new IOException("Recovery required before compaction");long sequence=baseSequence+sequences.size();if(sequence==baseSequence)return sequence;
         var receipts=new HashMap<UUID,Long>();if(archive!=null)receipts.putAll(archive.state().receipts());var stamps=new HashMap<UUID,JournalArchive.Stamp>();
         for(var plan:history.values()){
             long n=sequences.get(plan.id());if(!plan.actor().equals(OperationPlan.WORLD_ACTOR))receipts.merge(plan.actor(),n,Math::max);

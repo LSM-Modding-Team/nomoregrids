@@ -18,15 +18,22 @@ class OperationEngineTest {
         return new OperationPlan(UUID.randomUUID(),UUID.randomUUID(),OperationPlan.Kind.PLACE,List.of(new OperationPlan.Change(p.pieceId(),Optional.empty(),Optional.of(p))),new BinaryData(new byte[]{5}),new BinaryData(new byte[]{4}));}
     private static final class Host implements OperationEngine.Host {
         BinaryData resources=new BinaryData(new byte[]{5});int installs;boolean refuse,failAfterInstall;
+        Runnable duringValidation;
         Set<UUID> receipts=new HashSet<>();
         @Override public void assertServerThread(){}
-        @Override public void validate(OperationPlan plan,PieceIndex before,PieceIndex after){if(refuse)throw new IllegalArgumentException("PROTECTED");assertEquals(plan.resourcesBefore(),resources);}
+        @Override public void validate(OperationPlan plan,PieceIndex before,PieceIndex after){if(refuse)throw new IllegalArgumentException("PROTECTED");assertEquals(plan.resourcesBefore(),resources);if(duringValidation!=null)duringValidation.run();}
         @Override public void install(OperationPlan plan,PieceIndex after)throws IOException{
             if(!resources.equals(plan.resourcesAfter())){if(!resources.equals(plan.resourcesBefore()))throw new IOException("Receipt conflict");resources=plan.resourcesAfter();installs++;}
             if(failAfterInstall)throw new IOException("Injected failure after resources");receipts.add(plan.id());
         }
         @Override public boolean alreadyApplied(UUID id){return receipts.contains(id);}
         @Override public void afterCommit(OperationPlan plan){}
+    }
+    @Test void validationCannotCommitAReentrantOperation()throws Exception{
+        try(var journal=new DurableJournal(dir.resolve("ops"))){var host=new Host();var engine=new OperationEngine(PieceIndex.empty(),journal,host,PieceIndex.Limits.DEFAULT);var outer=plan();var nested=plan();
+            host.duringValidation=()->assertThrows(IllegalStateException.class,()->engine.execute(nested));engine.execute(outer);
+            assertTrue(journal.contains(outer.id()));assertFalse(journal.contains(nested.id()));assertEquals(1,host.installs);assertEquals(1,engine.snapshot().records().size());assertFalse(engine.busy());
+        }
     }
     @Test void rejectionHasNoDurableCommitOrResourceChange()throws Exception{
         try(var journal=new DurableJournal(dir.resolve("ops"))){var host=new Host();host.refuse=true;var engine=new OperationEngine(PieceIndex.empty(),journal,host,PieceIndex.Limits.DEFAULT);var plan=plan();

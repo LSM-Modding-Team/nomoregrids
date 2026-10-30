@@ -628,7 +628,18 @@ directo; los convexos conservan el algoritmo exacto conservador.
 
 Se amplían casos escritos de delta para sustitución, remoción, UUID nuevo y base
 desactualizada. Resultado estático: 178 fuentes Java parseadas sin errores de
-sintaxis, 64 imports explícitos presentes, recursos/enlaces y whitespace válidos.
+sintaxis, 69 imports explícitos presentes, recursos/enlaces y whitespace válidos.
 **No se han compilado fuentes ni ejecutado tests Java, Gradle, CI o Minecraft.**
 El estado enumera expresamente pendientes de implementación; esta entrega no
 acredita que todo F0–F9 esté implementado o aceptado.
+
+## Guardia de reentrada transaccional
+
+La validación y aplicación de una operación bloquean reentrada de otro commit
+desde callbacks. Esto evita que una instantánea calculada antes de un callback
+sobrescriba un commit anidado. Las notificaciones posteriores se emiten tras
+publicar el índice y permiten operaciones posteriores; la compactación no puede
+reemplazar el diario durante validación/aplicación. Se añade un caso escrito
+del coordinador real con diario para comprobar que la operación anidada no se
+confirma ni consume. No ejecutado. Se corrige el recuento de imports consultados
+a 69; parser permanece en 178 fuentes, sin resolución de tipos.
