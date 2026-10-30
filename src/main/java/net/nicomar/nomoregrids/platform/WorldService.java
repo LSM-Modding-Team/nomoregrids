@@ -32,6 +32,11 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private final ServerLevel level;
     private final DurableJournal journal;
     private final SectionStore store;
+    private final WorldEffectStore effectStore;
+    private final Map<String,WorldEffectStore.Value> effects=new TreeMap<>();
+    private int writing;
+    public boolean writing(){return writing>0;}
+    public Map<String,WorldEffectStore.Value> effects(){return Map.copyOf(effects);}
     private final AdapterRegistry adapters;
     private final VanillaCatalog catalog=new VanillaCatalog();
     private final String receiptKey;
@@ -48,7 +53,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         String hash=java.util.HexFormat.of().formatHex(SnapshotAssembler.sha256(dimension.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         receiptKey="nmg_applied_"+hash;Path root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
         Map<String,Integer> versions=new HashMap<>();adapters.versions().forEach((id,version)->versions.put(id.value(),version));WorldRules.verifyOrCreate(root.resolve("rules.json"),SessionPayload.localHash(),ProtocolRules.defaults(versions));
-        store=new SectionStore(root.resolve("sections"));journal=new DurableJournal(root.resolve("operations.log"));
+        store=new SectionStore(root.resolve("sections"));effectStore=new WorldEffectStore(root.resolve("effects"));journal=new DurableJournal(root.resolve("operations.log"));
         try{restore();}catch(IOException|RuntimeException ex){journal.close();throw ex;}
     }
     private void restore()throws IOException{
@@ -60,10 +65,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
                 if(!Objects.equals(Optional.ofNullable(records.get(c.id())),c.before()))throw new IOException("Journal history conflict");
                 if(c.after().isPresent())records.put(c.id(),c.after().orElseThrow());else records.remove(c.id());
             }
-            reconcileResources(plan,sequence);
+            applyEffects(plan);reconcileResources(plan,sequence);
         }
         Map<Long,UUID> owners=new HashMap<>();sequences.forEach((id,seq)->owners.put(seq,history.get(id).actor()));
-        for(UUID actor:history.values().stream().map(OperationPlan::actor).collect(java.util.stream.Collectors.toSet())){
+        for(UUID actor:history.values().stream().map(OperationPlan::actor).filter(id->!id.equals(OperationPlan.WORLD_ACTOR)).collect(java.util.stream.Collectors.toSet())){
             long marker=watermark(actor);if(marker!=0&&!actor.equals(owners.get(marker)))throw new IOException("Player receipt does not belong to this journal history; data retained");
         }
         for(var p:List.copyOf(records.values()))try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);}catch(RuntimeException ex){
@@ -73,7 +78,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         engine=new OperationEngine(index,journal,this,PieceIndex.Limits.DEFAULT);recovering=false;
     }
     private boolean receipt(OperationPlan plan,long sequence)throws IOException{
-        return watermark(plan.actor())>=sequence;
+        if(plan.actor().equals(OperationPlan.WORLD_ACTOR))return true;return watermark(plan.actor())>=sequence;
     }
     private long watermark(UUID actor)throws IOException{
         // A volatile entity tag is not proof of a completed save, even when the actor is online.
@@ -82,6 +87,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(marker<0)throw new IOException("Negative resource receipt");return marker;
     }
     private void reconcileResources(OperationPlan plan,long sequence)throws IOException{
+        if(plan.actor().equals(OperationPlan.WORLD_ACTOR))return;
         if(receipt(plan,sequence))return;
         if(recovering)for(var change:plan.changes())for(var p:List.of(change.before(),change.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()>=sequence)
             throw new IOException("World checkpoint exists without its player receipt; operation quarantined");
@@ -128,6 +134,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var cell:candidate.worldOccupation().cells(8)){
             BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");
             var state=level.getBlockState(at);
+            if(!snapshot().at(cell).isEmpty()&&nativeProjection(cell,snapshot()).filter(state::equals).isPresent())continue;
             if(!state.isAir()&&state.getBlock()!=NmgContent.CELL.get()){
                 var paintable=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.nativeBlock(state));
                 if(paintable.isEmpty()&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
@@ -213,12 +220,15 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         validate(plan,before,after,false);
     }
     private void validate(OperationPlan plan,PieceIndex before,PieceIndex after,boolean preview){
+        validateEffects(plan);
+        if(plan.actor().equals(OperationPlan.WORLD_ACTOR)){validateSystem(plan,before,after);return;}
         ServerPlayer player=level.getServer().getPlayerList().getPlayer(plan.actor());if(player==null||player.level()!=level||player.isSpectator())throw new IllegalArgumentException("Invalid actor");
         if(!NativeInventory.matches(player,plan.resourcesBefore()))throw new IllegalArgumentException("STALE_REVISION");
         if(player.getPersistentData().getLongOr(receiptKey,0)>sequences.size())throw new IllegalArgumentException("INVALID_DATA: receipt is ahead of journal");
         double reach=player.blockInteractionRange();var eye=player.getEyePosition();
         boolean inReach=plan.changes().stream().flatMap(c->java.util.stream.Stream.concat(c.before().stream(),c.after().stream())).anyMatch(p->{
             var b=p.worldOccupation().bounds();double x=Math.max(b.min().x()/16.0,Math.min(b.max().x()/16.0,eye.x)),y=Math.max(b.min().y()/16.0,Math.min(b.max().y()/16.0,eye.y)),z=Math.max(b.min().z()/16.0,Math.min(b.max().z()/16.0,eye.z));return eye.distanceToSqr(new Vec3(x,y,z))<=reach*reach;});
+        if(plan.kind()==OperationPlan.Kind.CLAIM)inReach=plan.affectedCells().stream().allMatch(c->eye.distanceToSqr(new Vec3(c.x()+0.5,c.y()+0.5,c.z()+0.5))<=16);
         if(!inReach)throw new IllegalArgumentException("Interaction out of reach");
         if(plan.kind()==OperationPlan.Kind.PLACE){
             var p=plan.changes().reversed().stream().flatMap(c->c.after().stream()).findFirst().orElseThrow();var b=p.worldOccupation().bounds();
@@ -236,11 +246,12 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var cell:plan.affectedCells()){
             BlockPos at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION or world boundary");
             if(!level.mayInteract(player,at)||!player.getAbilities().mayBuild)throw new IllegalArgumentException("PROTECTED");
+            if(!plan.pieceCells().contains(cell))continue;
             if(!level.getFluidState(at).isEmpty())throw new IllegalArgumentException("Partial-fluid host not enabled for this operation");
             var state=level.getBlockState(at);
             if(state.getBlock()==NmgContent.CELL.get()){
                 if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("INVALID_DATA");
-            }else if(!state.isAir()){
+            }else if(!state.isAir()&&nativeProjection(cell,before).filter(state::equals).isEmpty()){
                 boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
                 if(!captured)throw new IllegalArgumentException("World changed before conversion");
             }
@@ -275,10 +286,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         validateWorldImages(plan,before);
     }
     private void validateWorldImages(OperationPlan plan,PieceIndex before){
-        for(var cell:plan.affectedCells()){
+        for(var cell:plan.pieceCells()){
             var at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");var state=level.getBlockState(at);
             if(!before.at(cell).isEmpty()){
-                if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid()||!entity.view().equals(CellView.from(cell,before)))throw new IllegalArgumentException("STALE_REVISION: replica requires recovery");
+                if(nativeProjection(cell,before).filter(state::equals).isEmpty()&&(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid()||!entity.view().equals(CellView.from(cell,before))))throw new IllegalArgumentException("STALE_REVISION: replica requires recovery");
             }else if(state.getBlock()==NmgContent.CELL.get())throw new IllegalArgumentException("INVALID_DATA: unrecognized cell is retained");
             else if(!state.isAir()){
                 boolean expected=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
@@ -294,26 +305,72 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         long sequence=sequences.computeIfAbsent(plan.id(),key->(long)sequences.size()+1);history.put(plan.id(),plan);
         for(var c:plan.changes())knownIds.add(c.id());
         reconcileResources(plan,sequence);
-        for(var cell:plan.affectedCells())syncCell(cell,after);
+        applyEffects(plan);
+        writing++;try{for(var cell:plan.pieceCells())syncCell(cell,after);}finally{writing--;}
+        Set<SectionPos> effectSections=new HashSet<>();plan.effects().forEach(e->effectSections.add(e.owner().section()));
+        for(var section:effectSections)effectStore.write(section,sequence,sectionEffects(section));
         Set<SectionPos> sections=new HashSet<>();for(var c:plan.changes()){c.before().ifPresent(p->sections.add(p.ownerSection()));c.after().ifPresent(p->sections.add(p.ownerSection()));}
         for(var section:sections)store.write(section,sequence,after.ownedBy(section).stream().map(after.records()::get).toList());
     }
+    private Map<String,WorldEffectStore.Value> sectionEffects(SectionPos section){var result=new TreeMap<String,WorldEffectStore.Value>();effects.forEach((key,value)->{if(value.owner().section().equals(section))result.put(key,value);});return result;}
+    private void validateEffects(OperationPlan plan){
+        for(var e:plan.effects())if(!Objects.equals(Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data),e.before())||effects.containsKey(e.key())&&!effects.get(e.key()).owner().equals(e.owner()))throw new IllegalArgumentException("STALE_REVISION: world effects");
+        var proposed=new TreeMap<>(effects);for(var e:plan.effects()){if(e.after().isPresent())proposed.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else proposed.remove(e.key());}
+        for(var section:plan.effects().stream().map(e->e.owner().section()).distinct().toList()){
+            var values=new TreeMap<String,WorldEffectStore.Value>();proposed.forEach((k,v)->{if(v.owner().section().equals(section))values.put(k,v);});try{WorldEffectStore.encode(1,values);}catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: section effects",ex);}
+        }
+    }
+    private void applyEffects(OperationPlan plan)throws IOException{
+        for(var e:plan.effects()){
+            var current=Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data);if(!current.equals(e.before())&&!current.equals(e.after()))throw new IOException("Conflicting world effect; original retained");
+            if(e.after().isPresent())effects.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else effects.remove(e.key());
+        }
+    }
+    private void validateSystem(OperationPlan plan,PieceIndex before,PieceIndex after){
+        if(plan.kind()!=OperationPlan.Kind.SYSTEM)throw new IllegalArgumentException("Invalid world operation");
+        for(var cell:plan.affectedCells()){var at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION");}
+        for(var c:plan.changes())c.after().ifPresent(adapters::require);
+        try{for(var cell:plan.pieceCells()){
+            CellView.from(cell,after).encode();int boxes=0;for(UUID id:after.at(cell))boxes+=after.records().get(id).geometry().collision().boxes().size();if(boxes>512)throw new IllegalArgumentException("COMPLEXITY_LIMIT: world collision");
+        }for(var section:plan.pieceCells().stream().map(CellPos::section).distinct().toList())SectionStore.encode(section,0,after.ownedBy(section).stream().map(after.records()::get).toList());}
+        catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: world projection",ex);}
+        validateWorldImages(plan,before);
+        var event=new BeforeOperationEvent(level,plan);NeoForge.EVENT_BUS.post(event);if(event.isCanceled())throw new IllegalArgumentException("PROTECTED");validateEffects(plan);validateWorldImages(plan,before);
+    }
+    public void executeWorld(List<OperationPlan.Change> changes,List<OperationPlan.Effect> effects)throws IOException{
+        if(changes.isEmpty()&&effects.isEmpty())return;engine.execute(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,changes,BinaryData.EMPTY,BinaryData.EMPTY,effects));
+    }
     private void syncCell(CellPos cell,PieceIndex index)throws IOException{
         BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IOException("Region unloaded during commit");
+        var nativeState=nativeProjection(cell,index);if(nativeState.isPresent()){
+            if(!level.getBlockState(at).equals(nativeState.orElseThrow())&&!level.setBlock(at,nativeState.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native restoration rejected");return;
+        }
         if(index.at(cell).isEmpty()){
             if(level.getBlockState(at).getBlock()==NmgContent.CELL.get())level.setBlock(at,Blocks.AIR.defaultBlockState(),Block.UPDATE_ALL);return;
         }
         if(level.getBlockState(at).getBlock()!=NmgContent.CELL.get()&&!level.setBlock(at,NmgContent.CELL.get().defaultBlockState(),Block.UPDATE_ALL))throw new IOException("Container placement rejected");
         if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity))throw new IOException("Missing cell entity");entity.install(CellView.from(cell,index));
     }
+    public Optional<net.minecraft.world.level.block.state.BlockState> nativeProjection(CellPos cell){return nativeProjection(cell,snapshot());}
+    private Optional<net.minecraft.world.level.block.state.BlockState> nativeProjection(CellPos cell,PieceIndex index){
+        if(index.at(cell).size()!=1)return Optional.empty();var p=index.records().get(index.at(cell).iterator().next());
+        if(!p.adapterId().value().equals("nomoregrids:box")||p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||p.orientation()!=0||p.groupId().isPresent()||!p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))||p.worldOccupation().cells(8).size()!=1)return Optional.empty();
+        try{var state=NativeStates.resolve(p);if(!catalog.eligible(state))return Optional.empty();var captured=NativeStates.capture(state,level,pos(cell),p.pieceId());if(!captured.geometry().equals(p.geometry()))return Optional.empty();return Optional.of(state);}catch(RuntimeException ex){return Optional.empty();}
+    }
+    public void releaseNative(CellPos cell)throws IOException{
+        if(nativeProjection(cell).isEmpty())return;var p=snapshot().records().get(snapshot().at(cell).iterator().next());executeWorld(List.of(new OperationPlan.Change(p.pieceId(),Optional.of(p),Optional.empty())),List.of());
+    }
     public void repairLoadedCells(Collection<BlockPos> existingCells)throws IOException{
+        writing++;try{repairCells(existingCells);}finally{writing--;}
+    }
+    private void repairCells(Collection<BlockPos> existingCells)throws IOException{
         if(engine.quarantined())throw new IOException("Committed operation requires recovery; replicas retained");
         Set<CellPos> cells=new HashSet<>();for(var p:existingCells)cells.add(new CellPos(p.getX(),p.getY(),p.getZ()));
         for(var cell:cells){
             var state=level.getBlockState(pos(cell));
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&!entity.valid())continue;
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownIds.contains(p.pieceId())))continue;
-            boolean expectedNative=snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
+            boolean expectedNative=nativeProjection(cell,snapshot()).filter(state::equals).isPresent()||snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
             if(state.isAir()||state.getBlock()==NmgContent.CELL.get()||expectedNative)syncCell(cell,snapshot());
             else if(!snapshot().at(cell).isEmpty())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }
@@ -328,9 +385,36 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void repairChunk(net.minecraft.world.level.chunk.LevelChunk chunk)throws IOException{
         repairLoadedCells(cellsInChunk(chunk));
     }
+    public void externalChanged(Set<CellPos> observed)throws IOException{
+        if(quarantined())throw new IOException("Recovery required");
+        var changes=new ArrayList<OperationPlan.Change>();var auxiliary=new ArrayList<OperationPlan.Effect>();
+        for(int pass=0;pass<16;pass++){
+            WorldConnections.complete(level,snapshot(),changes,catalog,observed);
+            var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);boolean removed=false;
+            Set<CellPos> touched=new HashSet<>(observed);for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
+            // Observed native cells must still be queried from the actual world, not treated as removed.
+            var changedCells=new HashSet<CellPos>();for(var c:changes){c.before().ifPresent(p->changedCells.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->changedCells.addAll(p.worldOccupation().cells(8)));}
+            for(UUID id:WorldSupport.nearby(proposed,touched)){
+                var p=proposed.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||WorldSupport.supported(level,proposed,changedCells,p,catalog))continue;
+                var old=snapshot().records().get(id);if(old==null)throw new IllegalArgumentException("NO_SUPPORT: native connection capture");
+                changes.removeIf(c->c.id().equals(id));changes.add(new OperationPlan.Change(id,Optional.of(old),Optional.empty()));WorldLoot.queue(level,old,auxiliary);removed=true;
+            }
+            if(!removed){executeWorld(changes,auxiliary);return;}
+        }throw new IllegalArgumentException("COMPLEXITY_LIMIT: external support cascade");
+    }
+    public void claimLoot(ServerPlayer player)throws IOException{
+        if(player.isSpectator()||player.level()!=level||quarantined())return;var claimed=new ArrayList<OperationPlan.Effect>();var slots=NativeInventory.copy(player);var before=NativeInventory.encode(player,slots);
+        for(var entry:effects.entrySet())if(entry.getKey().startsWith("loot:")&&claimed.size()<8){var value=entry.getValue();var c=value.owner();
+            if(!level.isLoaded(pos(c))||player.getEyePosition().distanceToSqr(new Vec3(c.x()+0.5,c.y()+0.5,c.z()+0.5))>9)continue;
+            var attempt=slots.stream().map(ItemStack::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+            try{for(var stack:WorldLoot.decode(level,value.data()))NativeInventory.insert(attempt,stack);}catch(IllegalArgumentException full){continue;}
+            slots=attempt;claimed.add(new OperationPlan.Effect(entry.getKey(),c,Optional.of(value.data()),Optional.empty()));
+        }
+        if(!claimed.isEmpty())engine.execute(new OperationPlan(UUID.randomUUID(),player.getUUID(),OperationPlan.Kind.CLAIM,List.of(),before,NativeInventory.encode(player,slots),claimed));
+    }
     @Override public boolean alreadyApplied(UUID id)throws IOException{
         OperationPlan plan=history.get(id);Long sequence=sequences.get(id);if(plan==null||sequence==null||!receipt(plan,sequence))return false;
-        for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;return true;
+        for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;for(var e:plan.effects())if(effectStore.checkpoint(e.owner().section())<sequence)return false;return true;
     }
     @Override public void afterCommit(OperationPlan plan){NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
     @Override public void close()throws IOException{journal.close();}

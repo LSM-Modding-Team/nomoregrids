@@ -471,3 +471,26 @@ Se conserva el contorno vanilla como fallback ante un error de proyección.
 Pruebas escritas para teselación desigual, 24 rotaciones, negativos, escaleras y
 presupuesto; no ejecutadas. Parser, recursos y whitespace comprobados sin compilar.
 Decisión: no declarar una matriz visual completada sin ejecutar el juego.
+
+## Entrega: autoridad nativa, vecinos externos y efectos privados
+
+OperationPlan/Codec esquema 2 (lee 1) incluyen efectos before/after privados por
+clave y sección. El host verifica imágenes y presupuesto antes del commit; el
+diario restaura efectos y checkpoints con CRC, conservando archivos desconocidos.
+Los sistemas tienen actor reservado sin inventario ficticio. Los recibos de
+jugadores mantienen su secuencia global, incluso entre operaciones de sistemas.
+
+Se restaura el bloque vanilla exacto cuando una caja queda sola, alineada, sin
+transformación, con la misma geometría y sin BE. El descriptor conserva su UUID
+hasta que un write externo lo libera transaccionalmente. Un mixin aislado sobre
+Level.setBlock de 26.2 observa cambios y protege contenedores compuestos contra
+borrado externo; la escritura del host usa guardia contra reentrada. La cola
+coalescida actualiza conexiones y apoyo externo con límites por tick y reescaneo
+en caso de saturación. La carga natural vuelve a programar regiones aplazadas.
+
+Decisión: loot de apoyos externos en cola durable, entrega automática por cercanía
+mediante recibo de inventario. Permanece pendiente si no cabe. Evita duplicación
+por recrear entidades tras reinicios, y no requiere un comando de reclamación.
+Writes directos a chunks de otros mods no atraviesan este hook: no se certifica
+compatibilidad universal. Pruebas escritas de codec/diario/CRC para efectos; no
+ejecutadas. Parser, recursos y whitespace pasan. Sin compilación ni Minecraft.

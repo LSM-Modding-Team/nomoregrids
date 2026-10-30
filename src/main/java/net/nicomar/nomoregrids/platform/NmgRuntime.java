@@ -43,6 +43,8 @@ public final class NmgRuntime {
         if(!ENABLED.contains(level)&&!Boolean.getBoolean("nomoregrids.experimental"))throw new IOException("Experimental world editing is disabled");
         if(QUARANTINE.containsKey(level))throw new IOException("Recovery required: "+QUARANTINE.get(level));return open(level);
     }
+    public static WorldService existing(ServerLevel level){return SERVICES.get(level);}
+    public static void failed(ServerLevel level,Exception ex){quarantine(level,ex);}
     private static WorldService open(ServerLevel level)throws IOException{
         WorldService existing=SERVICES.get(level);if(existing!=null)return existing;
         var adapters=new AdapterRegistry();adapters.register(new BoxAdapter());
@@ -61,15 +63,17 @@ public final class NmgRuntime {
             var chunk=task.level.getChunkSource().getChunkNow(task.position.x(),task.position.z());if(chunk==null)continue;
             LOADED.computeIfAbsent(task.level,key->new HashMap<>()).put(task.position,chunk);
             if(QUARANTINE.containsKey(task.level))continue;
+            for(var pos:chunk.getBlockEntities().keySet())WorldMutationHooks.changed(task.level,pos);
             try{
                 var service=open(task.level);var cells=service.cellsInChunk(chunk).iterator();
                 REPAIRS.computeIfAbsent(event.getServer(),key->new net.nicomar.nomoregrids.diagnostic.TickWorkQueue<>(4096)).submit(task,units->{
                     if(QUARANTINE.containsKey(task.level)||task.level.getChunkSource().getChunkNow(task.position.x(),task.position.z())!=chunk)return true;
-                    try{for(int i=0;i<units&&cells.hasNext();i++)service.repairLoadedCells(List.of(cells.next()));return !cells.hasNext();}
+                    try{for(int i=0;i<units&&cells.hasNext();i++){var cell=cells.next();service.repairLoadedCells(List.of(cell));WorldMutationHooks.changed(task.level,cell);}return !cells.hasNext();}
                     catch(IOException|RuntimeException ex){quarantine(task.level,ex);return true;}
                 });
             }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
         }
+        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level))WorldMutationHooks.tick(level);
         var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
     }
     private static void chunkUnload(net.neoforged.neoforge.event.level.ChunkEvent.Unload event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
@@ -130,7 +134,7 @@ public final class NmgRuntime {
         if(!(event.getEntity() instanceof ServerPlayer player))return;var level=player.level();
         if(QUARANTINE.containsKey(level)){event.setCanceled(true);player.sendOverlayMessage(Component.translatable("message.nomoregrids.recovery_required"));return;}
         var service=SERVICES.get(level);if(service==null)return;
-        for(var pos:List.of(event.getPos(),event.getPos().relative(event.getHitVec().getDirection())))if(level.isLoaded(pos)&&!service.snapshot().at(new net.nicomar.nomoregrids.core.CellPos(pos.getX(),pos.getY(),pos.getZ())).isEmpty()&&!(level.getBlockEntity(pos) instanceof CompositeCellEntity)){
+        for(var pos:List.of(event.getPos(),event.getPos().relative(event.getHitVec().getDirection())))if(level.isLoaded(pos)&&!service.snapshot().at(new net.nicomar.nomoregrids.core.CellPos(pos.getX(),pos.getY(),pos.getZ())).isEmpty()&&!(level.getBlockEntity(pos) instanceof CompositeCellEntity)&&service.nativeProjection(new net.nicomar.nomoregrids.core.CellPos(pos.getX(),pos.getY(),pos.getZ())).isEmpty()){
             event.setCanceled(true);try{service.repairLoadedCells(List.of(pos));}catch(IOException|RuntimeException ex){quarantine(level,ex);}return;
         }
     }
@@ -139,7 +143,7 @@ public final class NmgRuntime {
         if(!(event.getLevel() instanceof ServerLevel level))return;
         if(QUARANTINE.containsKey(level)){event.setCanceled(true);return;}
         if(!(level.getBlockEntity(event.getPos()) instanceof CompositeCellEntity cell)){
-            var service=SERVICES.get(level);if(service!=null&&!service.snapshot().at(new net.nicomar.nomoregrids.core.CellPos(event.getPos().getX(),event.getPos().getY(),event.getPos().getZ())).isEmpty()){
+            var service=SERVICES.get(level);if(service!=null&&!service.snapshot().at(new net.nicomar.nomoregrids.core.CellPos(event.getPos().getX(),event.getPos().getY(),event.getPos().getZ())).isEmpty()&&service.nativeProjection(new net.nicomar.nomoregrids.core.CellPos(event.getPos().getX(),event.getPos().getY(),event.getPos().getZ())).isEmpty()){
                 event.setCanceled(true);try{service.repairLoadedCells(List.of(event.getPos()));}catch(IOException|RuntimeException ex){quarantine(level,ex);}}
             return;
         }
@@ -163,6 +167,7 @@ public final class NmgRuntime {
     }
     private static void playerTick(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event){
         if(!(event.getEntity() instanceof ServerPlayer player))return;
+        if(player.level().getGameTime()%10==0){var service=SERVICES.get(player.level());if(service!=null)try{service.claimLoot(player);}catch(IOException|RuntimeException ex){if(service.quarantined())quarantine(player.level(),ex);}}
         try{advanceMining(player,MINING,false);advanceMining(player,REPLACEMENTS,true);}catch(RuntimeException ex){MINING.remove(player.getUUID());REPLACEMENTS.remove(player.getUUID());}
     }
     private static void advanceMining(ServerPlayer player,Map<UUID,Mining> sessions,boolean replacement){
@@ -174,7 +179,7 @@ public final class NmgRuntime {
         if(piece.isEmpty()||!piece.orElseThrow().pieceId().equals(mining.piece)||piece.orElseThrow().revision()!=mining.revision){sessions.remove(player.getUUID());return;}
         float rate=NativeStates.resolve(piece.orElseThrow()).getDestroyProgress(player,player.level(),block.getBlockPos());if(Float.isFinite(rate)&&rate>=0)mining.progress=Math.min(1,mining.progress+rate);
     }
-    private static void unload(LevelEvent.Unload event){if(event.getLevel() instanceof ServerLevel level){CHUNKS.removeIf(task->task.level==level);var repairs=REPAIRS.get(level.getServer());if(repairs!=null){repairs.cancelIf(task->task.level==level);if(repairs.pending()==0)REPAIRS.remove(level.getServer());}ENABLED.remove(level);QUARANTINE.remove(level);LOADED.remove(level);var service=SERVICES.remove(level);if(service!=null)try{service.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close NMG journal",ex);}}}
+    private static void unload(LevelEvent.Unload event){if(event.getLevel() instanceof ServerLevel level){CHUNKS.removeIf(task->task.level==level);var repairs=REPAIRS.get(level.getServer());if(repairs!=null){repairs.cancelIf(task->task.level==level);if(repairs.pending()==0)REPAIRS.remove(level.getServer());}ENABLED.remove(level);QUARANTINE.remove(level);LOADED.remove(level);WorldMutationHooks.clear(level);var service=SERVICES.remove(level);if(service!=null)try{service.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close NMG journal",ex);}}}
     private static void commands(RegisterCommandsEvent event){
         event.getDispatcher().register(Commands.literal("nmg")
             .then(Commands.literal("status").executes(ctx->{var service=SERVICES.get(ctx.getSource().getLevel());ctx.getSource().sendSuccess(()->Component.literal("No More Grids: experimental, unverified; "+(service==null?"not opened":service.snapshot().records().size()+" pieces")+"; editing="+ENABLED.contains(ctx.getSource().getLevel())+"; quarantined="+QUARANTINE.containsKey(ctx.getSource().getLevel())),false);return 1;}))

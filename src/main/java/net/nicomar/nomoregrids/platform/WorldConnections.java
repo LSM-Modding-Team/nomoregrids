@@ -18,9 +18,13 @@ import net.nicomar.nomoregrids.world.PieceIndex;
 public final class WorldConnections {
     private WorldConnections(){}
     public static void complete(ServerLevel level,PieceIndex before,ArrayList<OperationPlan.Change> changes,VanillaCatalog catalog){
+        complete(level,before,changes,catalog,Set.of());
+    }
+    public static void complete(ServerLevel level,PieceIndex before,ArrayList<OperationPlan.Change> changes,VanillaCatalog catalog,Set<CellPos> observed){
         UUID primary=changes.reversed().stream().flatMap(c->c.after().stream()).map(PieceRecord::pieceId).findFirst().orElse(null);
         Map<UUID,PieceRecord> work=new HashMap<>(before.records());for(var c:changes){if(c.after().isPresent())work.put(c.id(),c.after().orElseThrow());else work.remove(c.id());}
         Set<CellPos> touched=new HashSet<>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
+        for(UUID id:WorldSupport.nearby(before,observed))touched.addAll(before.records().get(id).worldOccupation().cells(8));
         boolean stable=false;for(int pass=0;pass<16;pass++){
             // Drafts may overlap before redundant arms are removed. They never escape this planner.
             var draft=PieceIndex.restored(work.values(),(a,b)->false);Set<UUID> nearby=WorldSupport.nearby(draft,touched);boolean captured=false;

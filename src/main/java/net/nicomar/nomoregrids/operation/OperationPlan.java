@@ -12,8 +12,14 @@ import net.nicomar.nomoregrids.world.PieceChange;
 
 /** Complete immutable before/after images, including inventory receipt snapshots. */
 public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes,
-        BinaryData resourcesBefore, BinaryData resourcesAfter) {
-    public enum Kind { PLACE, REMOVE, EDIT, REPLACE, MOVE }
+        BinaryData resourcesBefore, BinaryData resourcesAfter, List<Effect> effects) {
+    public enum Kind { PLACE, REMOVE, EDIT, REPLACE, MOVE, SYSTEM, CLAIM, TRANSFER }
+    public static final UUID WORLD_ACTOR=new UUID(0,0);
+    public record Effect(String key,CellPos owner,Optional<BinaryData> before,Optional<BinaryData> after){
+        public Effect{java.util.Objects.requireNonNull(owner);java.util.Objects.requireNonNull(before);java.util.Objects.requireNonNull(after);
+            if(!key.matches("(fluid|machine|loot|circuit|group):[a-zA-Z0-9_:.-]{1,192}")||before.equals(after))throw new IllegalArgumentException("Invalid world effect");}
+    }
+    public OperationPlan(UUID id,UUID actor,Kind kind,List<Change> changes,BinaryData before,BinaryData after){this(id,actor,kind,changes,before,after,List.of());}
     public record Change(UUID id, Optional<PieceRecord> before, Optional<PieceRecord> after) {
         public Change {
             if (before.isEmpty() && after.isEmpty()) throw new IllegalArgumentException("Empty change");
@@ -29,11 +35,14 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
     public OperationPlan {
         java.util.Objects.requireNonNull(id); java.util.Objects.requireNonNull(actor); java.util.Objects.requireNonNull(kind);
         java.util.Objects.requireNonNull(resourcesBefore); java.util.Objects.requireNonNull(resourcesAfter);
-        changes = List.copyOf(changes);
-        if (changes.isEmpty() || changes.size()>128) throw new IllegalArgumentException("Operation piece budget");
+        changes = List.copyOf(changes);effects=List.copyOf(effects);
+        if(effects.size()>512)throw new IllegalArgumentException("Effect budget");
+        var keys=new HashSet<String>();for(var e:effects)if(!keys.add(e.key()))throw new IllegalArgumentException("Duplicate world effect");
+        if(actor.equals(WORLD_ACTOR)&&(kind!=Kind.SYSTEM||resourcesBefore.size()!=0||resourcesAfter.size()!=0))throw new IllegalArgumentException("Invalid system actor");
+        if (changes.isEmpty()&&effects.isEmpty() || changes.size()>128) throw new IllegalArgumentException("Operation piece budget");
         Set<UUID> ids = new HashSet<>();
         for (Change c : changes) if (!ids.add(c.id)) throw new IllegalArgumentException("Duplicate change");
-        if (cells(changes).size()>512) throw new IllegalArgumentException("Operation cell budget");
+        if (allCells(changes,effects).size()>512) throw new IllegalArgumentException("Operation cell budget");
     }
     private static Set<CellPos> cells(List<Change> changes) {
         Set<CellPos> cells = new HashSet<>();
@@ -43,5 +52,7 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
         }
         return Set.copyOf(cells);
     }
-    public Set<CellPos> affectedCells() { return cells(changes); }
+    private static Set<CellPos> allCells(List<Change> changes,List<Effect> effects){var cells=new HashSet<>(cells(changes));effects.forEach(e->cells.add(e.owner()));return Set.copyOf(cells);}
+    public Set<CellPos> pieceCells(){return cells(changes);}
+    public Set<CellPos> affectedCells() { return allCells(changes,effects); }
 }

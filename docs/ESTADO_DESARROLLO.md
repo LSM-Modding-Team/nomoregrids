@@ -8,10 +8,10 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | Fase | Código disponible | Trabajo de implementación restante |
 |---|---|---|
 | F0 | Versiones fijadas, wrapper oficial y metadatos MIT; registros técnicos; consulta de firmas exactas de Minecraft/NeoForge | Resolver cualquier incompatibilidad de tipos al compilar |
-| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos y payloads de acciones | Restauración nativa exacta cuando vuelva a ser representable; endurecer recuperación intermod y compactación |
+| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos, efectos privados del mundo y restauración nativa exacta para cajas sin transformación | Endurecer y ejecutar recuperación intermod; compactación |
 | F2 | Colocación compartida cliente/servidor, 24 rotaciones, losas/escaleras/cubos, selección, minería, reemplazo, controles, contorno por componente con aristas reales y preview con validación del servidor | Completar validación de la matriz geométrica y fidelidad visual/modelos/tints en Minecraft |
-| F3 | Paneles/barrotes recortables, fragmentos/recetas, vallas/muros, puertos geométricos, resolución estable de conexiones y esquinas de escaleras 3D en el host | Reaccionar a cambios nativos externos; verificar extremos, tapas y recursos visuales |
-| F4 | Materiales/luz, parches exactos, cadenas estables, dependientes en operaciones NMG, contactos por área, fricción/rebote/sonidos y escalada | Pérdida de soporte nativo externo, decoración con datos, efectos, fuego y explosiones por componente |
+| F3 | Paneles/barrotes recortables, fragmentos/recetas, vallas/muros, puertos geométricos, resolución estable de conexiones y esquinas de escaleras 3D en el host | Verificar en ejecución cambios nativos externos, extremos, tapas y recursos visuales |
+| F4 | Materiales/luz, parches exactos, cadenas estables, dependientes en operaciones NMG, contactos por área, fricción/rebote/sonidos, escalada y pérdida de soporte externo journalizada | Decoración con datos, efectos, fuego y explosiones por componente |
 | F5 | Cavidades 16³, fuentes, cubos, redistribución, flujo/reacciones, máscara convexa incremental y codec/checkpoints | Conectar guardado/sincronización de fluidos, cadencias, buckets y puente del mundo, malla; la ruta actual rechaza composición mojada |
 | F6 | API versionada, captura/colocación PB, convexos/render, apoyo nativo, pincel y herramientas simples, costes por copia y loot nativo | Pintura de áreas, herramientas de volumen/pendientes y sus selecciones; pruebas del ciclo completo en dedicado |
 | F7 | Autoridad única de inventario/energía, puertos, grupos, horno y codec/checkpoints privados | Conectar persistencia de estado funcional, captura nativa, menús, recetas, capacidades y ticking |
@@ -57,3 +57,11 @@ inyección de fallos real, integración PB y benchmarks. No existe JAR generado.
 
 La evidencia detallada y decisiones por entrega están en
 [evidence/IMPLEMENTACION_FASES.md](evidence/IMPLEMENTACION_FASES.md).
+
+Los cambios externos se observan en `Level.setBlock` con un mixin aislado de 26.2.
+Las proyecciones nativas mantienen UUID en la autoridad hasta que una modificación
+externa las libera mediante el diario; así el replay no revive un bloque ya roto.
+Los drops por pérdida de apoyo se conservan en una cola privada durable y se
+entregan automáticamente al inventario de un jugador cercano cuando caben. No
+se crean entidades de ítem antes de una entrega confirmada. Los writes directos
+de otros mods a ChunkAccess, fuera de Level, requieren una integración específica.
