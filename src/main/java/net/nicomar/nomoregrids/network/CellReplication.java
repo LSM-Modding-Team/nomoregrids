@@ -17,7 +17,7 @@ public final class CellReplication {
     }
     public static void request(ServerPlayer player,BlockPos pos){
         // getPlayers does not load a chunk and proves the requesting connection actually tracks it.
-        if(!player.level().getChunkSource().chunkMap.getPlayers(new net.minecraft.world.level.ChunkPos(pos),false).contains(player))return;
+        if(!player.level().getChunkSource().chunkMap.getPlayers(new net.minecraft.world.level.ChunkPos(Math.floorDiv(pos.getX(),16),Math.floorDiv(pos.getZ(),16)),false).contains(player))return;
         if(player.level().isLoaded(pos)&&player.level().getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.valid())snapshot(player,cell);
     }
     public static void snapshot(ServerPlayer player,CompositeCellEntity cell){try{if(cell.getLevel() instanceof ServerLevel level)send(level,cell.getBlockPos(),false,cell.view().encode(),player);}catch(IOException ex){throw new IllegalStateException("Cannot encode public cell",ex);}}
@@ -28,7 +28,7 @@ public final class CellReplication {
     private static void send(ServerLevel level,BlockPos pos,boolean delta,byte[] bytes,ServerPlayer player){
         for(var fragment:SnapshotAssembler.split(UUID.randomUUID(),bytes)){
             var packet=new CellFragmentPayload(level.dimension().identifier().toString(),pos,delta,fragment);
-            if(player!=null)PacketDistributor.sendToPlayer(player,packet);else PacketDistributor.sendToPlayersTrackingChunk(level,new net.minecraft.world.level.ChunkPos(pos),packet);
+            if(player!=null)PacketDistributor.sendToPlayer(player,packet);else PacketDistributor.sendToPlayersTrackingChunk(level,new net.minecraft.world.level.ChunkPos(Math.floorDiv(pos.getX(),16),Math.floorDiv(pos.getZ(),16)),packet);
         }
     }
 }

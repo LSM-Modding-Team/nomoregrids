@@ -141,7 +141,7 @@ public final class PaintableBridge {
         try{
             int slot=hand==InteractionHand.MAIN_HAND?actor.getInventory().getSelectedSlot():net.minecraft.world.entity.player.Inventory.SLOT_OFFHAND;ItemStack held=inventory.get(slot);if(!editingItem(held))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB tool");
             Object before=adapter.restore(piece.geometryPayload());Vec3 local=localPoint(piece,hit.getLocation());Direction face=Direction.valueOf(Direction6.valueOf(hit.getDirection().name()).rotated(Rotation.of(piece.orientation()).inverse().id()).name());
-            var target=(Optional<Object>)geometry.getMethod("target",design,Vec3.class,Direction.class).invoke(null,before,local,face);Object selected=target.orElseThrow(()->new IllegalArgumentException("PB surface is not exposed"));Object nativePlan;
+            var target=(Optional<?>)geometry.getMethod("target",design,Vec3.class,Direction.class).invoke(null,before,local,face);Object selected=target.orElseThrow(()->new IllegalArgumentException("PB surface is not exposed"));Object nativePlan;
             if(brush.isInstance(held.getItem())){
                 if(!(boolean)brush.getMethod("valid",ItemStack.class).invoke(held.getItem(),held))throw new IllegalArgumentException("INVALID_DATA: PB brush");
                 Object content=brush.getMethod("content",ItemStack.class).invoke(held.getItem(),held);int paint=(int)content.getClass().getMethod("paint").invoke(content),units=(int)content.getClass().getMethod("units").invoke(content);

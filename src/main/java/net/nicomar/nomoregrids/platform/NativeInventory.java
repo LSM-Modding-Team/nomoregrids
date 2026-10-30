@@ -33,7 +33,7 @@ public final class NativeInventory {
         var value=json(image);if(value.isJsonObject()&&value.getAsJsonObject().get("schema").getAsInt()!=2)throw new IllegalArgumentException("Future inventory receipt");var array=value.isJsonArray()?value.getAsJsonArray():value.getAsJsonObject().getAsJsonArray("slots");
         if(array.size()!=player.getInventory().getContainerSize())throw new IllegalArgumentException("Inventory layout mismatch");
         var ops=player.registryAccess().createSerializationContext(JsonOps.INSTANCE);var slots=new ArrayList<ItemStack>();
-        for(var value:array)slots.add(ItemStack.OPTIONAL_CODEC.parse(ops,value).getOrThrow());return slots;
+        for(var slotValue:array)slots.add(ItemStack.OPTIONAL_CODEC.parse(ops,slotValue).getOrThrow());return slots;
     }
     public static boolean matches(ServerPlayer player,BinaryData image){
         var slots=decode(player,image);for(int i=0;i<slots.size();i++)if(!ItemStack.matches(slots.get(i),player.getInventory().getItem(i)))return false;var value=json(image);if(value.isJsonArray())return true;var j=value.getAsJsonObject();

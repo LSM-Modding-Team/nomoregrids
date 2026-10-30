@@ -1037,3 +1037,12 @@ corrección de los defectos que revelen; no se fabrican resultados de ejecución
 La comprobación de whitespace del rango completo de esta entrega detectó
 además una línea vacía final en DecorationAdapter, introducida en un commit
 anterior. Se eliminó sin cambiar comportamiento y se revisó de nuevo el rango.
+
+## Correcciones de compilación reportadas
+
+Comparador BlockPos con tipo explícito y lambdas para evitar la sobrecarga
+estática que acepta long; ChunkPos construido con coordenadas de chunk usando
+floorDiv (también en negativos); variable de slot sin sombrear el JSON. El color
+de tinte usa DataComponents.DYE y tolera ausencia, contrastado con bytecode 26.2
+de DyeItem. PaintableBridge usa Optional<?> en lugar de un cast genérico no
+comprobable. Revisión estática, sin compilar ni ejecutar Java/Minecraft.
