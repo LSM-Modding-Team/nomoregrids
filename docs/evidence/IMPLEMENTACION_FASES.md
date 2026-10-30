@@ -973,3 +973,23 @@ Se escribieron casos de codec 4, lectura de operaciones 3, recibos nativos y
 orden canónico JSON. Revisión estática: 239 fuentes sintácticamente válidas, 92
 imports explícitos de Minecraft/NeoForge presentes, recursos y whitespace.
 Estas cifras no acreditan tipos, inyección de mixins, compilación ni ejecución.
+
+## Vacantes durables y acceso a imágenes nativas antiguas
+
+Al retirar o mover la última pieza de una celda se registra una meta AIR en el
+mismo plan, conservada incluso si el chunk en disco todavía muestra el bloque
+anterior. La cesión explícita a una edición nativa queda excluida. Las escrituras
+externas liberan metas y recibos solo en el orden permitido por la autoridad;
+un intento de borrar un contenedor compuesto no elimina primero su protección.
+Una imagen nativa con recibo transferido y hash distinto se conserva y requiere
+recuperación, en lugar de sustituirla silenciosamente. Los hashes históricos de
+capturas funcionales también sirven como prueba para operaciones anteriores.
+Antes de entregar una BE nativa antigua a un jugador o automatización, un hook
+repara su proyección o impide acceder a ese inventario. La relectura utiliza el
+chunk directamente para no reentrar en el hook de consulta. Al sustituir la BE
+transferida se vacía su objeto retirado, incluidos slots/XP, después del commit;
+así una referencia previamente adquirida no conserva una segunda copia.
+Se eliminó además una comprobación duplicada en el diagnóstico de réplicas.
+Revisión estática: 240 fuentes Java sin errores sintácticos; recursos, imports
+explícitos y whitespace correctos. No se ha comprobado compilación, carga de
+mixins, recuperación ante cortes ni interacción de hoppers en ejecución.

@@ -18,7 +18,7 @@ public abstract class LevelMutationMixin {
     }
     @Inject(method="setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",at=@At("RETURN"))
     private void nmgAfter(BlockPos pos,BlockState state,int flags,int recursion,CallbackInfoReturnable<Boolean> callback){
-        if(callback.getReturnValueZ()&&(Object)this instanceof ServerLevel level)WorldMutationHooks.changed(level,pos);
+        if(callback.getReturnValueZ()&&(Object)this instanceof ServerLevel level)WorldMutationHooks.written(level,pos);
     }
     @Inject(method="blockEntityChanged",at=@At("RETURN"))
     private void nmgInventoryChanged(BlockPos pos,org.spongepowered.asm.mixin.injection.callback.CallbackInfo callback){if((Object)this instanceof ServerLevel level)WorldMutationHooks.changed(level,pos);}

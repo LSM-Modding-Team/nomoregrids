@@ -38,7 +38,7 @@ public final class NmgDiagnostics {
                 if(!index.at(cell).contains(p.pieceId())||!index.referencedBy(cell.section()).contains(p.pieceId())||!index.ownedBy(p.ownerSection()).contains(p.pieceId()))throw new IllegalArgumentException("Reference conflict");
                 BlockPos pos=WorldService.pos(cell);if(!source.getLevel().isLoaded(pos)){unloaded++;continue;}
                 if(service.nativeProjection(cell).filter(source.getLevel().getBlockState(pos)::equals).isPresent())continue;if(!(source.getLevel().getBlockEntity(pos) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("Missing/invalid replica");
-                if(service.nativeProjection(cell).filter(source.getLevel().getBlockState(pos)::equals).isPresent())continue;var expected=service.cellView(cell,index);if(!expected.equals(entity.view()))throw new IllegalArgumentException("Replica revision conflict");
+                var expected=service.cellView(cell,index);if(!expected.equals(entity.view()))throw new IllegalArgumentException("Replica revision conflict");
             }
             NativeStates.resolve(p);NativeStates.original(p);
         }catch(RuntimeException ex){invalid++;}}

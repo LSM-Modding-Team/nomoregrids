@@ -15,15 +15,15 @@ public final class WorldMutationHooks {
     public static boolean before(ServerLevel level,BlockPos pos,BlockState state){
         var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing()||level.getBlockState(pos).equals(state))return true;
         var cell=new CellPos(pos.getX(),pos.getY(),pos.getZ());
-        if(service.nativeGoal(cell).isPresent())try{service.releaseNativeGoal(cell);}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
+        if(service.quarantined())return false;
         if(level.getBlockState(pos).getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock&&!state.getFluidState().isEmpty()){
             try{service.fluids().incoming(cell,state.getFluidState());}catch(IOException|RuntimeException ex){if(service.quarantined())NmgRuntime.failed(level,ex);}return false;
         }
-        if(service.snapshot().at(cell).isEmpty()&&service.fluids().at(cell).isEmpty())return true;
-        if(service.quarantined())return false;
-        if(service.nativeProjection(cell).isEmpty())return false; // External edits cannot erase a composite authority.
-        try{service.releaseNative(cell);return true;}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
+        boolean tracked=!service.snapshot().at(cell).isEmpty()||service.fluids().at(cell).isPresent();if(tracked&&service.nativeProjection(cell).isEmpty())return false;
+        var goal=service.nativeGoal(cell);if(!tracked&&goal.isPresent()&&!goal.orElseThrow().equals(level.getBlockState(pos))){try{service.repairLoadedCells(List.of(pos));}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);}return false;}
+        try{if(goal.isPresent())service.releaseNativeGoal(cell);if(tracked)service.releaseNative(cell);return true;}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
     }
+    public static void written(ServerLevel level,BlockPos pos){var service=NmgRuntime.existing(level);if(service!=null&&!service.writing()){var cell=new CellPos(pos.getX(),pos.getY(),pos.getZ());if(service.snapshot().at(cell).isEmpty()&&service.nativeGoal(cell).isEmpty())try{service.releaseNativeCapture(cell);}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);}}changed(level,pos);}
     public static void changed(ServerLevel level,BlockPos pos){
         if(WorldFunctionals.planningCopy())return;
         var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing())return;

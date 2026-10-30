@@ -13,5 +13,5 @@ import org.spongepowered.asm.mixin.injection.*;
 @Mixin(LevelChunk.class)
 public abstract class NativeInventoryRemovalMixin {
     @Redirect(method="setBlockState",at=@At(value="INVOKE",target="Lnet/minecraft/world/level/block/entity/BlockEntity;preRemoveSideEffects(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)V"))
-    private void nmg$transfer(BlockEntity entity,BlockPos pos,BlockState state){if(entity.getLevel() instanceof ServerLevel level){var service=NmgRuntime.existing(level);if(service==null)service=net.nicomar.nomoregrids.platform.WorldService.writingService(level);if(service!=null&&service.writing()&&service.capturedNative(entity))return;}entity.preRemoveSideEffects(pos,state);}
+    private void nmg$transfer(BlockEntity entity,BlockPos pos,BlockState state){if(entity.getLevel() instanceof ServerLevel level){var service=NmgRuntime.existing(level);if(service==null)service=net.nicomar.nomoregrids.platform.WorldService.writingService(level);if(service!=null&&service.writing()&&service.capturedNative(entity)){net.nicomar.nomoregrids.platform.WorldFunctionals.clearTransferredNative(level,entity);return;}}entity.preRemoveSideEffects(pos,state);}
 }
