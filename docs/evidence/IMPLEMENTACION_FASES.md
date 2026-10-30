@@ -1033,3 +1033,7 @@ compilador. Los checks no ejecutan el código Java. No hay compilación, tests
 Java, carga de mixins, Minecraft, JAR, recuperación real o benchmarks ejecutados.
 Las fases siguen sin aceptación y quedan pendientes esas validaciones y la
 corrección de los defectos que revelen; no se fabrican resultados de ejecución.
+
+La comprobación de whitespace del rango completo de esta entrega detectó
+además una línea vacía final en DecorationAdapter, introducida en un commit
+anterior. Se eliminó sin cambiar comportamiento y se revisó de nuevo el rango.
