@@ -194,13 +194,17 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(tool.getDamageValue()>=tool.getMaxDamage())slots.set(selected,ItemStack.EMPTY);
         }
     }
-    public void editPaintable(ServerPlayer player,InteractionHand hand,UUID id,BlockHitResult hit,UUID operation)throws IOException{
+    public void editPaintable(ServerPlayer player,InteractionHand hand,UUID id,BlockHitResult hit,UUID operation)throws IOException{editPaintable(player,hand,id,hit,operation,false);}
+    public void editPaintable(ServerPlayer player,InteractionHand hand,UUID id,BlockHitResult hit,UUID operation,boolean control)throws IOException{
         if(repeated(operation,player,OperationPlan.Kind.EDIT))return;var old=snapshot().records().get(id);if(old==null||!old.adapterId().value().equals("nomoregrids:paintableblocks"))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
-        var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB interaction"));
-        var slots=NativeInventory.copy(player);var before=NativeInventory.encode(player,slots);var edit=bridge.edit(player,hand,old,hit,slots,player.isShiftKeyDown());
-        var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(old),edit.after())));completeSupport(player,changes,slots);
-        var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,changes,before,NativeInventory.encode(player,slots));
-        permissionHooks.put(operation,()->bridge.permission(player,hand,old,hit.getBlockPos(),edit.nativePlan()));try{executePrepared(plan);}finally{permissionHooks.remove(operation);}
+        PaintableSelections.use(this,player,hand,old,hit,operation,control);
+    }
+    public void commitPaintable(ServerPlayer player,InteractionHand hand,Map<UUID,net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.Edit> edits,List<ItemStack> slots,UUID operation)throws IOException{
+        var before=NativeInventory.encode(player,NativeInventory.copy(player));var changes=new ArrayList<OperationPlan.Change>();var originals=new HashMap<UUID,PieceRecord>();
+        for(var e:edits.entrySet()){var old=snapshot().records().get(e.getKey());if(old==null)throw new IllegalArgumentException("STALE_REVISION");originals.put(e.getKey(),old);changes.add(new OperationPlan.Change(e.getKey(),Optional.of(old),e.getValue().after()));}
+        completeSupport(player,changes,slots);var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,changes,before,NativeInventory.encode(player,slots));var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow();
+        permissionHooks.put(operation,()->{for(var e:edits.entrySet())bridge.permission(player,hand,originals.get(e.getKey()),pos(originals.get(e.getKey()).origin16().cell()),e.getValue().nativePlan());});
+        try{executePrepared(plan);}finally{permissionHooks.remove(operation);}
     }
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){completeSupport(player,changes,slots,false);}
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots,boolean preview){

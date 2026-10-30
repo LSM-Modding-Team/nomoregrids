@@ -114,7 +114,7 @@ public final class NmgRuntime {
                 case BUCKET->{service.fluids().bucket(player,hand,new net.nicomar.nomoregrids.core.CellPos(block.getBlockPos().getX(),block.getBlockPos().getY(),block.getBlockPos().getZ()),packet.operation());}
                 case EDIT->{
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
-                    var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation());
+                    var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation(),packet.control());
                 }
                 case LOCK->{
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
@@ -157,7 +157,7 @@ public final class NmgRuntime {
             require(level).remove(player,piece.pieceId());MINING.remove(player.getUUID());
         }catch(IOException|RuntimeException ex){var service=SERVICES.get(level);if(service!=null&&service.quarantined())quarantine(level,ex);player.sendOverlayMessage(Component.translatable("message.nomoregrids."+reason(ex).toLowerCase(Locale.ROOT)));}
     }
-    private static void logout(PlayerEvent.PlayerLoggedOutEvent event){if(event.getEntity() instanceof ServerPlayer player)NmgNetworking.persist(player);UUID id=event.getEntity().getUUID();LIMITERS.remove(id);MINING.remove(id);REPLACEMENTS.remove(id);NmgNetworking.disconnected(id);}
+    private static void logout(PlayerEvent.PlayerLoggedOutEvent event){if(event.getEntity() instanceof ServerPlayer player)NmgNetworking.persist(player);UUID id=event.getEntity().getUUID();PaintableSelections.clear(id);LIMITERS.remove(id);MINING.remove(id);REPLACEMENTS.remove(id);NmgNetworking.disconnected(id);}
     private static void leftClick(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event){
         if(!(event.getEntity() instanceof ServerPlayer player))return;
         if(event.getAction()==net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.LeftClickBlock.Action.ABORT){MINING.remove(player.getUUID());return;}

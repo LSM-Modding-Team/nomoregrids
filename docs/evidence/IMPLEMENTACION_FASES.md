@@ -516,3 +516,26 @@ y el contacto físico de entidades usa todavía proyección vanilla por celda. N
 se declara F5 completa. Pruebas de codec/cubos escritas, no ejecutadas. APIs
 consultadas por javap sin arrancar código. Parser/recursos/whitespace pasan;
 compilación, tests Java y juego no ejecutados.
+
+## Entrega: áreas y volúmenes de Paintable Blocks
+
+Referencia consultada: paintableblocks/26.2, commit
+`e93bc03f350dfb03b4031f1e479f4a37f28b556e` (consulta, sin modificar ese repositorio).
+El pincel usa DesignOperations.area y su coste nativo. Ctrl + usar guarda la
+primera superficie; el siguiente uso pinta el área coplanar sobre la misma pieza
+y revisión. Martillo con Ctrl y formador guardan dos esquinas; confirmación en
+un solo plan de hasta 128 piezas, regiones de 16 bloques/eje y 32768 primitivas.
+Se fijan revisiones, herramienta, mano, dimensión y caducidad; una modificación
+invalida la selección. El servidor decide rayo, geometría, pigmento, durabilidad,
+colisiones y permisos de cada pieza. La réplica dibuja el volumen seleccionado.
+
+La pendiente se transforma de un plano global a los ejes canónicos PB usando
+su orientación y la externa NMG, con coeficientes enteros reducidos. No se
+cuantiza la pendiente. Se exige que la selección de pendiente contenga la pieza
+entera para no modificar una parte externa a la selección. Mirada horizontal
+define dirección; Mayús invierte y Ctrl + Mayús cancela. Protocolo 6.
+
+Decisión: lotes NMG abarcan PB convertidos; PB que sigue nativo conserva su
+herramienta original. Un lote mixto requiere aún un protocolo de captura conjunto,
+por lo que no se declara compatibilidad completa. Parser, recursos y whitespace
+pasan; ninguna compilación, prueba Java, sesión PB ni Minecraft ejecutada.

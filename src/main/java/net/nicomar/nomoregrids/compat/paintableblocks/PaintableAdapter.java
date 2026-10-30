@@ -12,7 +12,7 @@ import net.nicomar.nomoregrids.geometry.*;
 
 /** Optional bridge for the inspected PB BlockDesign v2 API. No PB classes in static linkage. */
 public final class PaintableAdapter implements PieceAdapter {
-    public static final String REFERENCE_COMMIT="f3b3998d6a239b776121f3003b6f5a6c052a0a65";
+    public static final String REFERENCE_COMMIT="e93bc03f350dfb03b4031f1e479f4a37f28b556e";
     private final Class<?> designClass;
     private final Codec<Object> codec;
     private final Method physical,resolution,occupied,slope,paints;

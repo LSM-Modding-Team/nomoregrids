@@ -29,6 +29,7 @@ public final class ConstructionControls {
     private static ModePayload lastSent;
     private static Object lastDimension;
     private static PieceRecord preview;
+    private static net.nicomar.nomoregrids.network.PaintableSelectionPayload paintableSelection;
     private static int previewColor=0xffffbf00;
     private static UUID probe;
     private static PieceRecord probedPreview;
@@ -40,6 +41,7 @@ public final class ConstructionControls {
     private ConstructionControls(){}
     public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::outline);NeoForge.EVENT_BUS.addListener(ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
     private static void payloads(net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event){
+        event.register(net.nicomar.nomoregrids.network.PaintableSelectionPayload.TYPE,(packet,context)->context.enqueueWork(()->paintableSelection=packet.phase()==0?null:packet));
         event.register(net.nicomar.nomoregrids.network.CellFragmentPayload.TYPE,(packet,context)->context.enqueueWork(()->net.nicomar.nomoregrids.client.selection.ClientCellReplication.accept(packet)));
         event.register(net.nicomar.nomoregrids.network.SessionPayload.TYPE,(packet,context)->context.enqueueWork(()->{
             if(!packet.profileHash().equals(net.nicomar.nomoregrids.network.SessionPayload.localHash())||!packet.rules().equals(net.nicomar.nomoregrids.network.SessionPayload.localRules())){context.disconnect(net.minecraft.network.chat.Component.translatable("message.nomoregrids.profile_mismatch"));return;}
@@ -71,12 +73,12 @@ public final class ConstructionControls {
         if(mc.player!=null&&mc.level!=null&&mc.hitResult instanceof BlockHitResult hit&&mc.level.getBlockEntity(hit.getBlockPos()) instanceof net.nicomar.nomoregrids.world.CompositeCellEntity cell){
             var selected=net.nicomar.nomoregrids.platform.ComponentSelection.select(mc.player,cell.view(),intent.candidate());if(selected.isPresent()){expected=Optional.of(selected.orElseThrow().pieceId());revision=selected.orElseThrow().revision();}
         }
-        ClientPacketDistributor.sendToServer(new ActionPayload(action.operation(),action.action(),action.offhand(),intent,expected,revision));
+        ClientPacketDistributor.sendToServer(new ActionPayload(action.operation(),action.action(),action.offhand(),intent,expected,revision,mc.hasControlDown()));
     }
     private static void keys(RegisterKeyMappingsEvent event){event.registerCategory(CATEGORY);for(var key:List.of(PRECISE,EXPANDED,ADJUSTED,ALIGN,LATERAL,REPLACE,LOCK))event.register(key);}
     private static ModePayload packet(){return new ModePayload(MODES.precise,MODES.expanded,MODES.adjusted,LATERAL.isDown(),REPLACE.isDown(),MODES.axis(),MODES.offset(),Math.floorMod(MODES.candidate(),64),MODES.alignment().isPresent(),alignmentAxis,alignmentSign,alignmentPlane,alignmentRotation,lengthSelection,MODES.alignment().isPresent()?alignmentProperties:Map.of());}
     private static void tick(ClientTickEvent.Post event){
-        var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;lastSent=null;lastDimension=null;net.nicomar.nomoregrids.client.selection.ClientCellReplication.reset();return;}
+        var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;paintableSelection=null;lastSent=null;lastDimension=null;net.nicomar.nomoregrids.client.selection.ClientCellReplication.reset();return;}
         if(!mc.level.dimension().equals(lastDimension)){MODES.changedDimension();lengthSelection=0;lastDimension=mc.level.dimension();}
         if(mc.gui.screen()!=null){preview=null;var p=packet();var inactive=new ModePayload(p.precise(),p.expanded(),p.adjusted(),false,false,p.axis(),p.offset(),p.candidate(),p.aligned(),p.alignmentAxis(),p.alignmentSign(),p.alignmentPlane(),p.alignmentRotation(),p.length(),p.alignmentProperties());if(!inactive.equals(lastSent)){ClientPacketDistributor.sendToServer(inactive);lastSent=inactive;}return;}
         while(PRECISE.consumeClick())MODES.precise=!MODES.precise;while(EXPANDED.consumeClick())MODES.expanded=!MODES.expanded;while(ADJUSTED.consumeClick())MODES.adjusted=!MODES.adjusted;
@@ -127,9 +129,10 @@ public final class ConstructionControls {
         }catch(RuntimeException invalid){net.nicomar.nomoregrids.client.selection.ComponentOutline.clear();}
     }
     private static void extract(ExtractLevelRenderStateEvent event){
-        PieceRecord p=preview;if(p==null)return;
+        PieceRecord p=preview;var mc=Minecraft.getInstance();var selection=paintableSelection;if(p==null&&selection==null)return;
         try(var ignored=event.getLevelExtractor().collectPerFrameMainThreadGizmos()){
-            for(var b:p.worldOccupation().boxes())Gizmos.cuboid(new AABB(b.min().x()/16.0,b.min().y()/16.0,b.min().z()/16.0,b.max().x()/16.0,b.max().y()/16.0,b.max().z()/16.0),GizmoStyle.strokeAndFill(previewColor,2f,(previewColor&0xffffff)|0x33000000));
+            if(selection!=null&&mc.level!=null&&mc.level.dimension().identifier().toString().equals(selection.dimension())){var a=selection.min();var b=selection.max();Gizmos.cuboid(new AABB(a.x()/16.0,a.y()/16.0,a.z()/16.0,b.x()/16.0,b.y()/16.0,b.z()/16.0),GizmoStyle.strokeAndFill(0xff55aaff,1.5f,0x1555aaff));}
+            if(p!=null)for(var b:p.worldOccupation().boxes())Gizmos.cuboid(new AABB(b.min().x()/16.0,b.min().y()/16.0,b.min().z()/16.0,b.max().x()/16.0,b.max().y()/16.0,b.max().z()/16.0),GizmoStyle.strokeAndFill(previewColor,2f,(previewColor&0xffffff)|0x33000000));
         }
     }
 }

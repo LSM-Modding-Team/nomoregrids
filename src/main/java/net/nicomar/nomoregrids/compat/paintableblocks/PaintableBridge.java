@@ -42,7 +42,20 @@ public final class PaintableBridge {
     }
     public static Optional<PaintableBridge> available(){return Optional.ofNullable(OptionalBridge.INSTANCE);}
     public boolean placementItem(ItemStack stack){return item.isInstance(stack.getItem());}
-    public boolean editingItem(ItemStack stack){return brush.isInstance(stack.getItem())||tool.isInstance(stack.getItem());}
+    public boolean editingItem(ItemStack stack){return brush.isInstance(stack.getItem())||tool.isInstance(stack.getItem())||former(stack);}
+    public boolean brush(ItemStack stack){return brush.isInstance(stack.getItem());}
+    public boolean former(ItemStack stack){return stack.getItem().getClass().getName().equals("net.nicomar.paintableblocks.item.SlopeFormerItem");}
+    public boolean volumeTool(ItemStack stack){return former(stack)||stack.getItem().getClass().getName().equals("net.nicomar.paintableblocks.item.HammerItem");}
+    public Object surface(PieceRecord piece,BlockHitResult hit){
+        try{var before=adapter.restore(piece.geometryPayload());var face=Direction.valueOf(Direction6.valueOf(hit.getDirection().name()).rotated(Rotation.of(piece.orientation()).inverse().id()).name());return ((Optional<?>)geometry.getMethod("target",design,Vec3.class,Direction.class).invoke(null,before,localPoint(piece,hit.getLocation()),face)).orElseThrow(()->new IllegalArgumentException("No exposed PB surface"));}catch(ReflectiveOperationException ex){throw mismatch(ex);}
+    }
+    public Box16 selection(PieceRecord p,BlockHitResult hit,boolean frame){
+        try{Object d=adapter.restore(p.geometryPayload());Class<?> region=Class.forName("net.nicomar.paintableblocks.operation.VolumeRegion");Object bounds;
+            if(frame)bounds=region.getMethod("block",BlockPos.class).invoke(null,BlockPos.ZERO);else{Object target=surface(p,hit);bounds=region.getMethod("cell",BlockPos.class,design,int.class).invoke(null,BlockPos.ZERO,d,(int)surface.getMethod("cell").invoke(target));}
+            long x0=(int)region.getMethod("x0").invoke(bounds),y0=(int)region.getMethod("y0").invoke(bounds),z0=(int)region.getMethod("z0").invoke(bounds),x1=(int)region.getMethod("x1").invoke(bounds),y1=(int)region.getMethod("y1").invoke(bounds),z1=(int)region.getMethod("z1").invoke(bounds);
+            return Box16.of(x0,y0,z0,x1,y1,z1).transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16());
+        }catch(ReflectiveOperationException ex){throw mismatch(ex);}
+    }
     public boolean nativeBlock(BlockState state){return block.isInstance(state.getBlock());}
     public PieceRecord placement(BlockPlaceContext context,UUID id){
         try{
@@ -116,7 +129,8 @@ public final class PaintableBridge {
     }
     public record Edit(Optional<PieceRecord> after,List<ItemStack> inventory,Object nativePlan){public Edit{inventory=List.copyOf(inventory);}}
     @SuppressWarnings("unchecked")
-    public Edit edit(ServerPlayer actor,InteractionHand hand,PieceRecord piece,BlockHitResult hit,List<ItemStack> inventory,boolean reverse){
+    public Edit edit(ServerPlayer actor,InteractionHand hand,PieceRecord piece,BlockHitResult hit,List<ItemStack> inventory,boolean reverse){return editArea(actor,hand,piece,hit,inventory,reverse,null);}
+    public Edit editArea(ServerPlayer actor,InteractionHand hand,PieceRecord piece,BlockHitResult hit,List<ItemStack> inventory,boolean reverse,Object first){
         try{
             int slot=hand==InteractionHand.MAIN_HAND?actor.getInventory().getSelectedSlot():net.minecraft.world.entity.player.Inventory.SLOT_OFFHAND;ItemStack held=inventory.get(slot);if(!editingItem(held))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB tool");
             Object before=adapter.restore(piece.geometryPayload());Vec3 local=localPoint(piece,hit.getLocation());Direction face=Direction.valueOf(Direction6.valueOf(hit.getDirection().name()).rotated(Rotation.of(piece.orientation()).inverse().id()).name());
@@ -125,7 +139,7 @@ public final class PaintableBridge {
                 if(!(boolean)brush.getMethod("valid",ItemStack.class).invoke(held.getItem(),held))throw new IllegalArgumentException("INVALID_DATA: PB brush");
                 Object content=brush.getMethod("content",ItemStack.class).invoke(held.getItem(),held);int paint=(int)content.getClass().getMethod("paint").invoke(content),units=(int)content.getClass().getMethod("units").invoke(content);
                 Class<?> catalog=Class.forName("net.nicomar.paintableblocks.paint.PaintCatalog");if(!actor.isCreative()&&!(boolean)catalog.getMethod("byId",int.class).invoke(null,paint).getClass().getMethod("survivalAvailable").invoke(catalog.getMethod("byId",int.class).invoke(null,paint)))throw new IllegalArgumentException("INVENTORY_MISSING: paint unavailable");
-                nativePlan=operations.getMethod("paint",design,List.class,int.class).invoke(null,before,List.of(selected),paint);int cost=(int)plan.getMethod("units").invoke(nativePlan);if(!actor.isCreative()){if(cost>units)throw new IllegalArgumentException("INVENTORY_MISSING: pigment");held.set(brushComponent,content.getClass().getMethod("withUnits",int.class).invoke(content,units-cost));}
+                nativePlan=operations.getMethod("paint",design,List.class,int.class).invoke(null,before,first==null?List.of(selected):(List<?>)operations.getMethod("area",design,surface,surface).invoke(null,before,first,selected),paint);int cost=(int)plan.getMethod("units").invoke(nativePlan);if(!actor.isCreative()){if(cost>units)throw new IllegalArgumentException("INVENTORY_MISSING: pigment");held.set(brushComponent,content.getClass().getMethod("withUnits",int.class).invoke(content,units-cost));}
             }else{Object action=tool.getMethod("action").invoke(held.getItem());nativePlan=operations.getMethod("tool",design,surface,action.getClass(),Direction.class,boolean.class).invoke(null,before,selected,action,face,reverse);}
             if(!(boolean)plan.getMethod("changes").invoke(nativePlan))throw new IllegalArgumentException("PB edit has no changes");Object after=plan.getMethod("after").invoke(nativePlan);
             if((boolean)design.getMethod("empty").invoke(after))return new Edit(Optional.empty(),inventory,nativePlan);
@@ -133,6 +147,30 @@ public final class PaintableBridge {
             var next=new PieceRecord(piece.pieceId(),Math.incrementExact(piece.revision()),piece.adapterId(),piece.adapterVersion(),piece.sourceBlockId(),properties,piece.origin16(),piece.orientation(),piece.pivot16(),snapshot(data),data,piece.materialPayload(),piece.itemPayload(),piece.groupId(),piece.flags());
             return new Edit(Optional.of(next),inventory,nativePlan);
         }catch(ReflectiveOperationException ex){throw mismatch(ex);}
+    }
+    public Edit volume(PieceRecord piece,Box16 region,Direction facing,boolean upper,boolean slope,List<ItemStack> inventory){
+        try{Object before=adapter.restore(piece.geometryPayload()),after;var selected=new ArrayList<Integer>();
+            if(!slope){int n=(int)design.getMethod("resolution").invoke(before);var bits=new BitSet();Class<?> orientation=Class.forName("net.nicomar.paintableblocks.design.DesignOrientation");int nativeRotation=(int)design.getMethod("orientation").invoke(before);
+                if(n!=1)for(int cell=0;cell<n*n*n;cell++)if((boolean)design.getMethod("occupied",int.class).invoke(before,cell)){
+                    var center=(Vec3)orientation.getMethod("rotate",int.class,Vec3.class).invoke(null,nativeRotation,new Vec3((cell%n+0.5)/n,(cell/n%n+0.5)/n,(cell/(n*n)+0.5)/n));
+                    Vec3 point=worldPoint(piece,center);if(point.x*16>=region.min().x()&&point.x*16<region.max().x()&&point.y*16>=region.min().y()&&point.y*16<region.max().y()&&point.z*16>=region.min().z()&&point.z*16<region.max().z()){bits.set(cell);selected.add(cell);}
+                }after=design.getMethod("remove",BitSet.class).invoke(before,bits);
+            }else{
+                long length=facing.getAxis()==Direction.Axis.X?region.max().x()-region.min().x():region.max().z()-region.min().z(),height=region.max().y()-region.min().y();long a=-height*facing.getStepX(),b=length,c=-height*facing.getStepZ();long start=facing.getAxis()==Direction.Axis.X?(facing.getStepX()>0?region.min().x():region.max().x()):(facing.getStepZ()>0?region.min().z():region.max().z());long offset=b*region.min().y()+(a!=0?a:c)*start;if(upper){a=-a;b=-b;c=-c;offset=-offset;}
+                Class<?> orientation=Class.forName("net.nicomar.paintableblocks.design.DesignOrientation");int nativeRotation=(int)design.getMethod("orientation").invoke(before);var zero=worldPoint(piece,(Vec3)orientation.getMethod("rotate",int.class,Vec3.class).invoke(null,nativeRotation,Vec3.ZERO));long[] coefficients=new long[4];
+                for(int axis=0;axis<3;axis++){Direction nativeAxis=(Direction)orientation.getMethod("direction",int.class,Direction.class).invoke(null,nativeRotation,new Direction[]{Direction.EAST,Direction.UP,Direction.SOUTH}[axis]);Direction6 world=Direction6.valueOf(nativeAxis.name()).rotated(piece.orientation());coefficients[axis]=16*(a*world.x+b*world.y+c*world.z);}
+                coefficients[3]=offset-Math.round(16*(a*zero.x+b*zero.y+c*zero.z));long gcd=0;for(long value:coefficients)gcd=gcd(gcd,Math.abs(value));for(int i=0;i<4;i++)coefficients[i]/=gcd;
+                Class<?> plane=Class.forName("net.nicomar.paintableblocks.design.SlopePlane");Object cut=plane.getConstructor(int.class,int.class,int.class,int.class).newInstance(Math.toIntExact(coefficients[0]),Math.toIntExact(coefficients[1]),Math.toIntExact(coefficients[2]),Math.toIntExact(coefficients[3]));after=design.getMethod("withSlope",plane).invoke(before,cut);
+            }
+            Object proposal=plan.getConstructor(design,design,List.class,List.class,int.class).newInstance(before,after,selected,List.of(),0);return result(piece,after,inventory,proposal);
+        }catch(ReflectiveOperationException ex){throw mismatch(ex);}
+    }
+    private static long gcd(long a,long b){while(b!=0){long t=a%b;a=b;b=t;}return a;}
+    private static Vec3 worldPoint(PieceRecord p,Vec3 point){var r=Rotation.of(p.orientation());var x=r.apply(new GridPoint(1,0,0));var y=r.apply(new GridPoint(0,1,0));var z=r.apply(new GridPoint(0,0,1));double a=point.x*16-p.pivot16().x(),b=point.y*16-p.pivot16().y(),c=point.z*16-p.pivot16().z();return new Vec3((x.x()*a+y.x()*b+z.x()*c+p.pivot16().x()+p.origin16().x())/16,(x.y()*a+y.y()*b+z.y()*c+p.pivot16().y()+p.origin16().y())/16,(x.z()*a+y.z()*b+z.z()*c+p.pivot16().z()+p.origin16().z())/16);}
+    private Edit result(PieceRecord piece,Object after,List<ItemStack> inventory,Object proposal)throws ReflectiveOperationException{
+        if(!(boolean)plan.getMethod("changes").invoke(proposal))return new Edit(Optional.of(piece),inventory,proposal);
+        if((boolean)design.getMethod("empty").invoke(after))return new Edit(Optional.empty(),inventory,proposal);var data=adapter.capture(after);var properties=new HashMap<>(piece.sourceState());properties.put("cut",Boolean.toString(!(boolean)design.getMethod("complete").invoke(after)));
+        return new Edit(Optional.of(new PieceRecord(piece.pieceId(),Math.incrementExact(piece.revision()),piece.adapterId(),piece.adapterVersion(),piece.sourceBlockId(),properties,piece.origin16(),piece.orientation(),piece.pivot16(),snapshot(data),data,piece.materialPayload(),piece.itemPayload(),piece.groupId(),piece.flags())),inventory,proposal);
     }
     public void permission(ServerPlayer actor,InteractionHand hand,PieceRecord before,BlockPos position,Object proposal){
         try{
