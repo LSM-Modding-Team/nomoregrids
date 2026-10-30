@@ -2,7 +2,7 @@
 
 ## Referencia inspeccionada
 
-Repositorio LSM-Modding-Team/paintableblocks, rama 26.2, commit observado f3b3998d6a239b776121f3003b6f5a6c052a0a65. Estado publicado por su README: código preparado sin compilación ni pruebas en Minecraft acreditadas. Esto no prueba que sea ejecutable.
+Repositorio LSM-Modding-Team/paintableblocks, rama 26.2. La referencia documental inicial fue f3b3998d6a239b776121f3003b6f5a6c052a0a65; la implementación actual se contrastó con [e93bc03f350dfb03b4031f1e479f4a37f28b556e](https://github.com/LSM-Modding-Team/paintableblocks/tree/e93bc03f350dfb03b4031f1e479f4a37f28b556e), schema BlockDesign 2. Leer sus fuentes no acredita que NMG o PB compilen o funcionen juntos.
 
 Fuentes directas en [[Fuentes y evidencia]]. La documentación del otro repositorio inspira la estructura, no impone sus instrucciones históricas al desarrollo de NMG.
 
@@ -48,6 +48,6 @@ Recuperación mediante guantes/tenazas u otra herramienta respeta las reglas del
 
 ## Etapas
 
-F6a: captura/restauración y render. F6b: geometría, desplazamiento y composición. F6c: herramientas/pintura y edición validada. F6d: conservación, red, fronteras y recuperación. Máquinas y cubos de producción no quedan incluidos automáticamente.
+F6a: captura/restauración y render. F6b: geometría, desplazamiento y composición. F6c: herramientas/pintura y edición validada. F6d: conservación, red, fronteras y recuperación. Las máquinas y cubos de producción no se incluyen por el adaptador de diseños: tienen un perfil funcional separado en F7, con autoridad privada, menús nativos, ticking y transferencias preparados. Su presencia tampoco acredita el ciclo completo de ejecución.
 
 No declarar «compatible con Paintable Blocks» hasta completar F6d en cliente y servidor dedicado con versiones fijadas.

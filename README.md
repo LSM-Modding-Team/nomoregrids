@@ -10,7 +10,7 @@ Implementación experimental de construcción por componentes para Minecraft Jav
 | Versión | 0.1.0-SNAPSHOT |
 | Herramientas fijadas | Gradle 9.2.1 / ModDevGradle 2.0.148 |
 
-Hay código en todas las fases F0–F9. La construcción incorpora servidor, contenedores, diario durable, recibos de inventario, secciones, red fragmentada, controles, contorno por componente y render. También hay puentes parciales para cavidades/fluidos, herramientas Paintable Blocks, barriles/hornos y pistones, junto con compactación por generaciones y métricas. **No están terminadas todas las fases**; quedan integraciones de código y validación. El detalle está en [docs/ESTADO_DESARROLLO.md](docs/ESTADO_DESARROLLO.md).
+El código de F0–F9 conecta construcción, diario/recibos, recuperación, red fragmentada y render con los perfiles de decoración, fluidos, herramientas Paintable Blocks, funcionales/menús/capacidades, grupos, redstone, raíles y pistones mixtos. Incluye compactación automática por generaciones, cachés y métricas. **La implementación sigue pendiente de compilación y validación; ninguna fase está aceptada.** El alcance, los perfiles y las comprobaciones pendientes están en [docs/ESTADO_DESARROLLO.md](docs/ESTADO_DESARROLLO.md).
 
 **No se ha compilado, ejecutado pruebas Java ni iniciado Minecraft.** La edición experimental requiere `/nmg enable` con permisos de propietario, por sesión y dimensión, o la propiedad `-Dnomoregrids.experimental=true`. No habilitarla en un mundo valioso sin completar la validación. Las capacidades no integradas rechazan la operación; los datos desconocidos se conservan como sustitutos protegidos.
 

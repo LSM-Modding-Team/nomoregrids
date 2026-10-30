@@ -1007,3 +1007,29 @@ Los recorridos presupuestados de camas y raíles tienen cursor por dimensión; u
 cursor global podía revisar siempre la misma mitad al alternar dos mundos.
 Revisión sintáctica/estructural/imports y whitespace, sin compilación ni pruebas
 de dormir, respawn, reemplazo, movimiento o señales en varias dimensiones.
+
+## Cierre de código y estado consolidado — 2026-10-30 (America/Lima)
+
+Se sustituyó el estado de la entrega anterior por un inventario de los puentes
+ya escritos y sus perfiles: recuperación de adaptadores y transferencias,
+decoración, fluidos por ventanas, herramientas PB mixtas, menús/capacidades,
+grupos, redstone, raíles, pistones mixtos y compactación automática. Se actualizó
+README, bóveda, protocolo 9, fuentes PB, metadatos y comentarios de paquete que
+aún decían que el host/diario no existían. La matriz incorpora los casos de
+validación de estos puentes, todos NO EJECUTADOS. No se cambia la identidad,
+las versiones ni la prohibición de compilación/ejecución.
+
+La referencia PB vigente es e93bc03f350dfb03b4031f1e479f4a37f28b556e (26.2);
+se mantiene opcional, schema 2 y perfiles explícitos, sin prometer compatibilidad
+universal. Se decidió conservar las incertidumbres de una transacción ajena
+para reconciliación, limitar redes/cierres al presupuesto y aplicar movimientos
+de pistón instantáneos. Los detalles de límites están en el estado consolidado.
+
+Verificación final disponible: parser de 240 fuentes Java (198 main, 42 test),
+JSON/TOML/licencia/wrapper/wiki/núcleo puro, 92 imports explícitos de plataforma y
+whitespace. Un escáner auxiliar de alcance/imports encontró únicamente nombres
+heredados anidados o del bus externo fuera de su catálogo; no sustituye un
+compilador. Los checks no ejecutan el código Java. No hay compilación, tests
+Java, carga de mixins, Minecraft, JAR, recuperación real o benchmarks ejecutados.
+Las fases siguen sin aceptación y quedan pendientes esas validaciones y la
+corrección de los defectos que revelen; no se fabrican resultados de ejecución.

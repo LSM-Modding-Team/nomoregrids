@@ -19,11 +19,16 @@ Estos números son decisiones iniciales de ingeniería, no resultados medidos. S
 | Cierre de movimiento de pistón | 12 componentes |
 | Resolución de conexiones | 16 pasadas |
 | Operación normal | Hasta 128 piezas y 512 casillas afectadas |
-| Fluido: casillas activas por sección | 256 |
-| Fluido: pasos de cavidad por tick/dimensión | 8192 |
+| Fluido: celdas objetivo por ventana de simulación | 16 más frontera cargada |
+| Fluido: región local de redistribución al construir | 256 celdas |
+| Fluido: pasos de microcavidad por turno/dimensión | 65536 |
+| Redstone: componentes reales por red | 256, además del límite binario del checkpoint |
+| Checkpoint de archivo | 64 MiB; cola incremental de 64 operaciones |
 | Trabajo diferido de simulación | 2 ms objetivo por tick/dimensión |
 | Construcción de mallas cliente | 4 ms objetivo por frame, diferible |
 | Caché geométrica cliente/servidor | 128/64 MiB respectivamente, LRU |
+
+El estado de implementación y sus límites operativos están en `docs/ESTADO_DESARROLLO.md`. Los objetivos temporales y de caché de esta tabla requieren medición; no son garantías de latencia o memoria.
 
 No todos los máximos se pueden alcanzar simultáneamente: se aplican todos los presupuestos. Las geometrías densas de Paintable Blocks pueden ser rechazadas aunque su payload quepa; se informa el límite concreto. El adaptador debe medir complejidad tras unir cajas y ocultar caras.
 

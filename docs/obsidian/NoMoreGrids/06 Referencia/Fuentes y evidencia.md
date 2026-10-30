@@ -4,7 +4,7 @@
 
 La especificación de producto procede del diálogo con el usuario. Las decisiones técnicas son propuestas de diseño aceptadas bajo su instrucción de aceptación automática. Las fuentes externas sirven para entender plataforma e integración; no demuestran que NMG funcione.
 
-Fecha de edición: 2026-10-29, referencia de cliente America/Lima. No se atribuye una fecha futura al estado de los repositorios.
+Fecha de edición: 2026-10-30, referencia de cliente America/Lima. No se atribuye una fecha futura al estado de los repositorios.
 
 ## NeoForge: fuentes primarias
 
@@ -27,6 +27,22 @@ Base fijada: [commit f3b3998d6a239b776121f3003b6f5a6c052a0a65](https://github.co
 - [PaintableBlock](https://github.com/LSM-Modding-Team/paintableblocks/blob/f3b3998d6a239b776121f3003b6f5a6c052a0a65/src/main/java/net/nicomar/paintableblocks/block/PaintableBlock.java): puente de formas/loot al mundo.
 - [PaintableBlockEditEvent](https://github.com/LSM-Modding-Team/paintableblocks/blob/f3b3998d6a239b776121f3003b6f5a6c052a0a65/src/main/java/net/nicomar/paintableblocks/event/PaintableBlockEditEvent.java): cancelación de edición.
 - [Bóveda de referencia](https://github.com/LSM-Modding-Team/paintableblocks/tree/f3b3998d6a239b776121f3003b6f5a6c052a0a65/docs/obsidian/PaintableBlocks): estructura observada en árbol del repositorio.
+
+## Referencia de implementación actual
+
+La lectura posterior para diseños, volúmenes y máquinas PB se fijó en
+[26.2, e93bc03f350dfb03b4031f1e479f4a37f28b556e](https://github.com/LSM-Modding-Team/paintableblocks/tree/e93bc03f350dfb03b4031f1e479f4a37f28b556e).
+Se consultaron además DesignOperations, VolumeRegion/VolumeOperations,
+herramientas, ProductionMenu/BucketMenu, estaciones, máquinas y cubos, sus
+block entities e interacciones del servidor. Se conservan arriba los enlaces
+iniciales por trazabilidad; el hash vigente del puente está en PaintableAdapter.
+No se alteró el repositorio PB ni se copiaron sus fuentes al proyecto.
+
+Para NMG se leyeron los jars oficiales Minecraft 26.2, fuentes NeoForge
+26.2.0.88, parches userdev y access transformers; se contrastaron firmas y
+bytecode con javap. Estas lecturas y las comprobaciones Python son estáticas,
+sin compilar ni ejecutar Java/Minecraft. Los resultados están registrados en
+`docs/evidence/IMPLEMENTACION_FASES.md` y `docs/ESTADO_DESARROLLO.md`.
 
 ## Referencia secundaria identificada
 

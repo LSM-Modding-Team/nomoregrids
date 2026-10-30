@@ -7,9 +7,9 @@
 | world | Índices inmutables, réplicas públicas, bloque/entidad y consultas |
 | platform | Captura nativa, inventarios, candidatos, host servidor y eventos |
 | registry / event / network | Contenido real, permisos, protocolo, acciones y límites |
-| client | Controles, preview Gizmo y modelos estáticos de sección |
+| client | Controles, selecciones/preview, pantallas/menús, modelos de sección y render decorativo nativo |
 | material / simulation/connection / simulation/support | Fragmentos, familias, materiales, puertos y apoyos |
-| simulation/fluid / simulation/functional / simulation/movement / simulation/redstone | Algoritmos de fases avanzadas; consultar estado de integración |
+| simulation/fluid / simulation/functional / simulation/movement / simulation/redstone | Simulaciones y contratos usados por el host; consultar perfiles y validación |
 | api / compat | Adaptadores y puente opcional Paintable Blocks |
 | diagnostic | Caché por peso, trabajos y muestras |
 
@@ -20,7 +20,7 @@ de fragmentos. No existe ítem del contenedor técnico.
 
 `src/test/java` contiene casos JUnit escritos, no ejecutados. `src/gametest`
 continúa reservado y no está conectado como source set. `tools` contiene solo
-comprobaciones de estructura y parser, sin compilación. `docs/evidence`
+comprobaciones estáticas de estructura, parser e imports, sin compilación. `docs/evidence`
 distingue fuentes inspeccionadas de resultados ejecutados.
 
 El único JAR versionado es el wrapper oficial de Gradle. No se incluyen binarios

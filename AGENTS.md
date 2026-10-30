@@ -18,7 +18,7 @@ Leer docs/obsidian/NoMoreGrids/00 Inicio/Inicio.md, Reglas fundamentales, Decisi
 - Revisar APIs exactas de 26.2.0.88; no inventar firmas a partir de contratos conceptuales.
 - Validar todo antes de consumir materiales o mutar el mundo.
 - Un UUID y una autoridad por pieza, sin inventarios duplicados.
-- Compatibilidad por capacidades y versión; Paintable Blocks tiene adaptador parcial, sin integración completa ni certificación.
+- Compatibilidad por capacidades y versión; Paintable Blocks tiene perfiles experimentales de diseños, herramientas y funcionales, pendientes de compilación y certificación. Consultar docs/ESTADO_DESARROLLO.md para el alcance.
 - Cada fase requiere evidencia de compilación y pruebas pertinentes para declararse completa.
 - Distinguir revisión estática, compilación, arranque y pruebas de mecánicas.
 - No cambiar versiones fijadas ni publicar/crear repositorios sin una solicitud que lo autorice.

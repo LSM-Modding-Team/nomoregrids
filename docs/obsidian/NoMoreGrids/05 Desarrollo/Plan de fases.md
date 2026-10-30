@@ -1,6 +1,6 @@
 # Plan de fases
 
-Cada fase requiere documentación actualizada, compilación cuando haya código y evidencia de ejecución pertinente. No se declara completa por crear clases vacías. La autorización actual permite escribir F0–F9 sin compilar. Hay código en todas ellas, con integración de construcción y módulos avanzados parciales. Ninguna fase está aceptada. Ver `docs/ESTADO_DESARROLLO.md` y `docs/evidence`.
+Cada fase requiere documentación actualizada, compilación cuando haya código y evidencia de ejecución pertinente. No se declara completa por crear clases vacías. La autorización actual permite escribir F0–F9 sin compilar. Hay código y puentes al mundo en todas ellas para los perfiles explícitos de esta edición; su integración sigue pendiente de verificación. Ninguna fase está aceptada. Ver `docs/ESTADO_DESARROLLO.md` y `docs/evidence`.
 
 | Fase | Entrega | Puerta de salida |
 |---|---|---|
@@ -17,7 +17,7 @@ Cada fase requiere documentación actualizada, compilación cuando haya código 
 
 ## Primer lanzamiento
 
-0.1.0 experimental incluye F0–F2 aceptadas. Solo construcción seca con familias explícitas; no fluidos parciales, máquinas ni compatibilidad Paintable Blocks acreditada. Las funciones futuras aparecen como no disponibles, sin ejecutarse parcialmente.
+La propuesta inicial de lanzamiento requería F0–F2 aceptadas y construcción seca. No se ha producido ese lanzamiento ni se ha aceptado ninguna fase. La rama experimental actual contiene además código F3–F9 por autorización del usuario; su presencia no acredita su funcionamiento ni compatibilidad Paintable Blocks.
 
 Las fases no redefinen el objetivo: el alcance completo se mantiene. F6 puede desarrollarse en paralelo lógico a F5 cuando sus dependencias F1–F4 estén listas, pero ninguna integración se publica sin sus pruebas. Esto no solicita agentes paralelos ni autoriza cambios remotos.
 

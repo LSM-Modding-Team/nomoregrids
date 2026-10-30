@@ -36,21 +36,30 @@ Estado inicial de todos los casos: NO EJECUTADO. Esta tabla especifica pruebas f
 | S04 | Conexiones que no convergen | Aborto sin estados alternantes |
 | L01 | Dos emisores en una casilla | Máximo, no suma |
 | L02 | Caras internas ocultas | No borran datos de material |
-| F01 | Composición mojada antes de F5 | Rechazo claro |
+| F01 | Composición con fluido/perfil no disponible | Rechazo antes de consumir |
 | F02 | Agua en cavidad | Conservación y conectividad |
 | F03 | Cubos y fuentes parciales | Sin duplicación de cubos |
 | F04 | Reacción en hueco insuficiente | Conserva estado, no invade sólido |
+| F05 | Red de fluido de más de 256 celdas | Ventanas progresan con fronteras/revisiones sin publicar trabajo incompleto |
+| F06 | Entidad con envolvente de más de 512 celdas | Consulta dispersa conserva contactos corporales/ojos y corrientes por tipo |
 | M01 | Dos contenedores funcionales | Inventarios independientes |
 | M02 | Pistón toca pieza multicelda | Una pieza movida, no fragmentada |
 | M03 | 13 componentes en empuje | Movimiento bloqueado |
 | M04 | Trayectoria obstruida | Bloqueo aunque destino esté vacío |
 | M05 | Redstone compartiendo casilla | Sin conexión accidental |
+| M06 | Menú con cursor/drag/autofill/XP y cierre durante movimiento | Recibo único; contenidos, cursor y experiencia conservados |
+| M07 | Transferencia NeoForge abortada/confirmada y entre dimensiones | Rollback o un commit; conexión entre dimensiones rechazada |
+| M08 | Puerta/cama compartida movida/reemplazada/ocupada | Dos miembros coherentes y barrido seguro; dormir/respawn solo en marco válido |
+| M09 | Vagón entre raíl nativo y convertido, curva/pendiente | Extremos/tangentes continuos; detectores/activadores y colisiones correctos |
+| M10 | Pulso corto de repetidor y descarga/carga de la red | Flancos/retardos persistidos, sin conducción por compartir host |
 | B01 | PB forma losa horizontal/vertical | Apoyo real, identidad PB |
 | B02 | PB altura 4/16 | Cubo a 4/16–20/16 |
 | B03 | PB pintura en diseño desplazado | Superficie correcta |
 | B04 | PB pendiente y giro | Geometría/pintura no se rotan dos veces |
 | B05 | PB edición invade pieza | Rechazo antes de coste |
 | B06 | PB herramienta de recuperación | Datos/loot del origen |
+| B07 | Volumen/pintura PB mixtos nativos y NMG | Selección fijada; coste/loot y geometría validados en un plan |
+| B08 | Estación/máquina/cubo PB con menú y automatización | Producción y contenidos privados únicos, guardado y recuperación |
 | N01 | Dos jugadores misma revisión | Un commit; otro desactualizado |
 | N02 | Repetir paquete de operación | Sin segundo consumo/loot |
 | N03 | Delta fuera de orden | Resync sin corrupción |
@@ -60,6 +69,9 @@ Estado inicial de todos los casos: NO EJECUTADO. Esta tabla especifica pruebas f
 | D03 | Crash entre inventario y chunk | Recibo o cuarentena; nunca replay ciego |
 | D04 | Falta mod/adaptador | Sustitución conservada y recuperable |
 | D05 | Versión de datos futura | No sobrescribe ni rebaja |
+| D06 | Chunk nativo antiguo después de transferir/mover máquina | Reparación o cuarentena antes de ticks/acceso; sin drops/XP duplicados |
+| D07 | Corte después del commit del mod externo y antes del recibo propio | Intent conservado; reconciliar prueba externa sin replay ciego |
+| D08 | Compactación automática con escrituras simultáneas y corte de publicación | Prefijo/cola y deduplicación recuperados desde generación durable |
 | Q01 | Permiso denegado en una casilla | Toda operación rechazada |
 | Q02 | Límite reducido con piezas existentes | No borra; permite reducir |
 | Q03 | Servidor dedicado | Sin cargar clases de cliente |
