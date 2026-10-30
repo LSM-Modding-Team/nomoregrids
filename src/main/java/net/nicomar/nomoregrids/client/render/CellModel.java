@@ -59,6 +59,7 @@ public final class CellModel implements DynamicBlockStateModel {
             if(output.size()>131072)throw new IllegalArgumentException("Section mesh triangle budget");
             }catch(RuntimeException ex){output.subList(start,output.size()).clear();placeholder(p,pos,output);}
         }
+        view.cavity().ifPresent(c->CavityMesh.append(c,world,pos,output));
         for(var q:output)flags|=q.materialInfo().flags();parts.add(new Part(List.copyOf(output),particleMaterial(),flags));
     }
     private void placeholder(PieceRecord piece,BlockPos cell,List<BakedQuad> output){

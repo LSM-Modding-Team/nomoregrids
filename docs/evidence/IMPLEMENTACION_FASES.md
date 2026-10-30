@@ -494,3 +494,25 @@ por recrear entidades tras reinicios, y no requiere un comando de reclamación.
 Writes directos a chunks de otros mods no atraviesan este hook: no se certifica
 compatibilidad universal. Pruebas escritas de codec/diario/CRC para efectos; no
 ejecutadas. Parser, recursos y whitespace pasan. Sin compilación ni Minecraft.
+
+## Entrega: primer host de cavidades conectado
+
+CavityCodec y CellView esquema 2 (lee 1) conectan los microvolúmenes con efectos
+privados del diario, réplica pública fragmentada y reparación al cargar. La
+construcción calcula máscaras conservadoras de la geometría exacta, redistribuye
+fluido en la región cargada de radio 4 y conserva el volumen desplazado o rechaza
+antes de consumir. Una fuente obstruida pasa a flujo conservado, sin cubo parcial.
+El trabajo de flujo publica únicamente al terminar; agua/lava tienen selección
+de cadencia separada, entradas nativas verificadas y reacciones de celda completa
+en el mismo plan. Buckets sobre celdas se tramitan como transacción con inventario.
+Un hook enruta escrituras líquidas vanilla sobre el contenedor a la autoridad NMG.
+
+El render emite rectángulos fusionados por cara con materiales de FluidModel y
+tint biome. Un mixin exclusivo de cliente evita dibujar además la celda líquida
+vanilla completa. Protocolo 5; guardado físico de piezas no reinterpretado.
+
+Límites aún de implementación: regiones activas mayores a 256 deben dividirse,
+y el contacto físico de entidades usa todavía proyección vanilla por celda. No
+se declara F5 completa. Pruebas de codec/cubos escritas, no ejecutadas. APIs
+consultadas por javap sin arrancar código. Parser/recursos/whitespace pasan;
+compilación, tests Java y juego no ejecutados.

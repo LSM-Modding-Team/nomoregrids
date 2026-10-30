@@ -73,7 +73,7 @@ public final class NmgRuntime {
                 });
             }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
         }
-        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level))WorldMutationHooks.tick(level);
+        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);try{SERVICES.get(level).fluids().tick();}catch(IOException|RuntimeException ex){if(SERVICES.get(level).quarantined())quarantine(level,ex);else NoMoreGrids.LOGGER.debug("NMG fluid update deferred: {}",ex.toString());}}
         var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
     }
     private static void chunkUnload(net.neoforged.neoforge.event.level.ChunkEvent.Unload event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
@@ -91,7 +91,7 @@ public final class NmgRuntime {
             if(!player.level().isLoaded(block.getBlockPos()))throw new IllegalArgumentException("UNLOADED_REGION");
             String result="OK";var service=require(player.level());if(packet.intent()!=null)NmgNetworking.actionIntent(player.getUUID(),packet.intent());var mode=NmgNetworking.modes(player.getUUID());
             if(packet.intent()!=null){
-                if(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var selected=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(packet.expectedPiece().isEmpty()||!packet.expectedPiece().orElseThrow().equals(selected.pieceId())||packet.expectedRevision()!=selected.revision())throw new IllegalArgumentException("STALE_REVISION");}
+                if(packet.action()!=ActionPayload.Action.BUCKET&&player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var selected=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(packet.expectedPiece().isEmpty()||!packet.expectedPiece().orElseThrow().equals(selected.pieceId())||packet.expectedRevision()!=selected.revision())throw new IllegalArgumentException("STALE_REVISION");}
                 else if(packet.expectedPiece().isPresent())throw new IllegalArgumentException("STALE_REVISION");
             }
             InteractionHand hand=packet.offhand()?InteractionHand.OFF_HAND:InteractionHand.MAIN_HAND;
@@ -111,6 +111,7 @@ public final class NmgRuntime {
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
                     var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.remove(player,piece.pieceId(),packet.operation());
                 }
+                case BUCKET->{service.fluids().bucket(player,hand,new net.nicomar.nomoregrids.core.CellPos(block.getBlockPos().getX(),block.getBlockPos().getY(),block.getBlockPos().getZ()),packet.operation());}
                 case EDIT->{
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
                     var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation());

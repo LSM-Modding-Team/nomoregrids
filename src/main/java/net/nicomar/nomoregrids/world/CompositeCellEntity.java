@@ -26,7 +26,7 @@ public final class CompositeCellEntity extends BlockEntity {
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
-        if(view.replicas().isEmpty())throw new IllegalArgumentException("Empty cells must be restored to air");
+        if(!view.occupied())throw new IllegalArgumentException("Empty cells must be restored to air");
         var previous=this.view;this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
         if(level instanceof net.minecraft.server.level.ServerLevel server)net.nicomar.nomoregrids.network.CellReplication.changed(server,worldPosition,previous,view);
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
@@ -45,7 +45,8 @@ public final class CompositeCellEntity extends BlockEntity {
                 new net.nicomar.nomoregrids.material.MaterialProfile(source.getDestroySpeed(level,worldPosition),source.getBlock().getExplosionResistance(),source.getBlock().getFriction(),source.getBlock().getBounceRestitution(),source.getLightEmission(),source.getLightDampening(),source.canOcclude(),true,false);
             parts.add(new net.nicomar.nomoregrids.simulation.light.CellLighting.Part(clipped,profile));
         }
-        var light=net.nicomar.nomoregrids.simulation.light.CellLighting.calculate(parts);var state=getBlockState().setValue(CompositeCellBlock.EMISSION,light.emission()).setValue(CompositeCellBlock.ATTENUATION,light.attenuation()).setValue(CompositeCellBlock.SEALED,light.sealed());
+        var water=view.cavity().map(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.WATER)).orElse(0);var lava=view.cavity().map(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.LAVA)).orElse(0);
+        var light=net.nicomar.nomoregrids.simulation.light.CellLighting.calculate(parts);var state=getBlockState().setValue(CompositeCellBlock.EMISSION,lava>0?15:light.emission()).setValue(CompositeCellBlock.ATTENUATION,light.attenuation()).setValue(CompositeCellBlock.SEALED,light.sealed()).setValue(CompositeCellBlock.FLUID,lava>0?2:water>0?1:0).setValue(CompositeCellBlock.SOURCE,view.cavity().map(c->c.source()!=net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.EMPTY).orElse(false));
         if(!state.equals(getBlockState()))level.setBlock(worldPosition,state,Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE);
     }
     public VoxelShape shape(boolean collision){
@@ -55,7 +56,7 @@ public final class CompositeCellEntity extends BlockEntity {
             BoxUnion local=collision?piece.geometry().collision():piece.geometry().selection();
             for(var box:local.transform(Rotation.of(piece.orientation()),piece.pivot16(),piece.origin16()).boxes())
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
-        }if(collision){collisionCache=shape;return shape;}selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
+        }if(collision){collisionCache=shape;return shape;}if(view.replicas().isEmpty()&&view.cavity().isPresent())shape=Shapes.block();selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
     }
     public Optional<net.nicomar.nomoregrids.core.PieceRecord> ground(net.minecraft.world.entity.Entity entity){
         if(!valid||entity==null)return Optional.empty();var body=entity.getBoundingBox();if(contactFaces==null){
@@ -86,7 +87,7 @@ public final class CompositeCellEntity extends BlockEntity {
     }
     @Override protected void loadAdditional(ValueInput input){
         super.loadAdditional(input);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=input.getStringOr("nmg_public","");valid=false;
-        try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=!view.replicas().isEmpty();}
+        try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=view.occupied();}
         catch(IOException|IllegalArgumentException ex){view=new CellView(List.of());}
     }
     @Override protected void saveAdditional(ValueOutput output){

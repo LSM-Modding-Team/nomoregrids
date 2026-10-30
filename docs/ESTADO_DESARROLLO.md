@@ -12,7 +12,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | F2 | Colocación compartida cliente/servidor, 24 rotaciones, losas/escaleras/cubos, selección, minería, reemplazo, controles, contorno por componente con aristas reales y preview con validación del servidor | Completar validación de la matriz geométrica y fidelidad visual/modelos/tints en Minecraft |
 | F3 | Paneles/barrotes recortables, fragmentos/recetas, vallas/muros, puertos geométricos, resolución estable de conexiones y esquinas de escaleras 3D en el host | Verificar en ejecución cambios nativos externos, extremos, tapas y recursos visuales |
 | F4 | Materiales/luz, parches exactos, cadenas estables, dependientes en operaciones NMG, contactos por área, fricción/rebote/sonidos, escalada y pérdida de soporte externo journalizada | Decoración con datos, efectos, fuego y explosiones por componente |
-| F5 | Cavidades 16³, fuentes, cubos, redistribución, flujo/reacciones, máscara convexa incremental y codec/checkpoints | Conectar guardado/sincronización de fluidos, cadencias, buckets y puente del mundo, malla; la ruta actual rechaza composición mojada |
+| F5 | Cavidades 16³ conectadas a diario, réplicas, cubos, redistribución, flujo/reacciones, máscara convexa, cadencias y malla de caras fusionadas | Ampliar planificación de regiones activas grandes; validar puente vanilla, efectos físicos, cadencias y reacciones en el juego |
 | F6 | API versionada, captura/colocación PB, convexos/render, apoyo nativo, pincel y herramientas simples, costes por copia y loot nativo | Pintura de áreas, herramientas de volumen/pendientes y sus selecciones; pruebas del ciclo completo en dedicado |
 | F7 | Autoridad única de inventario/energía, puertos, grupos, horno y codec/checkpoints privados | Conectar persistencia de estado funcional, captura nativa, menús, recetas, capacidades y ticking |
 | F8 | Planificador de pistones con barrido y grupos, red lógica con retardos y continuidad de raíles | Hooks nativos de pistones/redstone/raíles, conectar checkpoints lógicos y movimiento transaccional del mundo; el contenedor bloquea empuje vanilla |
@@ -65,3 +65,10 @@ Los drops por pérdida de apoyo se conservan en una cola privada durable y se
 entregan automáticamente al inventario de un jugador cercano cuando caben. No
 se crean entidades de ítem antes de una entrega confirmada. Los writes directos
 de otros mods a ChunkAccess, fuera de Level, requieren una integración específica.
+
+F5 usa una región activa acotada a 256 celdas por trabajo. Si la región cargada
+excede ese límite se aplaza sin publicar un resultado parcial. Sigue pendiente
+dividir redes de fluido grandes con fronteras temporales consistentes. La máscara
+conservadora puede cerrar ranuras menores a 1/16; no modifica el sólido original.
+Los efectos físicos vanilla reciben una proyección conservadora de fluido de
+celda; falta contrastar inmersión/contacto exacto dentro de cavidades.
