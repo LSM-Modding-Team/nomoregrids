@@ -6,7 +6,7 @@ Minecraft Java 26.2 · NeoForge 26.2.0.88 · documentación en español.
 
 No More Grids elimina la exclusividad de las casillas: varias piezas pueden compartir una casilla y una pieza puede extenderse entre varias. Cada componente conserva su identidad y sus propiedades. El ajuste de posición es de 1/16 de bloque; la geometría puede ser más precisa.
 
-> Estado: diseño acordado y esqueleto con arranque mínimo; sin mecánicas, compilación ni pruebas en Minecraft. «Acordado» describe una decisión de producto; no acredita viabilidad ni compatibilidad ejecutada.
+> Estado: diseño acordado, arranque mínimo y núcleo geométrico parcial de F1; sin mecánicas activas, compilación ni pruebas en Minecraft. «Acordado» describe una decisión de producto; no acredita viabilidad ni compatibilidad ejecutada.
 
 ## Leer primero
 
@@ -29,7 +29,7 @@ No More Grids elimina la exclusividad de las casillas: varias piezas pueden comp
 
 ## Cómo abrir
 
-Extraer el proyecto y abrir docs/obsidian/NoMoreGrids como bóveda en Obsidian. No se necesitan complementos comunitarios. Los enlaces internos son wikilinks con nombres únicos. Esta bóveda ya está ubicada en docs/obsidian/NoMoreGrids dentro del proyecto Gradle. La base contiene únicamente entradas mínimas; todavía no ha sido compilada.
+Extraer el proyecto y abrir docs/obsidian/NoMoreGrids como bóveda en Obsidian. No se necesitan complementos comunitarios. Los enlaces internos son wikilinks con nombres únicos. Esta bóveda ya está ubicada en docs/obsidian/NoMoreGrids dentro del proyecto Gradle. La base contiene entradas mínimas y núcleo geométrico puro parcial; todavía no ha sido compilada.
 
 Las propuestas del chat están aceptadas por defecto, salvo rechazo explícito del usuario. Las decisiones de esta edición precisan las ambigüedades restantes. Consultar [[Decisiones tecnicas]] para conocer sus consecuencias.
 

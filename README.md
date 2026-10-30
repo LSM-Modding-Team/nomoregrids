@@ -12,7 +12,7 @@ Esqueleto de desarrollo para Minecraft Java **26.2**, NeoForge **26.2.0.88** y J
 
 ## Estado
 
-Incluye configuración Gradle, wrapper completo, entrada común y entrada de cliente, recursos iniciales, paquetes reservados y documentación de Obsidian. No implementa piezas, orientación, combinaciones, fluidos ni compatibilidad Paintable Blocks.
+Incluye configuración Gradle, wrapper completo, entradas común/cliente, recursos iniciales y documentación de Obsidian. Se inició F1 con coordenadas, rotaciones, uniones de cajas y trazado de selección independientes de Minecraft, más pruebas Java escritas. No hay mecánicas activas de colocación, composición, fluidos ni compatibilidad Paintable Blocks.
 
 Validación realizada: estructura del proyecto, sintaxis de recursos JSON/TOML, coherencia de nombres y versiones, enlaces de documentación, integridad del ZIP y checksum oficial del wrapper. **No se ejecutó Gradle, no se compiló y no se inició Minecraft.**
 
@@ -30,4 +30,4 @@ En Windows se utiliza .\gradlew.bat; en macOS/Linux, ./gradlew. El ZIP marca gra
 
 Abrir docs/obsidian/NoMoreGrids como bóveda de Obsidian y comenzar por 00 Inicio/Inicio.md. La especificación completa está incluida. El mapa real del esqueleto está en docs/ESTRUCTURA.md.
 
-El siguiente trabajo es completar las comprobaciones de F0 y después implementar F1. Preparar el esqueleto no acredita F0 terminada.
+F0 sigue pendiente de compilación y arranque; F1 es parcial. El estado y las limitaciones están en docs/evidence. `python tools/check_repository.py` comprueba estructura sin compilar ni arrancar Minecraft. Las pruebas Java no se han ejecutado. AGENTS.md exige solicitud explícita para compilar o arrancar.

@@ -58,7 +58,18 @@ neoForge {
 }
 
 // No hay dependencias de Paintable Blocks ni APIs de compatibilidad implementadas.
+repositories {
+    mavenCentral()
+}
+
 dependencies {
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
 }
 
 var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {

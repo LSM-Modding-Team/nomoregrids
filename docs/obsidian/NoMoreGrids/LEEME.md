@@ -6,7 +6,7 @@ Contiene especificación de producto, diseño técnico, integración con Paintab
 
 La carpeta .obsidian incluye configuración mínima y segura de navegación; no contiene credenciales ni requiere plugins externos. Puedes eliminar esa configuración si deseas utilizar tus preferencias.
 
-El proyecto que contiene esta bóveda incluye código de arranque mínimo, sin mecánicas. Estado: diseño aceptado y esqueleto, sin compilación ni pruebas en Minecraft. Las pruebas futuras y límites iniciales están documentados; no se presentan como resultados ejecutados.
+El proyecto incluye arranque mínimo y núcleo geométrico parcial, sin mecánicas activas. Estado: diseño aceptado y esqueleto, sin compilación ni pruebas en Minecraft. Las pruebas futuras y límites iniciales están documentados; no se presentan como resultados ejecutados.
 
 ## Carpetas
 

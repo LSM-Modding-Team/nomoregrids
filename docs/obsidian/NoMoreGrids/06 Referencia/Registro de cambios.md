@@ -22,3 +22,9 @@ Estado en la edición documental 1.0: solo diseño. En la edición 1.1 se añade
 - Añadidos proyecto Gradle, wrapper verificado, entradas común/cliente y paquetes.
 - Integrada la bóveda en docs/obsidian/NoMoreGrids.
 - Sin mecánicas implementadas, compilación ni arranque de Minecraft.
+
+## Desarrollo — inicio de F1, 2026-10-29
+
+- Restaurado wrapper 9.2.1 y corregidos metadatos de licencia conforme a LICENSE.
+- Añadidos núcleo geométrico puro y pruebas JUnit escritas.
+- Sin compilación, tests Java ni arranque; F0 y F1 abiertas. Evidencia en `docs/evidence`.

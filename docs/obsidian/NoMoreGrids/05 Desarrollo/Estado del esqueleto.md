@@ -6,7 +6,7 @@ La raíz del proyecto contiene Gradle 9.2.1, ModDevGradle 2.0.148, configuració
 
 Los metadatos se generan desde src/main/templates/META-INF/neoforge.mods.toml. No hay bloques/ítems de ejemplo, mixins, access transformers, máquinas, protocolo ni controles implementados. Paintable Blocks no es una dependencia de la base.
 
-Los package-info.java conservan las carpetas sin fingir clases implementadas. Las carpetas de test y gametest están reservadas; no hay pruebas mecánicas ni source set gametest conectado.
+Los package-info.java conservan las carpetas sin fingir clases implementadas. La carpeta test contiene pruebas del núcleo escritas; gametest sigue reservada, sin source set conectado. No hay pruebas de mecánicas ejecutadas.
 
 Se verificaron estructura, nombres, recursos, enlaces, checksum del wrapper y ZIP. No se ejecutó Gradle ni Minecraft. F0 sigue pendiente de resolución de dependencias, compilación y arranque dedicado/cliente.
 
@@ -17,3 +17,7 @@ Siguiente trabajo: [[Plan de fases]]. El diseño completo se conserva en [[Indic
 ## Revisión de la base
 
 Ver `docs/evidence/F0-revision-estatica.md`: wrapper restaurado en Git y metadatos alineados con LICENSE (MIT). F0 continúa abierta; no se ejecutaron Gradle ni Minecraft.
+
+## Inicio de F1
+
+Implementados en fuente coordenadas, rotaciones, cajas, cuantización y selección geométrica, sin puente al juego. JUnit está conectado y hay casos escritos, NO EJECUTADOS. Ver `docs/evidence/F1-nucleo-geometrico.md`. F0 y F1 siguen abiertas.

@@ -1,6 +1,6 @@
 # Plan de fases
 
-Cada fase requiere documentación actualizada, compilación cuando haya código y evidencia de ejecución pertinente. No se declara completa por crear clases vacías. Esta bóveda no implementa ninguna fase ejecutable.
+Cada fase requiere documentación actualizada, compilación cuando haya código y evidencia de ejecución pertinente. No se declara completa por crear clases vacías. Estado actual: F0 abierta; F1 tiene núcleo geométrico parcial y casos Java escritos sin ejecutar. Ninguna fase está aceptada. Ver `docs/evidence`.
 
 | Fase | Entrega | Puerta de salida |
 |---|---|---|
