@@ -85,7 +85,12 @@ public final class NmgRuntime {
             if(!NmgNetworking.ready(player.getUUID()))throw new IllegalArgumentException("INVALID_DATA: session handshake pending");
             var hit=LoadedRay.pick(player);if(!(hit instanceof BlockHitResult block)||hit.getType()!=HitResult.Type.BLOCK)throw new IllegalArgumentException("No reachable surface");
             if(!player.level().isLoaded(block.getBlockPos()))throw new IllegalArgumentException("UNLOADED_REGION");
-            String result="OK";var service=require(player.level());var mode=NmgNetworking.modes(player.getUUID());InteractionHand hand=packet.offhand()?InteractionHand.OFF_HAND:InteractionHand.MAIN_HAND;
+            String result="OK";var service=require(player.level());if(packet.intent()!=null)NmgNetworking.actionIntent(player.getUUID(),packet.intent());var mode=NmgNetworking.modes(player.getUUID());
+            if(packet.intent()!=null){
+                if(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var selected=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(packet.expectedPiece().isEmpty()||!packet.expectedPiece().orElseThrow().equals(selected.pieceId())||packet.expectedRevision()!=selected.revision())throw new IllegalArgumentException("STALE_REVISION");}
+                else if(packet.expectedPiece().isPresent())throw new IllegalArgumentException("STALE_REVISION");
+            }
+            InteractionHand hand=packet.offhand()?InteractionHand.OFF_HAND:InteractionHand.MAIN_HAND;
             switch(packet.action()){
                 case PLACE->{
                     if(mode.replace()&&!player.isCreative()){

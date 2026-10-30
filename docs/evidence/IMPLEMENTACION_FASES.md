@@ -357,3 +357,18 @@ la fuente exacta usa net.neoforged.neoforge.model.data, sin el segmento client.
 inspeccionados; no verifica miembros, comodines, tipos ni compila. Pruebas de
 rayos internos/alcance escritas. Estructura, parser de 145 fuentes e imports
 aprobados. No se ha ejecutado Java, PB ni Minecraft.
+
+
+## Intención indivisible y rechazo de objetivos obsoletos
+
+Cada acción del cliente transporta sus preferencias actuales junto al UUID y
+revisión esperados del objetivo. El servidor vuelve a trazar y seleccionar;
+si no coincide, rechaza STALE_REVISION. Las preferencias separadas conservan
+persistencia, pero ya no pueden desincronizar un clic por su rate limit o por
+llegar en ticks distintos. Se mantiene el fallback nativo del servidor sin
+geometría aceptada enviada por el cliente. Protocolo experimental elevado a 3;
+el esquema de piezas sigue en 1.
+
+Decisión: rechazar un clic obsoleto en vez de aplicarlo a una pieza que cambió
+mientras llegaba la acción. Revisión estructural, parser de 145 fuentes e
+imports explícitos aprobados; sin compilar, ejecutar Java ni Minecraft.

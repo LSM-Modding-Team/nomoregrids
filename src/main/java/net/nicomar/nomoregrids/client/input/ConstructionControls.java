@@ -56,13 +56,20 @@ public final class ConstructionControls {
         var held=mc.player.getItemInHand(event.getHand());boolean fragment=held.getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem;
         boolean cuttable=fragment||held.getItem() instanceof net.minecraft.world.item.BlockItem item&&net.nicomar.nomoregrids.material.FragmentItem.cuttable(item.getBlock());
         if(event.isUseItem()&&cell&&net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.editingItem(held)).isPresent()){
-            ClientPacketDistributor.sendToServer(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.EDIT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;
+            send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.EDIT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;
         }
         if(event.isUseItem()&&(MODES.precise||MODES.expanded||LATERAL.isDown()||cell||slab||fragment||MODES.adjusted&&cuttable||MODES.alignment().isPresent())&&(held.getItem() instanceof net.minecraft.world.item.BlockItem||fragment)){
-            ClientPacketDistributor.sendToServer(packet(),new ActionPayload(UUID.randomUUID(),ActionPayload.Action.PLACE,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);
+            send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.PLACE,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);
         }else if(event.isAttack()&&cell&&mc.player.isCreative()){
-            ClientPacketDistributor.sendToServer(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.REMOVE,false));event.setCanceled(true);event.setSwingHand(false);
+            send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.REMOVE,false));event.setCanceled(true);event.setSwingHand(false);
         }
+    }
+    private static void send(ActionPayload action){
+        var mc=Minecraft.getInstance();ModePayload intent=packet();Optional<UUID> expected=Optional.empty();long revision=-1;
+        if(mc.player!=null&&mc.level!=null&&mc.hitResult instanceof BlockHitResult hit&&mc.level.getBlockEntity(hit.getBlockPos()) instanceof net.nicomar.nomoregrids.world.CompositeCellEntity cell){
+            var selected=net.nicomar.nomoregrids.platform.ComponentSelection.select(mc.player,cell.view(),intent.candidate());if(selected.isPresent()){expected=Optional.of(selected.orElseThrow().pieceId());revision=selected.orElseThrow().revision();}
+        }
+        ClientPacketDistributor.sendToServer(new ActionPayload(action.operation(),action.action(),action.offhand(),intent,expected,revision));
     }
     private static void keys(RegisterKeyMappingsEvent event){event.registerCategory(CATEGORY);for(var key:List.of(PRECISE,EXPANDED,ADJUSTED,ALIGN,LATERAL,REPLACE,LOCK))event.register(key);}
     private static ModePayload packet(){return new ModePayload(MODES.precise,MODES.expanded,MODES.adjusted,LATERAL.isDown(),REPLACE.isDown(),MODES.axis(),MODES.offset(),Math.floorMod(MODES.candidate(),64),MODES.alignment().isPresent(),alignmentAxis,alignmentSign,alignmentPlane,alignmentRotation,lengthSelection,MODES.alignment().isPresent()?alignmentProperties:Map.of());}
@@ -77,7 +84,7 @@ public final class ConstructionControls {
                 var bounds=preview.worldOccupation().bounds();GridPoint face=normal.sign()>0?bounds.min():bounds.max();alignmentPlane=normal.axis()==0?face.x():normal.axis()==1?face.y():face.z();}
             MODES.align(new GridPoint(Math.round(hit.getLocation().x*16),Math.round(hit.getLocation().y*16),Math.round(hit.getLocation().z*16)));
         }
-        while(LOCK.consumeClick())ClientPacketDistributor.sendToServer(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.LOCK,false));
+        while(LOCK.consumeClick())send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.LOCK,false));
         ModePayload packet=packet();if(!packet.equals(lastSent)){ClientPacketDistributor.sendToServer(packet);lastSent=packet;}
         PieceRecord previous=preview;preview=null;if(!(MODES.precise||MODES.expanded||MODES.adjusted||MODES.alignment().isPresent()||LATERAL.isDown()||REPLACE.isDown()||mc.player.getMainHandItem().getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem||mc.player.getOffhandItem().getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem)||!(mc.hitResult instanceof BlockHitResult hit))return;
         try{
@@ -93,7 +100,7 @@ public final class ConstructionControls {
             }
             // Amber is deliberate until server validation covers permissions, inventory, entities and support.
             if(invalid)previewColor=0xffff3333;else if(!Objects.equals(previous,preview))previewColor=0xffffbf00;
-            if(++ticks%5==0&&!invalid){probe=UUID.randomUUID();probedPreview=preview;ClientPacketDistributor.sendToServer(new ActionPayload(probe,ActionPayload.Action.PROBE,hand==InteractionHand.OFF_HAND));}
+            if(++ticks%5==0&&!invalid){probe=UUID.randomUUID();probedPreview=preview;send(new ActionPayload(probe,ActionPayload.Action.PROBE,hand==InteractionHand.OFF_HAND));}
         }catch(RuntimeException ex){preview=null;}
     }
     private static void scroll(InputEvent.MouseScrollingEvent event){

@@ -2,7 +2,7 @@
 
 ## Versiones iniciales
 
-Formato de mundo NMG = 1; PieceRecord = 1; API pública = 1; protocolo experimental de red = 2. La versión 1.0 de esta documentación no significa mod ejecutable 1.0.
+Formato de mundo NMG = 1; PieceRecord = 1; API pública = 1; protocolo experimental de red = 3. La versión 1.0 de esta documentación no significa mod ejecutable 1.0.
 
 Se guarda registro por sección con IDs de recursos textuales, UUID, revisiones, transformaciones, versión de adaptador y datos opacos. Las réplicas contienen formas/material mínimos, nunca otro inventario autoritativo. Se almacena checksum para detectar corrupción, no para acreditar seguridad.
 
