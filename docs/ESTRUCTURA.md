@@ -8,8 +8,8 @@
 | platform | Captura nativa, inventarios, candidatos, host servidor y eventos |
 | registry / event / network | Contenido real, permisos, protocolo, acciones y límites |
 | client | Controles, preview Gizmo y modelos estáticos de sección |
-| material / connection / support | Fragmentos, familias, materiales, puertos y apoyos |
-| fluid / functional / mechanism | Algoritmos de fases avanzadas; consultar estado de integración |
+| material / simulation/connection / simulation/support | Fragmentos, familias, materiales, puertos y apoyos |
+| simulation/fluid / simulation/functional / simulation/movement / simulation/redstone | Algoritmos de fases avanzadas; consultar estado de integración |
 | api / compat | Adaptadores y puente opcional Paintable Blocks |
 | diagnostic | Caché por peso, trabajos y muestras |
 

@@ -34,4 +34,4 @@ Base fijada: [commit f3b3998d6a239b776121f3003b6f5a6c052a0a65](https://github.co
 
 ## Alcance de esta entrega
 
-Se creó documentación original y se validaron archivos/enlaces/ZIP. Se preparó un esqueleto con arranque mínimo, sin implementar mecánicas; no se compiló ni ejecutó No More Grids. Tampoco se probó Paintable Blocks ni se modificó su repositorio. No se incluyeron sus fuentes o recursos en el ZIP.
+En la entrega documental inicial se creó documentación original y se validaron archivos/enlaces/ZIP, con un esqueleto mínimo. La implementación posterior está descrita en `docs/ESTADO_DESARROLLO.md` y `docs/evidence/IMPLEMENTACION_FASES.md`; no se ha compilado ni ejecutado No More Grids. Tampoco se probó Paintable Blocks ni se modificó su repositorio. No se incluyeron sus fuentes o recursos en el ZIP.

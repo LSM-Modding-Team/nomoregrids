@@ -19,6 +19,7 @@ public final class FunctionalStore {
     }
     public void remove(State expected){if(!states.remove(expected.piece,expected))throw new IllegalArgumentException("STALE_REVISION");}
     public Map<UUID,State> snapshot(){return Map.copyOf(states);}
+    public static FunctionalStore restored(Collection<State> states){var result=new FunctionalStore();states.forEach(result::restore);return result;}
     /** A cell-only query is valid solely when one exact exposed port matches. */
     public static Optional<Port> route(Collection<Port> ports,GridPoint contact,Direction6 outward,ResourceId capability){
         var matches=ports.stream().filter(p->p.position.equals(contact)&&p.normal==outward&&p.capability.equals(capability)).toList();

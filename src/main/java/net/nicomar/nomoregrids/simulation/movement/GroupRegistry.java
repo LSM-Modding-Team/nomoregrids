@@ -13,6 +13,8 @@ public final class GroupRegistry {
     public Set<UUID> members(UUID piece){UUID group=memberToGroup.get(piece);return group==null?Set.of(piece):groups.get(group);}
     public Optional<UUID> groupOf(UUID piece){return Optional.ofNullable(memberToGroup.get(piece));}
     public Set<UUID> closure(Set<UUID> touched){var result=new HashSet<UUID>();for(UUID id:touched)result.addAll(members(id));return Set.copyOf(result);}
+    public Map<UUID,Set<UUID>> snapshot(){return Map.copyOf(groups);}
+    public static GroupRegistry restored(Map<UUID,Set<UUID>> snapshot){var result=new GroupRegistry();snapshot.forEach(result::register);return result;}
     public void requireComplete(Set<UUID> changed){if(!closure(changed).equals(changed))throw new IllegalArgumentException("Incomplete group operation");}
     public void remove(UUID group){var removed=groups.remove(group);if(removed!=null)removed.forEach(memberToGroup::remove);}
 }

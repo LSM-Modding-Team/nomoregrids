@@ -12,7 +12,12 @@ public final class SignalNetwork {
     /** qLength follows actual wire path; contact has length zero and no extra attenuation. */
     public record Edge(UUID from,UUID to,Input input,int qLength){public Edge{Objects.requireNonNull(from);Objects.requireNonNull(to);Objects.requireNonNull(input);if(qLength<0||qLength>4096)throw new IllegalArgumentException("Wire length");}}
     private record Scheduled(long tick,UUID id,int value){}
+    public record Pending(long tick,UUID id,int value){public Pending{Objects.requireNonNull(id);if(tick<0||value<0||value>15)throw new IllegalArgumentException("Pending signal");}}
+    public record Snapshot(long tick,List<Node> nodes,List<Edge> edges,Map<UUID,Integer> values,Map<UUID,Integer> sources,List<Pending> pending){
+        public Snapshot{if(tick<0)throw new IllegalArgumentException("Circuit tick");nodes=List.copyOf(nodes);edges=List.copyOf(edges);values=Map.copyOf(values);sources=Map.copyOf(sources);pending=List.copyOf(pending);}
+    }
     private final Map<UUID,Node> nodes;
+    private final List<Edge> edges;
     private final Map<UUID,List<Edge>> incoming=new HashMap<>(),outgoing=new HashMap<>();
     private final Map<UUID,Integer> values=new HashMap<>(),sources=new HashMap<>();
     private final Map<UUID,Scheduled> pending=new HashMap<>();
@@ -21,7 +26,7 @@ public final class SignalNetwork {
     public SignalNetwork(Collection<Node> nodes,Collection<Edge> edges){
         if(nodes.size()>65536||edges.size()>262144)throw new IllegalArgumentException("Circuit budget");
         var map=new HashMap<UUID,Node>();for(var n:nodes)if(map.putIfAbsent(n.id,n)!=null)throw new IllegalArgumentException("Duplicate circuit node");
-        this.nodes=Map.copyOf(map);
+        this.nodes=Map.copyOf(map);this.edges=List.copyOf(edges);
         for(var e:edges){if(!map.containsKey(e.from)||!map.containsKey(e.to))throw new IllegalArgumentException("Missing port node");incoming.computeIfAbsent(e.to,key->new ArrayList<>()).add(e);outgoing.computeIfAbsent(e.from,key->new ArrayList<>()).add(e);}
     }
     public int value(UUID id){return values.getOrDefault(id,0);}
@@ -47,4 +52,12 @@ public final class SignalNetwork {
         }return processed;
     }
     public int pending(){return pending.size();}
+    public Snapshot snapshot(){return new Snapshot(now,nodes.values().stream().sorted(Comparator.comparing(Node::id)).toList(),edges,values,sources,queue.stream().map(s->new Pending(s.tick,s.id,s.value)).toList());}
+    public static SignalNetwork restored(Snapshot snapshot){
+        var result=new SignalNetwork(snapshot.nodes,snapshot.edges);result.now=snapshot.tick;
+        for(var e:snapshot.values.entrySet()){if(!result.nodes.containsKey(e.getKey())||e.getValue()<0||e.getValue()>15)throw new IllegalArgumentException("Invalid circuit value");result.values.put(e.getKey(),e.getValue());}
+        for(var e:snapshot.sources.entrySet()){var node=result.nodes.get(e.getKey());if(node==null||node.kind!=Kind.SOURCE||e.getValue()<0||e.getValue()>15)throw new IllegalArgumentException("Invalid source value");result.sources.put(e.getKey(),e.getValue());}
+        for(var event:snapshot.pending){if(!result.nodes.containsKey(event.id)||event.tick>snapshot.tick&&event.tick-snapshot.tick>8)throw new IllegalArgumentException("Invalid scheduled signal");var s=new Scheduled(event.tick,event.id,event.value);if(result.pending.putIfAbsent(event.id,s)!=null)throw new IllegalArgumentException("Duplicate pending signal");result.queue.add(s);}
+        return result;
+    }
 }

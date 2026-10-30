@@ -1,8 +1,8 @@
 # Estructura del proyecto
 
-El ZIP actual contiene el proyecto Gradle NoMoreGrids con entradas mínimas y paquetes reservados. La tabla distingue responsabilidades de desarrollo; las clases mecánicas todavía no existen. El mapa de archivos reales está en docs/ESTRUCTURA.md, fuera de esta bóveda.
+El proyecto Gradle contiene núcleo, contenedor/servidor, controles/render y módulos experimentales de simulación. La tabla distingue responsabilidades; el estado de integración está en `docs/ESTADO_DESARROLLO.md`. El mapa de archivos reales está en docs/ESTRUCTURA.md, fuera de esta bóveda.
 
-| Ruta prevista | Contenido |
+| Ruta | Contenido |
 |---|---|
 | README.md | Estado real, plataforma, instalación y enlaces |
 | AGENTS.md | Instrucciones del proyecto y validación |
@@ -20,7 +20,7 @@ El ZIP actual contiene el proyecto Gradle NoMoreGrids con entradas mínimas y pa
 | src/main/java/net/nicomar/nomoregrids/api/ | API pública |
 | src/main/java/net/nicomar/nomoregrids/compat/vanilla/ | Perfiles/adaptadores iniciales |
 | src/main/java/net/nicomar/nomoregrids/compat/paintableblocks/ | Puente opcional |
-| src/main/resources/META-INF/ | Metadatos NeoForge verificados |
+| src/main/templates/META-INF/ | Metadatos NeoForge verificados |
 | src/main/resources/assets/nomoregrids/ | Idiomas, modelos y texturas propias |
 | src/main/resources/data/nomoregrids/ | Perfiles, etiquetas y recetas |
 | src/test/ | Pruebas del núcleo |

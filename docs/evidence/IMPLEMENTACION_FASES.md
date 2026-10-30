@@ -296,3 +296,28 @@ sin filtrar el payload privado del ítem para determinar su altura.
 Pruebas de reglas futuras, cambios de versión y dependencia ausente escritas;
 comprobaciones estructurales y parser de 136 fuentes aprobados. No compilación,
 tests Java, Minecraft, benchmarks ni certificación ejecutados.
+
+
+## Checkpoints de simulación (F5, F7–F8)
+
+SimulationSnapshot/Codec/Store guardan región, secuencia, cavidades (máscara y
+fluidos de dos bits), una autoridad por máquina con slots/energía/datos, grupos,
+grafos de señal, niveles, fuentes, reloj y eventos pendientes. Límites de
+colecciones y bytes, CRC32C y reemplazo durable. No se sobrescribe corrupción,
+versión futura ni un checkpoint anterior/conflictivo. writeCommitted exige una
+secuencia ya durable. La recuperación de circuitos mantiene el tick pendiente;
+la del inventario no crea copias en las referencias o grupos.
+
+Decisión: mantener estos checkpoints privados; no enviar inventarios por el
+snapshot público. No hay todavía una transacción de host que conecte estas
+mutaciones con operaciones, menús, buckets o ticks nativos. El codec y almacén
+están implementados, pero su integración sigue pendiente de código.
+
+CavityMaskJob produce incrementalmente máscaras conservadoras desde convexos
+externos, sin cambiar su geometría física/render. Un caso numéricamente incierto
+cierra el microvolumen solo para fluidos. El resultado no se publica hasta acabar.
+La colisión box-box usa aritmética integral directamente; convexos conservan SAT.
+
+Pruebas escritas de roundtrip, fuentes completas, slots únicos, retardos tras
+restaurar, corrupción conservada, secuencia durable, máscara de losa y pendiente.
+Revisión estructural y parser de 142 fuentes aprobados; Java no ejecutado.

@@ -31,6 +31,8 @@ public final class CavityCell {
     public Kind source(){return source;}
     public BitSet blocked(){return (BitSet)blocked.clone();}
     public byte[] fluids(){return fluid.clone();}
+    @Override public boolean equals(Object other){return other instanceof CavityCell cell&&source==cell.source&&blocked.equals(cell.blocked)&&Arrays.equals(fluid,cell.fluid);}
+    @Override public int hashCode(){return Objects.hash(blocked,source,Arrays.hashCode(fluid));}
     public int amount(Kind kind){int n=0;for(byte b:fluid)if(b==code(kind))n++;return n;}
     public CavityCell bucket(Kind kind,boolean collect){
         if(kind==Kind.EMPTY||!blocked.isEmpty())throw new IllegalArgumentException("Bucket needs a full cavity");

@@ -31,3 +31,13 @@ Estado en la edición documental 1.0: solo diseño. En la edición 1.1 se añade
 
 - Añadidos registros de pieza inmutables, geometrías de consulta separadas e índices de región con cambios validados por lote. Sin puente al juego, persistencia ni red.
 - Añadido codec experimental de cajas con presupuesto, checksum, preservación de versiones futuras y casos de corrupción escritos. Sin conexión al guardado del mundo.
+
+
+## Implementación experimental F0–F9 — 2026-10-30
+
+Código de construcción conectado a contenedor, servidor, diario, secciones,
+recibos, red, modos, preview, fragmentos, conexiones, apoyo y render. Añadidos
+adaptadores, cavidades, funcionales, mecanismos, checkpoints y herramientas de
+presupuesto/diagnóstico. Integraciones avanzadas todavía parciales. Sin compilar,
+ejecutar Java ni arrancar Minecraft. El estado consolidado, decisiones por commit
+y carencias están en `docs/ESTADO_DESARROLLO.md` y `docs/evidence`.
