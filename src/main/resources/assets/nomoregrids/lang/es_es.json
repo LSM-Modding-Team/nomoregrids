@@ -1,0 +1,23 @@
+{
+  "key.categories.nomoregrids": "No More Grids",
+  "key.nomoregrids.toggle_orientation": "Alternar orientación ampliada",
+  "key.nomoregrids.toggle_precision": "Alternar colocación precisa",
+  "key.nomoregrids.toggle_resize": "Alternar pieza completa/ajustada",
+  "key.nomoregrids.lock_alignment": "Fijar o liberar alineación",
+  "key.nomoregrids.side_orientation": "Orientación lateral",
+  "key.nomoregrids.adjust_position": "Ajustar posición",
+  "key.nomoregrids.cycle_axis": "Cambiar eje de ajuste",
+  "key.nomoregrids.cycle_component": "Recorrer componentes accesibles",
+  "key.nomoregrids.replace": "Reemplazar componente",
+  "key.nomoregrids.lock_connections": "Bloquear o liberar conexiones",
+  "message.nomoregrids.overlap": "La pieza se superpone con otra.",
+  "message.nomoregrids.no_support": "La superficie no ofrece el apoyo necesario.",
+  "message.nomoregrids.unloaded_region": "Una región necesaria no está cargada.",
+  "message.nomoregrids.unsupported_adapter": "Este bloque todavía no admite esta operación.",
+  "message.nomoregrids.stale_revision": "La pieza cambió; actualiza la selección.",
+  "message.nomoregrids.complexity_limit": "La operación supera el límite de complejidad.",
+  "message.nomoregrids.entity_blocked": "Una entidad impide la colocación.",
+  "message.nomoregrids.protected": "No tienes permiso en todo el espacio afectado.",
+  "message.nomoregrids.inventory_missing": "Faltan materiales o espacio para los sobrantes.",
+  "message.nomoregrids.invalid_data": "Los datos de la pieza necesitan revisión."
+}
