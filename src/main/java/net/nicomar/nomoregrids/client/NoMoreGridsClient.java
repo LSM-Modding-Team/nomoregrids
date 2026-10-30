@@ -6,7 +6,7 @@ import net.neoforged.fml.common.Mod;
 import net.nicomar.nomoregrids.NoMoreGrids;
 
 /**
- * Entrada exclusiva del cliente. Reserva la conexión de controles y render.
+ * Entrada exclusiva del cliente para controles, preview y modelos de sección.
  */
 @Mod(value = NoMoreGrids.MOD_ID, dist = Dist.CLIENT)
 public final class NoMoreGridsClient {

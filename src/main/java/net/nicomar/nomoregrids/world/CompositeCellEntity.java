@@ -22,11 +22,12 @@ public final class CompositeCellEntity extends BlockEntity {
     private String preserved;
     private boolean valid;
     private VoxelShape collisionCache,selectionCache,supportCache;
+    private Map<UUID,List<BoxMesh.Face>> contactFaces;
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(view.replicas().isEmpty())throw new IllegalArgumentException("Empty cells must be restored to air");
-        this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;supportCache=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
+        this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
     }
     private void updateLight(){
@@ -55,6 +56,21 @@ public final class CompositeCellEntity extends BlockEntity {
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
         }if(collision){collisionCache=shape;return shape;}selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
     }
+    public Optional<net.nicomar.nomoregrids.core.PieceRecord> ground(net.minecraft.world.entity.Entity entity){
+        if(!valid||entity==null)return Optional.empty();var body=entity.getBoundingBox();if(contactFaces==null){
+            Map<UUID,List<BoxMesh.Face>> faces=new HashMap<>();for(var p:view.replicas())if(!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE))faces.put(p.pieceId(),BoxMesh.extract(p.geometry().collision().transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()),4096));contactFaces=Map.copyOf(faces);
+        }
+        var foot=new net.nicomar.nomoregrids.simulation.contact.ContactResolver.Foot(body.minX*16,body.minZ*16,body.maxX*16,body.maxZ*16,body.minY*16);
+        return net.nicomar.nomoregrids.simulation.contact.ContactResolver.ground(foot,contactFaces).flatMap(hit->view.replicas().stream().filter(p->p.pieceId().equals(hit.piece())).findFirst());
+    }
+    public boolean climbs(net.minecraft.world.entity.LivingEntity entity){
+        if(!valid||entity==null)return false;var body=entity.getBoundingBox().inflate(1e-7);for(var p:view.replicas())if(p.sourceBlockId().value().equals("minecraft:ladder")&&!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)&&net.nicomar.nomoregrids.core.Direction6.UP.rotated(p.orientation())==net.nicomar.nomoregrids.core.Direction6.UP){
+            for(var box:p.worldOccupation().boxes())if(body.intersects(new net.minecraft.world.phys.AABB(box.min().x()/16.0,box.min().y()/16.0,box.min().z()/16.0,box.max().x()/16.0,box.max().y()/16.0,box.max().z()/16.0)))return true;
+        }return false;
+    }
+    public boolean extendsVertically(net.minecraft.world.entity.Entity entity){
+        if(!valid||entity==null)return false;return ground(entity).map(p->p.geometry().collision().transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()).boxes().stream().anyMatch(b->b.max().y()>worldPosition.getY()*16L+16)).orElse(false);
+    }
     public VoxelShape supportShape(){
         if(!valid)return Shapes.empty();if(supportCache!=null)return supportCache;VoxelShape shape=Shapes.empty();
         long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
@@ -68,7 +84,7 @@ public final class CompositeCellEntity extends BlockEntity {
         }supportCache=shape;return shape;
     }
     @Override protected void loadAdditional(ValueInput input){
-        super.loadAdditional(input);collisionCache=null;selectionCache=null;supportCache=null;preserved=input.getStringOr("nmg_public","");valid=false;
+        super.loadAdditional(input);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=input.getStringOr("nmg_public","");valid=false;
         try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=!view.replicas().isEmpty();}
         catch(IOException|IllegalArgumentException ex){view=new CellView(List.of());}
     }

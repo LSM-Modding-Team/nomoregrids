@@ -25,6 +25,17 @@ public final class CompositeCellBlock extends BaseEntityBlock {
         return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.shape(true):Shapes.block();
     }
     @Override protected VoxelShape getBlockSupportShape(BlockState state,BlockGetter world,BlockPos pos){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.supportShape():Shapes.empty();}
+    @Override public boolean isLadder(BlockState state,LevelReader world,BlockPos pos,net.minecraft.world.entity.LivingEntity entity){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.climbs(entity);}
+    @Override public boolean collisionExtendsVertically(BlockState state,BlockGetter world,BlockPos pos,net.minecraft.world.entity.Entity entity){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.extendsVertically(entity);}
+    @Override public float getFriction(BlockState state,LevelReader world,BlockPos pos,net.minecraft.world.entity.Entity entity){
+        if(world.getBlockEntity(pos) instanceof CompositeCellEntity cell)try{return cell.ground(entity).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getBlock().getFriction()).orElse(getFriction());}catch(RuntimeException ignored){}return getFriction();
+    }
+    @Override public float getBounceRestitution(Level world,BlockPos pos,BlockState state,net.minecraft.world.entity.Entity entity){
+        if(world.getBlockEntity(pos) instanceof CompositeCellEntity cell)try{return cell.ground(entity).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getBlock().getBounceRestitution()).orElse(getBounceRestitution());}catch(RuntimeException ignored){}return getBounceRestitution();
+    }
+    @Override public SoundType getSoundType(BlockState state,LevelReader world,BlockPos pos,net.minecraft.world.entity.Entity entity){
+        if(world.getBlockEntity(pos) instanceof CompositeCellEntity cell)try{return cell.ground(entity).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getSoundType()).orElse(SoundType.STONE);}catch(RuntimeException ignored){}return SoundType.STONE;
+    }
     @Override protected RenderShape getRenderShape(BlockState state){return RenderShape.MODEL;}
     @Override protected boolean useShapeForLightOcclusion(BlockState state){return true;}
     @Override protected VoxelShape getOcclusionShape(BlockState state){return state.getValue(SEALED)?Shapes.block():Shapes.empty();}

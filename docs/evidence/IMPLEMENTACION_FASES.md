@@ -388,3 +388,21 @@ El checkpoint de simulación pasa a esquema 2 y lee también 1. Conserva la lín
 temporal al restaurar. Caso de regresión escrito: pulso antiguo pendiente, nueva
 entrada contraria, reapertura y dos retardos distintos. Revisión estructural,
 parser de 145 fuentes y whitespace aprobados; pruebas Java no ejecutadas.
+
+
+## Contactos y escalada (F4)
+
+ContactResolver elige por área real bajo los pies y UUID estable en empate,
+con unión de rectángulos para no contar caras repetidas. Se conectan los hooks
+exactos de NeoForge para fricción, rebote, sonidos y extensión vertical de
+colisión (vallas/muros). Las superficies se cachean con la réplica. No se ejecutan
+métodos de comportamiento arbitrarios del bloque de origen contra el contenedor.
+
+La escalera de mano comprueba contacto físico y usa isLadder de NeoForge.
+Decisión: rechazar orientaciones que cambien su eje vertical; no se inventa una
+mecánica de trepar por el techo ni se presenta una escalera decorativa como
+funcional. Permanecen pendientes fuego, explosiones y efectos especiales.
+
+Pruebas escritas de área, empate estable, unión sin doble peso, separación y
+cara de escalera oculta. Revisión estructural, parser de 147 fuentes e imports
+explícitos aprobados. Sin compilación ni ejecución Java/Minecraft.

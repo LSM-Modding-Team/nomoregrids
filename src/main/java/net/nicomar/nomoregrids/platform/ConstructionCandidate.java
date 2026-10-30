@@ -79,6 +79,7 @@ public final class ConstructionCandidate {
             long shift=Math.subtractExact(Math.addExact(face,offset),anchor.plane());GridPoint delta=new GridPoint(normal.axis()==0?shift:0,normal.axis()==1?shift:0,normal.axis()==2?shift:0);
             result=new PieceRecord(result.pieceId(),0,result.adapterId(),result.adapterVersion(),result.sourceBlockId(),result.sourceState(),result.origin16().add(delta),result.orientation(),result.pivot16(),result.geometry(),result.geometryPayload(),result.materialPayload(),result.itemPayload(),result.groupId(),result.flags());break;
         }
+        if(result.sourceBlockId().value().equals("minecraft:ladder")&&Direction6.UP.rotated(result.orientation())!=Direction6.UP)throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: ladder climbing requires a vertical frame");
         return result;
     }
     private static BoxUnion crop(BoxUnion shape,int length){var boxes=new ArrayList<Box16>();for(var b:shape.boxes())if(b.min().y()<length)boxes.add(Box16.of(b.min().x(),b.min().y(),b.min().z(),b.max().x(),Math.min(length,b.max().y()),b.max().z()));return new BoxUnion(boxes);}
