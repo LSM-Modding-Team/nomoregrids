@@ -21,7 +21,7 @@ public final class ComponentEntityRenderer implements BlockEntityRenderer<Compos
     public static final class State extends BlockEntityRenderState{final List<Part> parts=new ArrayList<>();}
     @Override public State createRenderState(){return new State();}
     @Override public void extractRenderState(CompositeCellEntity cell,State state,float partial,Vec3 camera,net.minecraft.client.renderer.feature.ModelFeatureRenderer.CrumblingOverlay overlay){
-        BlockEntityRenderer.super.extractRenderState(cell,state,partial,camera,overlay);state.parts.clear();if(!cell.valid()||cell.getLevel()==null)return;var dispatcher=Minecraft.getInstance().getBlockEntityRenderDispatcher();for(var p:cell.view().replicas())if(WorldDecorations.piece(p)&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){
+        BlockEntityRenderer.super.extractRenderState(cell,state,partial,camera,overlay);state.parts.clear();if(!cell.valid()||cell.getLevel()==null)return;var dispatcher=Minecraft.getInstance().getBlockEntityRenderDispatcher();for(var p:cell.view().replicas())if(WorldDecorations.rendered(p)&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){
             var owner=p.worldOccupation().cells(8).stream().map(c->new BlockPos(Math.toIntExact(c.x()),Math.toIntExact(c.y()),Math.toIntExact(c.z()))).filter(cell.getLevel()::isLoaded).min(Comparator.comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ));if(owner.isEmpty()||!owner.orElseThrow().equals(cell.getBlockPos()))continue;
             var nativeBE=WorldDecorations.detached(p,cell.getLevel(),true);var extracted=dispatcher.tryExtractRenderState(nativeBE,partial,overlay,false);if(extracted!=null)state.parts.add(new Part(p,extracted));
         }

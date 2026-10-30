@@ -45,7 +45,7 @@ public final class CellModel implements DynamicBlockStateModel {
         List<BakedQuad> output=new ArrayList<>();int flags=0;
         for(var p:view.replicas()){
             int start=output.size();try{
-            if(net.nicomar.nomoregrids.platform.WorldDecorations.piece(p)&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))continue;
+            if(net.nicomar.nomoregrids.platform.WorldDecorations.rendered(p)&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))continue;
             if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){placeholder(p,pos,output);continue;}
             if(p.adapterId().value().equals("nomoregrids:paintableblocks")&&paintable!=null){paintable(p,pos,world,output);continue;}
             BlockState source=NativeStates.resolve(p);var nativeModel=Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(source);

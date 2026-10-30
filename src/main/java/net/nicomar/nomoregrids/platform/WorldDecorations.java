@@ -25,6 +25,7 @@ import net.nicomar.nomoregrids.network.*;
 public final class WorldDecorations {
     public static final String ADAPTER="nomoregrids:decoration";
     private WorldDecorations(){}
+    public static boolean rendered(PieceRecord p){return piece(p)||WorldGroups.bed(p);}
     public static boolean piece(PieceRecord p){return p.adapterId().value().equals(ADAPTER);}
     public static boolean eligible(BlockState state){return BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace().equals("minecraft")&&(state.getBlock() instanceof SignBlock||state.getBlock() instanceof AbstractBannerBlock||state.getBlock() instanceof AbstractSkullBlock);}
     public static BlockState placement(net.minecraft.world.item.context.BlockPlaceContext context,Block preferred){
@@ -47,7 +48,8 @@ public final class WorldDecorations {
     private static BinaryData binary(JsonElement data){return new BinaryData(data.toString().getBytes(StandardCharsets.UTF_8));}
     private static JsonElement json(BinaryData data){return JsonParser.parseString(new String(data.copy(),StandardCharsets.UTF_8));}
     public static BlockEntity detached(PieceRecord p,Level level,boolean publicView){
-        var state=NativeStates.resolve(p);if(!eligible(state)||!(state.getBlock() instanceof EntityBlock factory))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: decoration");var be=factory.newBlockEntity(WorldService.pos(p.origin16().cell()),state);if(be==null)throw new IllegalArgumentException("Missing decoration entity");be.setLevel(level);
+        var state=NativeStates.resolve(p);if((!eligible(state)&&!WorldGroups.bed(p))||!(state.getBlock() instanceof EntityBlock factory))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: decoration");var be=factory.newBlockEntity(WorldService.pos(p.origin16().cell()),state);if(be==null)throw new IllegalArgumentException("Missing decoration entity");be.setLevel(level);
+        if(WorldGroups.bed(p))return be;
         var data=publicView?json(p.geometryPayload()).getAsJsonObject().get("data"):json(p.itemPayload()).getAsJsonObject().get("native");be.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),decode(level,data)));return be;
     }
     public static PieceRecord capture(BlockState state,Level level,BlockPos pos,UUID id,ItemStack placement){

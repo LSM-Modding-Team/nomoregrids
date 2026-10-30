@@ -21,12 +21,12 @@ public final class ConstructionCandidate {
         if(stack.getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem)block=net.nicomar.nomoregrids.material.FragmentItem.read(stack).block();
         else if(stack.getItem() instanceof BlockItem item){block=item.getBlock();if(paintable==null&&!WorldDecorations.eligible(block.defaultBlockState())&&!net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,item.getDefaultInstance()))throw new IllegalArgumentException("Item metadata requires a dedicated adapter");}
         else throw new IllegalArgumentException("Not a construction item");
-        if(paintable==null&&!WorldDecorations.eligible(block.defaultBlockState())&&!WorldFunctionals.eligible(block.defaultBlockState())&&!catalog.identifiers().contains(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString()))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+        if(paintable==null&&!WorldGroups.eligible(block.defaultBlockState())&&!WorldDecorations.eligible(block.defaultBlockState())&&!WorldFunctionals.eligible(block.defaultBlockState())&&!catalog.identifiers().contains(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString()))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
         var context=new BlockPlaceContext(player,hand,stack,hit);
         if(!player.level().isLoaded(context.getClickedPos()))throw new IllegalArgumentException("UNLOADED_REGION");
         for(var side:net.minecraft.core.Direction.values())if(!player.level().isLoaded(context.getClickedPos().relative(side)))throw new IllegalArgumentException("UNLOADED_REGION");
-        var state=WorldDecorations.eligible(block.defaultBlockState())?WorldDecorations.placement(context,block):block.getStateForPlacement(context);
-        if(state==null||paintable==null&&!WorldDecorations.eligible(state)&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+        var state=WorldGroups.eligible(block.defaultBlockState())?WorldGroups.placement(block,context):WorldDecorations.eligible(block.defaultBlockState())?WorldDecorations.placement(context,block):block.getStateForPlacement(context);
+        if(state==null||paintable==null&&!WorldGroups.eligible(state)&&!WorldDecorations.eligible(state)&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
         if(mode.aligned()){
             var values=new HashMap<>(NativeStates.properties(state));mode.alignmentProperties().forEach((key,value)->{if(values.containsKey(key))values.put(key,value);});
             state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);
@@ -43,7 +43,7 @@ public final class ConstructionCandidate {
             state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);
         }
         if(mode.expanded()&&!slab&&!stair&&NativeStates.properties(state).containsKey("axis")){var values=new HashMap<>(NativeStates.properties(state));values.put("axis","z");state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);}
-        var piece=WorldDecorations.eligible(state)?WorldDecorations.capture(state,player.level(),context.getClickedPos(),id,stack):WorldFunctionals.eligible(state)?WorldFunctionals.placement(state,player.level(),context.getClickedPos(),id):paintable==null?NativeStates.capture(state,player.level(),context.getClickedPos(),id):paintable.placement(context,id);
+        var piece=WorldGroups.eligible(state)?WorldGroups.capture(state,player.level(),context.getClickedPos(),id,state.getBlock() instanceof net.minecraft.world.level.block.TrapDoorBlock?null:UUID.randomUUID()):WorldDecorations.eligible(state)?WorldDecorations.capture(state,player.level(),context.getClickedPos(),id,stack):WorldFunctionals.eligible(state)?WorldFunctionals.placement(state,player.level(),context.getClickedPos(),id):paintable==null?NativeStates.capture(state,player.level(),context.getClickedPos(),id):paintable.placement(context,id);
         if(paintable!=null&&mode.aligned()&&mode.alignmentProperties().containsKey("pb_orientation"))piece=paintable.oriented(piece,Integer.parseInt(mode.alignmentProperties().get("pb_orientation")));
         if(mode.lateral()&&normal.axis()!=1&&(slab||stair)){
             if(stair){var look=player.getLookAngle();orientation=PlacementSolver.stairOrientation(normal,look.x,look.y,look.z,0);}
@@ -73,7 +73,7 @@ public final class ConstructionCandidate {
             // Recompute contact using the final shape; pivot stays stable after cropping.
             if(!mode.replace()&&(mode.precise()||mode.aligned()))origin=PlacementSolver.origin(geometry.occupation(),piece.pivot16(),orientation,normal,hx,hy,hz,mode.offset());
         }
-        var result=new PieceRecord(piece.pieceId(),0,piece.adapterId(),piece.adapterVersion(),piece.sourceBlockId(),piece.sourceState(),origin,orientation,piece.pivot16(),geometry,piece.geometryPayload(),piece.materialPayload(),itemData,Optional.empty(),Set.of());
+        var result=new PieceRecord(piece.pieceId(),0,piece.adapterId(),piece.adapterVersion(),piece.sourceBlockId(),piece.sourceState(),origin,orientation,piece.pivot16(),geometry,piece.geometryPayload(),piece.materialPayload(),itemData,piece.groupId(),Set.of());
         if((mode.precise()||mode.aligned())&&!mode.replace())for(var anchor:net.nicomar.nomoregrids.simulation.support.SupportPatches.required(result))if(anchor.normal()==normal.opposite()){
             long face=PlacementQuantizer.outward(normal.axis()==0?hx:normal.axis()==1?hy:hz,normal.sign()>0),offset=normal.axis()==0?mode.offset().x():normal.axis()==1?mode.offset().y():mode.offset().z();
             long shift=Math.subtractExact(Math.addExact(face,offset),anchor.plane());GridPoint delta=new GridPoint(normal.axis()==0?shift:0,normal.axis()==1?shift:0,normal.axis()==2?shift:0);

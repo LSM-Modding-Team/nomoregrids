@@ -774,3 +774,19 @@ También se corrige la creación PB de piezas cuyo recorte conserva el cubo ente
 y se limita antes de leer el archivo de intención de transferencias.
 Revisión estática: 203 fuentes, imports explícitos, recursos y whitespace.
 Sin compilación, pruebas Java ni Minecraft; render y apoyos requieren ejecución.
+
+## Grupos funcionales, giro continuo y camas
+
+Puertas/camas vanilla tienen un grupo persistido en sus registros, con captura,
+colocación y retirada completas. PieceIndex valida el cierre de miembros antes
+y después; una operación que deje una mitad se rechaza. Las camas/puertas dan
+un ítem por grupo y el coste es uno. Las trampillas comparten el perfil interactivo.
+El giro usa cotas trigonométricas continuas de un cuarto de vuelta refinadas contra
+obstáculos convexos y entidades; contactos numéricos sin resolver se rechazan.
+Las camas usan los hooks NeoForge de sueño, orientación, ocupación y reaparición;
+solo una cabecera horizontal inequívoca por host expone el puerto de sueño.
+El renderer nativo de cama recibe la geometría transformada y no crea otro dueño.
+También se permite una imagen geométrica sin cambios para planes de solo efectos
+(inventarios, fluidos, cursor), conservando la misma instancia de PieceIndex.
+Pruebas puras de cierre de grupos escritas, no ejecutadas. Revisión sintáctica y
+de recursos; siguen pendientes compilación, inyección de mixins y juego.

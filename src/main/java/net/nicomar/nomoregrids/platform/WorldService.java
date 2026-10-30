@@ -130,10 +130,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(repeated(operation,player,OperationPlan.Kind.PLACE))return;executePrepared(placementPlan(player,hand,hit,mode,operation,false));
     }
     public boolean probe(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode)throws IOException{
-        var plan=fluids.prepare(placementPlan(player,hand,hit,mode,UUID.randomUUID(),true));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
+        var plan=fluids.prepare(WorldGroups.prepare(this,level,placementPlan(player,hand,hit,mode,UUID.randomUUID(),true)));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
     }
     public void executePrepared(OperationPlan original)throws IOException{
-        var plan=fluids.prepare(functionals.prepare(original));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
+        var plan=fluids.prepare(functionals.prepare(WorldGroups.prepare(this,level,original)));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}
     }
     public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
@@ -151,7 +151,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             var selected=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();replaced=snapshot().records().get(selected.pieceId());
             if(replaced==null||replaced.revision()!=selected.revision())throw new IllegalArgumentException("STALE_REVISION");
             if(!player.isCreative()&&!player.hasCorrectToolForDrops(NativeStates.resolve(replaced)))throw new IllegalArgumentException("Replacement requires the correct main-hand tool");
-            changes.add(new OperationPlan.Change(replaced.pieceId(),Optional.of(replaced),Optional.empty()));
+            for(var member:WorldGroups.registry(snapshot()).members(replaced.pieceId())){var old=snapshot().records().get(member);changes.add(new OperationPlan.Change(member,Optional.of(old),Optional.empty()));}
         }
         for(var cell:candidate.worldOccupation().cells(8)){
             BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");
@@ -160,19 +160,20 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(state.getBlock() instanceof LiquidBlock)continue;
             if(!state.isAir()&&state.getBlock()!=NmgContent.CELL.get()){
                 var paintable=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.nativeBlock(state));
-                if(paintable.isEmpty()&&!WorldDecorations.eligible(state)&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+                if(paintable.isEmpty()&&!WorldGroups.eligible(state)&&!WorldDecorations.eligible(state)&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+                if(WorldGroups.eligible(state)){for(var nativeMember:WorldGroups.captureNative(level,at))if(changes.stream().flatMap(c->c.after().stream()).noneMatch(p->p.origin16().equals(nativeMember.origin16())))changes.add(new OperationPlan.Change(nativeMember.pieceId(),Optional.empty(),Optional.of(nativeMember)));continue;}
                 PieceRecord nativePiece=WorldDecorations.eligible(state)?WorldDecorations.capture(state,level,at,UUID.randomUUID(),null):WorldFunctionals.eligible(state)?WorldFunctionals.capture(state,level,at,UUID.randomUUID()):paintable.isPresent()?paintable.orElseThrow().captureNative(level,at,UUID.randomUUID()):NativeStates.capture(state,level,at,UUID.randomUUID());
                 changes.add(new OperationPlan.Change(nativePiece.pieceId(),Optional.empty(),Optional.of(nativePiece)));
             }
         }
-        changes.add(new OperationPlan.Change(candidate.pieceId(),Optional.empty(),Optional.of(candidate)));
+        changes.add(new OperationPlan.Change(candidate.pieceId(),Optional.empty(),Optional.of(candidate)));WorldGroups.complete(this,level,changes);
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
         if(!player.isCreative()){
             int slot=hand==InteractionHand.MAIN_HAND?player.getInventory().getSelectedSlot():net.minecraft.world.entity.player.Inventory.SLOT_OFFHAND;
             var sourceBlock=NativeStates.resolve(candidate).getBlock();
             if(net.nicomar.nomoregrids.material.FragmentItem.cuttable(sourceBlock))NativeInventory.takeFragment(slots,sourceBlock,net.nicomar.nomoregrids.material.FragmentItem.length(candidate.itemPayload()));
             else{if(slots.get(slot).isEmpty())throw new IllegalArgumentException("INVENTORY_MISSING");slots.get(slot).shrink(1);}
-            if(replaced!=null&&!preview)recoverLoot(player,replaced,slots);
+            if(replaced!=null&&!preview){boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(replaced.pieceId())){recoverLoot(player,snapshot().records().get(member),slots,damage);damage=false;}}
         }
         completeSupport(player,changes,slots,preview);
         return new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.PLACE,changes,before,NativeInventory.encode(player,slots));
@@ -183,20 +184,19 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void remove(ServerPlayer player,UUID id,UUID operation)throws IOException{
         if(repeated(operation,player,OperationPlan.Kind.REMOVE))return;
         PieceRecord target=snapshot().records().get(id);if(target==null)throw new IllegalArgumentException("STALE_REVISION");adapters.require(target);
-        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks",WorldFunctionals.ADAPTER,WorldDecorations.ADAPTER).contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
+        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks",WorldFunctionals.ADAPTER,WorldDecorations.ADAPTER,WorldGroups.ADAPTER).contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
-        if(!player.isCreative())recoverLoot(player,target,slots);
-        var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(target),Optional.empty())));completeSupport(player,changes,slots);
+        var changes=new ArrayList<OperationPlan.Change>();boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(id)){var old=snapshot().records().get(member);if(!player.isCreative()){recoverLoot(player,old,slots,damage);damage=false;}changes.add(new OperationPlan.Change(member,Optional.of(old),Optional.empty()));}completeSupport(player,changes,slots);
         var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.REMOVE,changes,before,NativeInventory.encode(player,slots));executePrepared(plan);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots){
         recoverLoot(player,target,slots,true);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots,boolean damageTool){
-        boolean decoration=WorldDecorations.piece(target);boolean functional=WorldFunctionals.piece(target);boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!decoration&&!functional&&!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
+        boolean grouped=WorldGroups.piece(target);boolean decoration=WorldDecorations.piece(target);boolean functional=WorldFunctionals.piece(target);boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!grouped&&!decoration&&!functional&&!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
         var state=NativeStates.resolve(target);var at=pos(target.origin16().cell());
-        int length=decoration||paintable||functional?16:net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
-        var loot=decoration?WorldDecorations.drops(target,level,player):functional?functionals.drops(target,player):paintable?net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB recovery")).drops(player,target):player.hasCorrectToolForDrops(state)?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):List.<ItemStack>of();
+        int length=grouped||decoration||paintable||functional?16:net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
+        var loot=grouped?WorldGroups.drops(target):decoration?WorldDecorations.drops(target,level,player):functional?functionals.drops(target,player):paintable?net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB recovery")).drops(player,target):player.hasCorrectToolForDrops(state)?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):List.<ItemStack>of();
         for(var item:loot){
             if(length<16&&item.getItem()==state.getBlock().asItem())item=net.nicomar.nomoregrids.material.FragmentItem.create(state.getBlock(),length).copyWithCount(item.getCount());NativeInventory.insert(slots,item);
         }
@@ -224,7 +224,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){completeSupport(player,changes,slots,false);}
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots,boolean preview){
         for(int pass=0;pass<16;pass++){
-            WorldConnections.complete(level,snapshot(),changes,catalog);
+            if(!changes.isEmpty())WorldGroups.complete(this,level,changes);WorldConnections.complete(level,snapshot(),changes,catalog);
             var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
             Set<CellPos> touched=new HashSet<>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
             boolean removed=false;
@@ -434,7 +434,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(quarantined())throw new IOException("Recovery required");
         var changes=new ArrayList<OperationPlan.Change>();var auxiliary=new ArrayList<OperationPlan.Effect>();
         for(int pass=0;pass<16;pass++){
-            WorldConnections.complete(level,snapshot(),changes,catalog,observed);
+            if(!changes.isEmpty())WorldGroups.complete(this,level,changes);WorldConnections.complete(level,snapshot(),changes,catalog,observed);
             var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);boolean removed=false;
             Set<CellPos> touched=new HashSet<>(observed);for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
             // Observed native cells must still be queried from the actual world, not treated as removed.
@@ -449,9 +449,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     public void removeWorld(Collection<UUID> ids,boolean drops)throws IOException{
         if(ids.isEmpty())return;var changes=new ArrayList<OperationPlan.Change>();var auxiliary=new ArrayList<OperationPlan.Effect>();
-        for(var id:new TreeSet<>(ids)){var old=snapshot().records().get(id);if(old==null||old.flags().contains(PieceRecord.Flag.SUBSTITUTE))continue;adapters.require(old);if(drops)WorldLoot.queue(level,old,auxiliary);changes.add(new OperationPlan.Change(id,Optional.of(old),Optional.empty()));}
+        for(var id:new TreeSet<>(WorldGroups.registry(snapshot()).closure(Set.copyOf(ids)))){var old=snapshot().records().get(id);if(old==null||old.flags().contains(PieceRecord.Flag.SUBSTITUTE))continue;adapters.require(old);if(drops)WorldLoot.queue(level,old,auxiliary);changes.add(new OperationPlan.Change(id,Optional.of(old),Optional.empty()));}
         for(int pass=0;pass<16;pass++){
-            WorldConnections.complete(level,snapshot(),changes,catalog);var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var touched=new HashSet<CellPos>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}boolean removed=false;
+            if(!changes.isEmpty())WorldGroups.complete(this,level,changes);WorldConnections.complete(level,snapshot(),changes,catalog);var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var touched=new HashSet<CellPos>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}boolean removed=false;
             for(var id:WorldSupport.nearby(proposed,touched)){var p=proposed.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||WorldSupport.supported(level,proposed,touched,p,catalog))continue;var old=snapshot().records().get(id);if(old==null)throw new IllegalArgumentException("NO_SUPPORT");changes.removeIf(c->c.id().equals(id));changes.add(new OperationPlan.Change(id,Optional.of(old),Optional.empty()));WorldLoot.queue(level,old,auxiliary);removed=true;}
             if(!removed){executeWorld(changes,auxiliary);return;}
         }throw new IllegalArgumentException("COMPLEXITY_LIMIT: material support cascade");

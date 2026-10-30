@@ -99,11 +99,17 @@ public final class PieceIndex {
      * world/inventory effects and must not be used as a substitute for OperationPlan.
      */
     public PieceIndex changed(List<PieceChange> changes, Limits limits) {
-        if (changes.isEmpty() || changes.size() > 128) throw new IndexException(COMPLEXITY_LIMIT,"Invalid batch size");
+        if(changes.isEmpty())return this;
+        if (changes.size() > 128) throw new IndexException(COMPLEXITY_LIMIT,"Invalid batch size");
         Map<UUID, PieceRecord> next = new HashMap<>(records);
         Set<UUID> touched = new HashSet<>();
         Set<CellPos> affected = new HashSet<>();
         Set<UUID> allIds=changes.stream().map(PieceChange::pieceId).collect(java.util.stream.Collectors.toSet());
+        var operationMembers=new HashMap<UUID,Set<UUID>>();
+        for(var p:records.values())p.groupId().ifPresent(g->operationMembers.computeIfAbsent(g,k->new HashSet<>()).add(p.pieceId()));
+        for(var c:changes)c.replacement().ifPresent(p->p.groupId().ifPresent(g->operationMembers.computeIfAbsent(g,k->new HashSet<>()).add(p.pieceId())));
+        var operationGroups=new net.nicomar.nomoregrids.simulation.movement.GroupRegistry();
+        operationMembers.forEach((g,m)->{if(m.size()>=2)operationGroups.register(g,m);});operationGroups.requireComplete(allIds);
         if(groups!=null)groups.requireComplete(allIds);
         for (PieceChange change : changes) {
             if (!touched.add(change.pieceId())) throw new IndexException(INVALID_DATA,"Duplicate change UUID");
@@ -113,13 +119,13 @@ public final class PieceIndex {
             }
             if (old != null) {
                 if (old.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Substitute cannot be edited");
-                checkGroup(old);
+                checkGroup(old,operationGroups);
                 affected.addAll(old.worldOccupation().cells(8));
             }
             if (change.replacement().isPresent()) {
                 PieceRecord replacement = change.replacement().orElseThrow();
                 if (replacement.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Cannot place substitute");
-                checkGroup(replacement);
+                checkGroup(replacement,operationGroups);
                 next.put(change.pieceId(), replacement);
                 affected.addAll(replacement.worldOccupation().cells(8));
             } else {
@@ -128,13 +134,17 @@ public final class PieceIndex {
         }
         if (affected.size() > 512) throw new IndexException(COMPLEXITY_LIMIT,"Affected cell budget exceeded");
         PieceIndex result = new PieceIndex(next.values(),intersects,groups);
+        for(var id:touched){var p=result.records.get(id);if(p!=null&&p.groupId().isPresent()){
+            var expected=operationGroups.members(id);var actual=result.records.values().stream().filter(q->q.groupId().equals(p.groupId())).map(PieceRecord::pieceId).collect(java.util.stream.Collectors.toSet());
+            if(!actual.equals(expected))throw new IndexException(INVALID_DATA,"Incomplete group after-image");
+        }}
         result.checkBudgets(limits, this);
         result.checkOverlaps(touched);
         return result;
     }
 
-    private void checkGroup(PieceRecord piece){
-        if(piece.groupId().isPresent()&&(groups==null||!groups.groupOf(piece.pieceId()).equals(piece.groupId())))throw new IndexException(INVALID_DATA,"Group operations require registered complete group");
+    private void checkGroup(PieceRecord piece,net.nicomar.nomoregrids.simulation.movement.GroupRegistry operationGroups){
+        if(piece.groupId().isPresent()&&!operationGroups.groupOf(piece.pieceId()).equals(piece.groupId()))throw new IndexException(INVALID_DATA,"Group operations require registered complete group");
     }
 
     private void checkOverlaps(Set<UUID> changed) {

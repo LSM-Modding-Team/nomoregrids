@@ -49,6 +49,7 @@ public final class CompositeCellEntity extends BlockEntity {
         }
         var water=view.cavity().map(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.WATER)).orElse(0);var lava=view.cavity().map(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.LAVA)).orElse(0);
         var light=net.nicomar.nomoregrids.simulation.light.CellLighting.calculate(parts);var state=getBlockState().setValue(CompositeCellBlock.EMISSION,lava>0?15:light.emission()).setValue(CompositeCellBlock.ATTENUATION,light.attenuation()).setValue(CompositeCellBlock.SEALED,light.sealed()).setValue(CompositeCellBlock.FLUID,lava>0?2:water>0?1:0).setValue(CompositeCellBlock.SOURCE,view.cavity().map(c->c.source()!=net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.EMPTY).orElse(false));
+        state=state.setValue(CompositeCellBlock.FACING,net.nicomar.nomoregrids.platform.WorldGroups.bedAt(level,worldPosition).map(net.nicomar.nomoregrids.platform.WorldGroups::bedDirection).orElse(Direction.NORTH));
         if(!state.equals(getBlockState()))level.setBlock(worldPosition,state,Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE);
     }
     public VoxelShape shape(boolean collision){

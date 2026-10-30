@@ -10,14 +10,15 @@ import net.minecraft.world.phys.shapes.*;
 
 /** Technical, non-obtainable multipart cell. Queries use replicas even with owner section unloaded. */
 public final class CompositeCellBlock extends BaseEntityBlock implements LiquidBlockContainer {
+    public static final net.minecraft.world.level.block.state.properties.EnumProperty<net.minecraft.core.Direction> FACING=net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING;
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty FLUID=net.minecraft.world.level.block.state.properties.IntegerProperty.create("fluid",0,2);
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty SOURCE=net.minecraft.world.level.block.state.properties.BooleanProperty.create("source");
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty EMISSION=net.minecraft.world.level.block.state.properties.IntegerProperty.create("emission",0,15);
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty ATTENUATION=net.minecraft.world.level.block.state.properties.IntegerProperty.create("attenuation",0,15);
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty SEALED=net.minecraft.world.level.block.state.properties.BooleanProperty.create("sealed");
     public static final MapCodec<CompositeCellBlock> CODEC=simpleCodec(CompositeCellBlock::new);
-    public CompositeCellBlock(Properties properties){super(properties);registerDefaultState(stateDefinition.any().setValue(EMISSION,0).setValue(ATTENUATION,0).setValue(SEALED,false).setValue(FLUID,0).setValue(SOURCE,false));}
-    @Override protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block,BlockState> builder){builder.add(EMISSION,ATTENUATION,SEALED,FLUID,SOURCE);}
+    public CompositeCellBlock(Properties properties){super(properties);registerDefaultState(stateDefinition.any().setValue(EMISSION,0).setValue(ATTENUATION,0).setValue(SEALED,false).setValue(FLUID,0).setValue(SOURCE,false).setValue(FACING,net.minecraft.core.Direction.NORTH));}
+    @Override protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block,BlockState> builder){builder.add(FACING,EMISSION,ATTENUATION,SEALED,FLUID,SOURCE);}
     @Override protected MapCodec<? extends BaseEntityBlock> codec(){return CODEC;}
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state){return new CompositeCellEntity(pos,state);}
     @Override protected VoxelShape getShape(BlockState state,BlockGetter world,BlockPos pos,CollisionContext context){
@@ -27,6 +28,10 @@ public final class CompositeCellBlock extends BaseEntityBlock implements LiquidB
         return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.shape(true):Shapes.block();
     }
     @Override protected VoxelShape getBlockSupportShape(BlockState state,BlockGetter world,BlockPos pos){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.supportShape():Shapes.empty();}
+    @Override public boolean isBed(BlockState state,BlockGetter world,BlockPos pos,net.minecraft.world.entity.LivingEntity sleeper){return net.nicomar.nomoregrids.platform.WorldGroups.bedAt(world,pos).isPresent();}
+    @Override public net.minecraft.core.Direction getBedDirection(BlockState state,LevelReader world,BlockPos pos){return net.nicomar.nomoregrids.platform.WorldGroups.bedAt(world,pos).map(net.nicomar.nomoregrids.platform.WorldGroups::bedDirection).orElse(net.minecraft.core.Direction.NORTH);}
+    @Override public void setBedOccupied(BlockState state,Level world,BlockPos pos,net.minecraft.world.entity.LivingEntity sleeper,boolean occupied){net.nicomar.nomoregrids.platform.WorldGroups.occupied(world,pos,occupied);}
+    @Override public java.util.Optional<net.minecraft.server.level.ServerPlayer.RespawnPosAngle> getRespawnPosition(BlockState state,net.minecraft.world.entity.EntityType<?> type,LevelReader world,BlockPos pos,float orientation){if(!(world instanceof CollisionGetter collisions))return java.util.Optional.empty();return net.nicomar.nomoregrids.platform.WorldGroups.bedAt(world,pos).flatMap(p->BedBlock.findStandUpPosition(type,collisions,pos,net.nicomar.nomoregrids.platform.WorldGroups.bedDirection(p),orientation)).map(point->net.minecraft.server.level.ServerPlayer.RespawnPosAngle.of(point,pos,orientation));}
     @Override public boolean isLadder(BlockState state,LevelReader world,BlockPos pos,net.minecraft.world.entity.LivingEntity entity){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.climbs(entity);}
     @Override public boolean collisionExtendsVertically(BlockState state,BlockGetter world,BlockPos pos,net.minecraft.world.entity.Entity entity){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.extendsVertically(entity);}
     @Override public float getFriction(BlockState state,LevelReader world,BlockPos pos,net.minecraft.world.entity.Entity entity){
