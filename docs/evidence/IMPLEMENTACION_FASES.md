@@ -75,3 +75,25 @@ selección por rayo y prueba de ejes separadores. Se conserva precisión no inte
 los contactos casi degenerados se clasifican indeterminados, no como permiso de
 invasión. Pruebas de pendiente, cavidades, cubos, conservación y presupuesto
 escritas y no ejecutadas. No se afirma que el motor de fluidos esté certificado.
+
+## Adaptadores y funcionales (F6–F7)
+
+API versionada por capacidades, registro congelable y validación de ocupación
+exacta. El índice admite un resolver geométrico de adaptadores y lo conserva
+al reconstruir estados. PaintableAdapter carga PB solo de forma opcional,
+verifica BlockDesign.VERSION=2, conserva su codec nativo completo y reconstruye
+voxels/pendientes/pinturas mediante las APIs inspeccionadas en el commit fijado.
+`physical()` compone la orientación nativa una vez; la transformación NMG es
+externa. Ediciones se preparan y validan sin setters ni cobros nativos.
+
+Decisión: no confundir captura/edición del diseño con que todas las herramientas
+PB ya encuentren una pieza dentro del contenedor. La búsqueda de componente y
+el cobro único requieren el puente de interacción concreto; el adaptador no
+invoca herramientas contra un mundo falso. No se acredita compatibilidad PB.
+
+Funcionales: almacén único por UUID con slots, energía, datos y revisión; las
+consultas por contacto solo enrutan cuando hay un puerto único. Registro de
+grupos inseparables y lógica explícita de horno con recetas, combustible,
+progreso, resultado y experiencia; un recipiente sobrante nunca se descarta.
+Los menús y recetas concretos deberán conectar esa autoridad al registro vanilla.
+Pruebas escritas para autoridad, revisiones, puertos ambiguos y horno. No ejecutadas.

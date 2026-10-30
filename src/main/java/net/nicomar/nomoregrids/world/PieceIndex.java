@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -31,8 +32,10 @@ public final class PieceIndex {
     private final Map<CellPos, Set<UUID>> cells;
     private final Map<SectionPos, Set<UUID>> owners;
     private final Map<SectionPos, Set<UUID>> references;
+    private final java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects;
 
-    private PieceIndex(Collection<PieceRecord> pieces) {
+    private PieceIndex(Collection<PieceRecord> pieces,java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects) {
+        this.intersects=Objects.requireNonNull(intersects);
         Map<UUID, PieceRecord> byId = new HashMap<>();
         Map<CellPos, Set<UUID>> byCell = new TreeMap<>();
         Map<SectionPos, Set<UUID>> owned = new TreeMap<>(), referenced = new TreeMap<>();
@@ -50,7 +53,8 @@ public final class PieceIndex {
         references = freeze(referenced);
     }
 
-    public static PieceIndex empty() { return new PieceIndex(List.of()); }
+    public static PieceIndex empty() { return empty((a,b)->a.worldOccupation().overlaps(b.worldOccupation())); }
+    public static PieceIndex empty(java.util.function.BiPredicate<PieceRecord,PieceRecord> geometryTest) { return new PieceIndex(List.of(),geometryTest); }
 
     /**
      * Reconstructs an already committed snapshot, with structural/overlap checks.
@@ -59,7 +63,10 @@ public final class PieceIndex {
      * No filesystem or region loading occurs here.
      */
     public static PieceIndex restored(Collection<PieceRecord> pieces) {
-        PieceIndex index = new PieceIndex(pieces);
+        return restored(pieces,(a,b)->a.worldOccupation().overlaps(b.worldOccupation()));
+    }
+    public static PieceIndex restored(Collection<PieceRecord> pieces,java.util.function.BiPredicate<PieceRecord,PieceRecord> geometryTest) {
+        PieceIndex index = new PieceIndex(pieces,geometryTest);
         index.checkOverlaps(index.records.keySet());
         return index;
     }
@@ -71,6 +78,7 @@ public final class PieceIndex {
     }
 
     public Map<UUID, PieceRecord> records() { return records; }
+    public PieceIndex rebuilt(Collection<PieceRecord> records){return restored(records,intersects);}
     public Set<UUID> at(CellPos cell) { return cells.getOrDefault(cell, Set.of()); }
     public Set<UUID> ownedBy(SectionPos section) { return owners.getOrDefault(section, Set.of()); }
     public Set<UUID> referencedBy(SectionPos section) { return references.getOrDefault(section, Set.of()); }
@@ -106,7 +114,7 @@ public final class PieceIndex {
             }
         }
         if (affected.size() > 512) throw new IndexException(COMPLEXITY_LIMIT,"Affected cell budget exceeded");
-        PieceIndex result = new PieceIndex(next.values());
+        PieceIndex result = new PieceIndex(next.values(),intersects);
         result.checkBudgets(limits, this);
         result.checkOverlaps(touched);
         return result;
@@ -122,7 +130,7 @@ public final class PieceIndex {
             for (CellPos cell : shape.cells(8)) for (UUID other : at(cell)) {
                 if (other.equals(id) || !compared.add(other)) continue;
                 BoxUnion otherShape = shapes.computeIfAbsent(other, key -> records.get(key).worldOccupation());
-                if (shape.overlaps(otherShape)) throw new IndexException(OVERLAP,"Positive volume intersection");
+                if (shape.bounds().overlaps(otherShape.bounds())&&intersects.test(piece,records.get(other))) throw new IndexException(OVERLAP,"Positive volume intersection");
             }
         }
     }

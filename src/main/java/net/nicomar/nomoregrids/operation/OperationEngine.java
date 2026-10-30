@@ -57,7 +57,7 @@ public final class OperationEngine {
                     if(!current.equals(c.before()) && !current.equals(c.after()))throw new IOException("Conflicting piece during replay: "+c.id());
                     if(c.after().isPresent())records.put(c.id(),c.after().orElseThrow());else records.remove(c.id());
                 }
-                PieceIndex next=PieceIndex.restored(records.values());
+                PieceIndex next=index.rebuilt(records.values());
                 host.install(plan,next);index=next;
             }
             quarantined=false;
