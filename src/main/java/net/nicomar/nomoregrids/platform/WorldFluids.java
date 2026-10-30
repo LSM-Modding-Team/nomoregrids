@@ -19,7 +19,11 @@ import net.nicomar.nomoregrids.world.PieceIndex;
 /** One server authority for partial cavities. Native fluid cells are boundary inputs, never a second writer. */
 public final class WorldFluids {
     private final ServerLevel level;private final WorldService service;
-    private CavitySimulation.FlowJob job;private Map<CellPos,CavityCell> input;private Map<BlockPos,net.minecraft.world.level.block.state.BlockState> nativeImages;private PieceIndex generation;
+    private CavityRelaxation job;
+    private record Due(CellPos cell,Kind kind,long tick){}
+    private final PriorityQueue<Due> due=new PriorityQueue<>(Comparator.comparingLong(Due::tick).thenComparing(Due::cell).thenComparing(Due::kind));
+    private final Map<String,Long> scheduled=new HashMap<>();private boolean initialized;private Kind workingKind;
+    private Map<CellPos,Set<UUID>> memberships;private Map<UUID,Long> revisions;private Map<CellPos,CavityCell> input;private Map<BlockPos,net.minecraft.world.level.block.state.BlockState> nativeImages;private PieceIndex generation;
     private Map<String,WorldEffectStore.Value> effectGeneration;
     public WorldFluids(ServerLevel level,WorldService service){this.level=level;this.service=service;}
     public static String key(CellPos c){return "fluid:"+c.x()+":"+c.y()+":"+c.z();}
@@ -28,7 +32,7 @@ public final class WorldFluids {
     public static Kind kind(FluidState f){if(f.isEmpty())return Kind.EMPTY;if(f.getType()==Fluids.WATER||f.getType()==Fluids.FLOWING_WATER)return Kind.WATER;if(f.getType()==Fluids.LAVA||f.getType()==Fluids.FLOWING_LAVA)return Kind.LAVA;throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: external fluid");}
     private CavityCell nativeCell(CellPos c,BitSet mask){
         var fluid=level.getFluidState(WorldService.pos(c));var type=kind(fluid);byte[] values=new byte[4096];if(type!=Kind.EMPTY){int height=fluid.isSource()?16:Math.max(1,fluid.getAmount()*2);for(int i=0;i<4096;i++)if(i/16%16<height&&!mask.get(i))values[i]=CavityCell.code(type);}
-        return new CavityCell(mask,values,type!=Kind.EMPTY&&fluid.isSource()&&mask.isEmpty()?type:Kind.EMPTY);
+        byte[] distance=new byte[4096];for(int i=0;i<4096;i++)distance[i]=values[i]==0?(byte)127:(byte)Math.min(type==Kind.LAVA?48:112,(8-fluid.getAmount())*16);return new CavityCell(mask,values,type!=Kind.EMPTY&&fluid.isSource()&&mask.isEmpty()?type:Kind.EMPTY,distance);
     }
     private BitSet mask(CellPos c,PieceIndex index,Set<CellPos> edited){
         var boxes=new ArrayList<Box16>();var solids=new ArrayList<ConvexVolume>();long x=c.x()*16,y=c.y()*16,z=c.z()*16;
@@ -58,7 +62,7 @@ public final class WorldFluids {
             var c=pending.removeFirst();if(region.size()>256)throw new IllegalArgumentException("COMPLEXITY_LIMIT: fluid redistribution region");
             var old=at(c).orElseGet(()->nativeCell(c,mask(c,before,Set.of())));var nextMask=mask(c,after,touched);
             // A complete source obstructed by construction becomes conserved flowing volume, never a fractional bucket source.
-            if(old.source()!=Kind.EMPTY&&!nextMask.isEmpty())old=new CavityCell(old.blocked(),old.fluids(),Kind.EMPTY);
+            if(old.source()!=Kind.EMPTY&&!nextMask.isEmpty())old=new CavityCell(old.blocked(),old.fluids(),Kind.EMPTY,old.distances());
             previous.put(c,old);masks.put(c,nextMask);
             if(old.amount(Kind.WATER)+old.amount(Kind.LAVA)==0&&!touched.contains(c))continue;
             for(var d:Direction6.values()){
@@ -81,8 +85,8 @@ public final class WorldFluids {
     public void incoming(CellPos c,FluidState fluid)throws IOException{
         var old=at(c).orElseGet(()->new CavityCell(mask(c,service.snapshot(),Set.of()),new byte[4096],Kind.EMPTY));Kind type=kind(fluid);if(type==Kind.EMPTY)return;
         if(old.amount(type==Kind.WATER?Kind.LAVA:Kind.WATER)>0)return;
-        var bytes=old.fluids();int h=fluid.isSource()?16:Math.max(1,fluid.getAmount()*2);for(int i=0;i<4096;i++)if(old.free(i)&&i/16%16<h)bytes[i]=CavityCell.code(type);
-        var next=new CavityCell(old.blocked(),bytes,fluid.isSource()&&old.blocked().isEmpty()?type:Kind.EMPTY);var effects=new ArrayList<OperationPlan.Effect>();addEffect(c,next,effects);service.executeWorld(List.of(),effects);
+        var bytes=old.fluids();var distances=old.distances();int distance=Math.max(0,Math.min(type==Kind.WATER?112:48,(8-fluid.getAmount())*16));int h=fluid.isSource()?16:Math.max(1,fluid.getAmount()*2);for(int i=0;i<4096;i++)if(old.free(i)&&i/16%16<h){bytes[i]=CavityCell.code(type);distances[i]=(byte)Math.min(Byte.toUnsignedInt(distances[i]),distance);}
+        var next=new CavityCell(old.blocked(),bytes,fluid.isSource()&&old.blocked().isEmpty()?type:Kind.EMPTY,distances);var effects=new ArrayList<OperationPlan.Effect>();addEffect(c,next,effects);service.executeWorld(List.of(),effects);
     }
     public void bucket(ServerPlayer player,InteractionHand hand,CellPos c,UUID operation)throws IOException{
         if(service.hasOperation(operation,player.getUUID()))return;
@@ -91,23 +95,25 @@ public final class WorldFluids {
         if(!player.isCreative()){slots.get(slot).shrink(1);NativeInventory.insert(slots,new ItemStack(collect?(type==Kind.WATER?Items.WATER_BUCKET:Items.LAVA_BUCKET):Items.BUCKET));}
         var changes=new ArrayList<OperationPlan.Effect>();addEffect(c,next,changes);service.executePrepared(new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.CLAIM,List.of(),before,NativeInventory.encode(player,slots),changes));
     }
+    public void changed(CellPos c){for(var kind:List.of(Kind.WATER,Kind.LAVA)){schedule(c,kind,level.getGameTime()+delay(kind));for(var d:Direction6.values())schedule(new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z),kind,level.getGameTime()+delay(kind));}}
+    private int delay(Kind kind){return (kind==Kind.WATER?Fluids.WATER:Fluids.LAVA).getTickDelay(level);}
+    private String ticket(CellPos c,Kind kind){return key(c)+":"+kind;}
+    private void schedule(CellPos c,Kind kind,long time){if(!level.isLoaded(WorldService.pos(c)))return;String k=ticket(c,kind);Long old=scheduled.get(k);if(old!=null&&old<=time)return;scheduled.put(k,time);due.add(new Due(c,kind,time));}
+    private boolean target(CellPos c){var state=level.getBlockState(WorldService.pos(c));return at(c).isPresent()||state.isAir()||state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock;}
+    private CavityCell cell(CellPos c){return at(c).orElseGet(()->nativeCell(c,mask(c,service.snapshot(),Set.of())));}
     public void tick()throws IOException{
-        long time=level.getGameTime();if(job==null){if(time%5!=0)return;
-            var all=snapshot();if(all.isEmpty())return;var region=new TreeSet<CellPos>();for(var c:all.keySet())if(level.isLoaded(WorldService.pos(c))){region.add(c);for(var d:Direction6.values()){var n=new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z);if(level.isLoaded(WorldService.pos(n)))region.add(n);}if(region.size()>256)break;}
-            if(region.size()>256)throw new IllegalArgumentException("COMPLEXITY_LIMIT: active fluid region");input=new TreeMap<>();nativeImages=new HashMap<>();
-            for(var c:region){var state=level.getBlockState(WorldService.pos(c));nativeImages.put(WorldService.pos(c),state);var existing=all.get(c);input.put(c,existing!=null?existing:nativeCell(c,mask(c,service.snapshot(),Set.of())));}
-            generation=service.snapshot();effectGeneration=Map.copyOf(service.effects());job=new CavitySimulation.FlowJob(input,time%30==0?Set.of(Kind.WATER,Kind.LAVA):Set.of(Kind.WATER));
+        if(!initialized){for(var c:snapshot().keySet())changed(c);initialized=true;}
+        long now=level.getGameTime();if(job==null){var targets=new LinkedHashSet<CellPos>();while(!due.isEmpty()&&targets.size()<16){var next=due.peek();if(next.tick>now)break;due.remove();if(!Objects.equals(scheduled.get(ticket(next.cell,next.kind)),next.tick))continue;if(!targets.isEmpty()&&workingKind!=next.kind){due.add(next);break;}scheduled.remove(ticket(next.cell,next.kind));if(!level.isLoaded(WorldService.pos(next.cell))||!target(next.cell))continue;workingKind=next.kind;targets.add(next.cell);}
+            if(targets.isEmpty())return;var region=new HashSet<>(targets);for(var c:targets)for(var d:Direction6.values()){var n=new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z);if(level.isLoaded(WorldService.pos(n)))region.add(n);}
+            input=new TreeMap<>();nativeImages=new HashMap<>();memberships=new HashMap<>();revisions=new HashMap<>();for(var c:region){var at=WorldService.pos(c);nativeImages.put(at,level.getBlockState(at));input.put(c,cell(c));memberships.put(c,service.snapshot().at(c));for(var id:service.snapshot().at(c))revisions.put(id,service.snapshot().records().get(id).revision());}job=new CavityRelaxation(input,targets,workingKind);effectGeneration=new HashMap<>();for(var c:region){var v=service.effects().get(key(c));if(v!=null)effectGeneration.put(key(c),v);}
         }
-        if(service.snapshot()!=generation||!service.effects().equals(effectGeneration)||nativeImages.entrySet().stream().anyMatch(e->!level.isLoaded(e.getKey())||!level.getBlockState(e.getKey()).equals(e.getValue()))){job=null;return;}
-        if(!job.advance(8192))return;var next=job.result();job=null;var changes=new ArrayList<OperationPlan.Effect>();
-        for(var entry:next.entrySet()){
-            var c=entry.getKey();if(!at(c).isPresent()&&!level.getFluidState(WorldService.pos(c)).isEmpty())continue;
-            addEffect(c,entry.getValue(),changes);
-        }
-        var reactions=CavitySimulation.react(next);var pieces=new ArrayList<OperationPlan.Change>();
-        for(var product:reactions.products().entrySet()){
-            var c=product.getKey();if(!service.snapshot().at(c).isEmpty())continue;var state=NativeStates.resolve(product.getValue(),Map.of());var p=NativeStates.capture(state,level,WorldService.pos(c),UUID.randomUUID());pieces.add(new OperationPlan.Change(p.pieceId(),Optional.empty(),Optional.of(p)));addEffect(c,reactions.fluids().get(c),changes);
-        }
-        service.executeWorld(pieces,changes);
+        boolean stale=nativeImages.entrySet().stream().anyMatch(e->!level.isLoaded(e.getKey())||!level.getBlockState(e.getKey()).equals(e.getValue()))||memberships.entrySet().stream().anyMatch(e->!service.snapshot().at(e.getKey()).equals(e.getValue()))||revisions.entrySet().stream().anyMatch(e->service.snapshot().records().get(e.getKey())==null||service.snapshot().records().get(e.getKey()).revision()!=e.getValue());
+        if(!stale)for(var c:input.keySet())if(!Objects.equals(effectGeneration.get(key(c)),service.effects().get(key(c)))){stale=true;break;}
+        if(stale){for(var c:input.keySet())schedule(c,workingKind,now+delay(workingKind));job=null;return;}
+        if(!job.advance(65536))return;var result=job.result();job=null;var effects=new ArrayList<OperationPlan.Effect>();var combined=new HashMap<>(input);combined.putAll(result);var reactions=CavitySimulation.react(combined);var pieces=new ArrayList<OperationPlan.Change>();
+        for(var e:result.entrySet()){addEffect(e.getKey(),reactions.fluids().get(e.getKey()),effects);if(e.getValue().amount(Kind.WATER)+e.getValue().amount(Kind.LAVA)>0)schedule(e.getKey(),workingKind,now+delay(workingKind));}
+        for(var product:reactions.products().entrySet())if(result.containsKey(product.getKey())&&service.snapshot().at(product.getKey()).isEmpty()){
+            var p=NativeStates.capture(NativeStates.resolve(product.getValue(),Map.of()),level,WorldService.pos(product.getKey()),UUID.randomUUID());pieces.add(new OperationPlan.Change(p.pieceId(),Optional.empty(),Optional.of(p)));addEffect(product.getKey(),reactions.fluids().get(product.getKey()),effects);
+        }service.executeWorld(pieces,effects);
     }
 }

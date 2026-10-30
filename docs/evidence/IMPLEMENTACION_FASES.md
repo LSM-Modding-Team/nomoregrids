@@ -720,3 +720,21 @@ rollback en memoria; el conflicto intermod queda preservado y bloqueado.
 Firmas ResourceHandler, SnapshotJournal, EnergyHandler y RegisterCapabilitiesEvent
 leídas en fuentes exactas. Parser/imports y recursos revisados sin ejecutar tests,
 compiladores, Gradle o Minecraft.
+
+## Fluidos distribuidos y entidades grandes
+
+CavityRelaxation procesa ventanas de hasta 16 destinos con fronteras persistidas.
+Distancia horizontal 0–112/48 viaja en guardado/réplica y evita ciclos mojados
+autosostenidos al retirar una fuente. Las fronteras se leen, se validan por
+pertenencia/revisión/estado y no se publican resultados incompletos. Cada ventana
+se agenda por cadencia nativa de agua/lava y vuelve a agendar vecinos; no se
+recopila ni bloquea una red global al superar 256 celdas. El desplazamiento
+conserva distancia y volumen antes de confirmar una construcción. Se implementa
+LiquidBlockContainer para entradas del motor vanilla a la autoridad NMG.
+
+Codec de cavidad 2 y simulación 3 leen versiones anteriores; protocolo 7 protege
+clientes incompatibles. Para entidades grandes, LoadedCells consulta el directorio
+disperso de contenedores cargados en lugar de usar una proyección gruesa de
+fluido; cuerpo, ojos y efectos siguen empleando cavidades reales.
+Prueba de frontera y drenaje de un corredor escrita, no ejecutada. Revisión
+estática de parser, recursos e imports; sin compilación, Gradle ni juego.

@@ -26,6 +26,7 @@ public final class WorldMutationHooks {
     }
     public static void changed(ServerLevel level,BlockPos pos){
         var service=NmgRuntime.existing(level);if(service==null||service.writing())return;
+        service.fluids().changed(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
         var dirty=DIRTY.computeIfAbsent(level,k->new LinkedHashSet<>());if(dirty.size()<4096)dirty.add(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
         else SCANS.putIfAbsent(level,service.snapshot().records().values().stream().flatMap(p->p.worldOccupation().cells(8).stream()).distinct().iterator());
     }

@@ -14,11 +14,11 @@ public final class SimulationCodec {
     public static final int MAX_BYTES=2*1024*1024;
     private SimulationCodec(){}
     public static byte[] encode(SimulationSnapshot state)throws IOException{
-        var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(new Limited(bytes));out.writeInt(2);out.writeLong(state.section().x());out.writeLong(state.section().y());out.writeLong(state.section().z());out.writeLong(state.checkpoint());
+        var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(new Limited(bytes));out.writeInt(3);out.writeLong(state.section().x());out.writeLong(state.section().y());out.writeLong(state.section().z());out.writeLong(state.checkpoint());
         out.writeInt(state.cavities().size());for(var pos:state.cavities().keySet().stream().sorted().toList()){
             out.writeLong(pos.x());out.writeLong(pos.y());out.writeLong(pos.z());var cell=state.cavities().get(pos);out.writeByte(CavityCell.code(cell.source()));
             long[] mask=cell.blocked().toLongArray();for(int i=0;i<64;i++)out.writeLong(i<mask.length?mask[i]:0);
-            byte[] fluids=cell.fluids();for(int i=0;i<4096;i+=4)out.writeByte(fluids[i]|fluids[i+1]<<2|fluids[i+2]<<4|fluids[i+3]<<6);
+            byte[] fluids=cell.fluids();for(int i=0;i<4096;i+=4)out.writeByte(fluids[i]|fluids[i+1]<<2|fluids[i+2]<<4|fluids[i+3]<<6);out.write(cell.distances());
         }
         out.writeInt(state.functionals().size());for(UUID id:state.functionals().keySet().stream().sorted().toList()){
             var machine=state.functionals().get(id);OperationCodec.uuid(out,id);out.writeLong(machine.revision());out.writeLong(machine.energy());out.writeInt(machine.slots().size());for(var slot:machine.slots())OperationCodec.blob(out,slot.copy());OperationCodec.blob(out,machine.machine().copy());
@@ -35,10 +35,10 @@ public final class SimulationCodec {
     public static SimulationSnapshot decode(byte[] bytes)throws IOException{
         if(bytes.length<56||bytes.length>MAX_BYTES)throw new IOException("Simulation checkpoint size");CRC32C crc=new CRC32C();crc.update(bytes,0,bytes.length-4);if((int)crc.getValue()!=ByteBuffer.wrap(bytes).getInt(bytes.length-4))throw new IOException("Simulation checksum; original retained");
         var in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-4));try{
-            int version=in.readInt();if(version!=1&&version!=2)throw new IOException("Future simulation schema; original retained");var section=new SectionPos(in.readLong(),in.readLong(),in.readLong());long checkpoint=in.readLong();
+            int version=in.readInt();if(version!=1&&version!=2&&version!=3)throw new IOException("Future simulation schema; original retained");var section=new SectionPos(in.readLong(),in.readLong(),in.readLong());long checkpoint=in.readLong();
             var cavities=new HashMap<CellPos,CavityCell>();int count=count(in,256);for(int i=0;i<count;i++){
                 var pos=new CellPos(in.readLong(),in.readLong(),in.readLong());var source=CavityCell.kind(in.readByte());long[] mask=new long[64];for(int j=0;j<64;j++)mask[j]=in.readLong();byte[] fluids=new byte[4096];for(int j=0;j<4096;j+=4){int packed=in.readUnsignedByte();for(int k=0;k<4;k++)fluids[j+k]=(byte)((packed>>>(2*k))&3);}
-                if(cavities.putIfAbsent(pos,new CavityCell(BitSet.valueOf(mask),fluids,source))!=null)throw new IOException("Duplicate cavity authority");
+                if(cavities.putIfAbsent(pos,(version>=3?new CavityCell(BitSet.valueOf(mask),fluids,source,in.readNBytes(4096)):new CavityCell(BitSet.valueOf(mask),fluids,source)))!=null)throw new IOException("Duplicate cavity authority");
             }
             var machines=new HashMap<UUID,FunctionalStore.State>();count=count(in,4096);for(int i=0;i<count;i++){
                 UUID id=OperationCodec.uuid(in);long revision=in.readLong(),energy=in.readLong();int slots=count(in,256);var inventory=new ArrayList<BinaryData>();for(int j=0;j<slots;j++)inventory.add(new BinaryData(OperationCodec.blob(in,BinaryData.MAX_BYTES)));var machine=new BinaryData(OperationCodec.blob(in,BinaryData.MAX_BYTES));

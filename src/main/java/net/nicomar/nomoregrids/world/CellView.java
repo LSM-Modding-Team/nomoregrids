@@ -35,7 +35,7 @@ public record CellView(List<PieceRecord> replicas,Optional<net.nicomar.nomoregri
         int schema=in.readInt();if(schema!=1&&schema!=2)throw new IOException("Future cell schema; retain original");int count=in.readInt();if(count<0||count>64)throw new IOException("Cell reference limit");
         var replicas=new ArrayList<PieceRecord>();for(int i=0;i<count;i++){
             var p=BoxPieceCodec.decode(OperationCodec.blob(in,BoxPieceCodec.MAX_BYTES));if(!(p instanceof BoxPieceCodec.Decoded d))throw new IOException("Future piece; retain original");replicas.add(d.piece());}
-        Optional<net.nicomar.nomoregrids.simulation.fluid.CavityCell> cavity=Optional.empty();if(schema>=2){int marker=in.readUnsignedByte();if(marker>1)throw new IOException("Cavity marker");if(marker==1)cavity=Optional.of(CavityCodec.decode(new BinaryData(OperationCodec.blob(in,1538))));}
+        Optional<net.nicomar.nomoregrids.simulation.fluid.CavityCell> cavity=Optional.empty();if(schema>=2){int marker=in.readUnsignedByte();if(marker>1)throw new IOException("Cavity marker");if(marker==1)cavity=Optional.of(CavityCodec.decode(new BinaryData(OperationCodec.blob(in,CavityCodec.MAX_BYTES))));}
         if(in.available()!=0)throw new IOException("Trailing cell bytes");try{return new CellView(replicas,cavity);}catch(IllegalArgumentException ex){throw new IOException("Invalid replica",ex);}
     }
 }

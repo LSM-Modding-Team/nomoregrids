@@ -32,7 +32,7 @@ public final class CellDelta {
             if(!(decoded instanceof BoxPieceCodec.Decoded d)||!seen.add(d.piece().pieceId()))throw new IOException("Invalid delta record");
             var old=records.get(d.piece().pieceId());if(old!=null&&d.piece().revision()<=old.revision())throw new IOException("Stale delta revision");records.put(d.piece().pieceId(),d.piece());
         }
-        int marker=in.readUnsignedByte();if(marker>1)throw new IOException("Cavity marker");var cavity=marker==1?Optional.of(CavityCodec.decode(new BinaryData(OperationCodec.blob(in,1538)))):Optional.<net.nicomar.nomoregrids.simulation.fluid.CavityCell>empty();
+        int marker=in.readUnsignedByte();if(marker>1)throw new IOException("Cavity marker");var cavity=marker==1?Optional.of(CavityCodec.decode(new BinaryData(OperationCodec.blob(in,CavityCodec.MAX_BYTES)))):Optional.<net.nicomar.nomoregrids.simulation.fluid.CavityCell>empty();
         if(in.available()!=0)throw new IOException("Trailing delta data");
         try{var next=new CellView(List.copyOf(records.values()),cavity);if(!Arrays.equals(expected,SnapshotAssembler.sha256(next.encode())))throw new IOException("Delta target mismatch");return next;}
         catch(IllegalArgumentException ex){throw new IOException("Invalid public delta",ex);}

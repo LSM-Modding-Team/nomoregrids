@@ -54,26 +54,26 @@ public final class CavitySimulation {
     /** Evacuate displaced microvolumes through previously open cavities within four loaded cells. */
     public static Map<CellPos,CavityCell> displace(Map<CellPos,CavityCell> old,Map<CellPos,BitSet> newMasks,int budget){
         if(!old.keySet().equals(newMasks.keySet())||budget<1)throw new IllegalArgumentException("Region/mask mismatch");
-        var next=new HashMap<CellPos,byte[]>();old.forEach((p,c)->next.put(p,c.fluids()));
+        var next=new HashMap<CellPos,byte[]>();var distances=new HashMap<CellPos,byte[]>();old.forEach((p,c)->{next.put(p,c.fluids());distances.put(p,c.distances());});
         int steps=0;var positions=old.keySet().stream().sorted().toList();
         for(var pos:positions){CavityCell state=old.get(pos);BitSet mask=newMasks.get(pos);
             if(mask.length()>4096)throw new IllegalArgumentException("Invalid mask");
             if(state.source()!=Kind.EMPTY&&!mask.isEmpty())throw new IllegalArgumentException("Cannot obstruct a complete source; relocate source first");
             for(int i=mask.nextSetBit(0);i>=0;i=mask.nextSetBit(i+1))if(next.get(pos)[i]!=0){
-                byte kind=next.get(pos)[i];next.get(pos)[i]=0;GridPoint origin=point(pos,i);
+                byte kind=next.get(pos)[i],distance=distances.get(pos)[i];next.get(pos)[i]=0;distances.get(pos)[i]=127;GridPoint origin=point(pos,i);
                 var queue=new ArrayDeque<GridPoint>();var seen=new HashSet<GridPoint>();queue.add(origin);boolean moved=false;
                 while(!queue.isEmpty()){
                     if(++steps>budget)throw new IllegalArgumentException("Fluid redistribution budget exceeded");
                     GridPoint p=queue.removeFirst();if(!seen.add(p))continue;CellPos cell=p.cell();CavityCell previous=old.get(cell);
                     if(previous==null||Math.abs(cell.x()-pos.x())>4||Math.abs(cell.y()-pos.y())>4||Math.abs(cell.z()-pos.z())>4||!previous.free(local(p)))continue;
                     int at=local(p);byte fluid=next.get(cell)[at];if(fluid!=0&&fluid!=kind)continue;
-                    if(!newMasks.get(cell).get(at)&&fluid==0){next.get(cell)[at]=kind;moved=true;break;}
+                    if(!newMasks.get(cell).get(at)&&fluid==0){next.get(cell)[at]=kind;distances.get(cell)[at]=distance;moved=true;break;}
                     for(var d:Direction6.values())queue.addLast(p.add(d.vector()));
                 }
                 if(!moved)throw new IllegalArgumentException("No connected space for displaced fluid");
             }
         }
-        var result=new HashMap<CellPos,CavityCell>();for(var pos:positions)result.put(pos,new CavityCell(newMasks.get(pos),next.get(pos),old.get(pos).source()));
+        var result=new HashMap<CellPos,CavityCell>();for(var pos:positions)result.put(pos,new CavityCell(newMasks.get(pos),next.get(pos),old.get(pos).source(),distances.get(pos)));
         return Map.copyOf(result);
     }
 

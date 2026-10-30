@@ -13,7 +13,7 @@ public final class NmgNetworking {
     private static final Set<UUID> INVALID_PREFERENCES=new HashSet<>();
     private NmgNetworking(){}
     public static void register(IEventBus bus){bus.addListener(NmgNetworking::payloads);CellReplication.register();}
-    private static void payloads(RegisterPayloadHandlersEvent event){event.registrar("6").playToServer(ModePayload.TYPE,ModePayload.CODEC,(packet,context)->context.enqueueWork(()->{
+    private static void payloads(RegisterPayloadHandlersEvent event){event.registrar("7").playToServer(ModePayload.TYPE,ModePayload.CODEC,(packet,context)->context.enqueueWork(()->{
         UUID id=context.player().getUUID();if(READY.contains(id)&&LIMITERS.computeIfAbsent(id,key->new IntentLimiter()).allow(System.nanoTime()))MODES.put(id,packet);
     })).playToServer(ActionPayload.TYPE,ActionPayload.CODEC,(packet,context)->context.enqueueWork(()->{
         if(context.player() instanceof net.minecraft.server.level.ServerPlayer player)net.nicomar.nomoregrids.platform.NmgRuntime.action(player,packet);

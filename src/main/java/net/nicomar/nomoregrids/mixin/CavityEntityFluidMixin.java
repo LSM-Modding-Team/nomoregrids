@@ -21,7 +21,7 @@ import net.nicomar.nomoregrids.world.CompositeCellEntity;
 public abstract class CavityEntityFluidMixin {
     @Unique private static final String NMG_UPDATE="update(Lnet/minecraft/world/entity/Entity;Ljava/util/function/Predicate;)V";
     @Unique private static Method nmgTrackerFactory;
-    @Unique private static boolean nmgBounded(Entity entity){var box=entity.getFluidInteractionBox();return box!=null&&(Math.ceil(box.maxX)-Math.floor(box.minX))*(Math.ceil(box.maxY)-Math.floor(box.minY))*(Math.ceil(box.maxZ)-Math.floor(box.minZ))<=512;}
+    @Unique private static boolean nmgBounded(Entity entity){var box=entity.getFluidInteractionBox();return box!=null;}
     @Redirect(method=NMG_UPDATE,at=@At(value="INVOKE",target="Lnet/minecraft/world/level/BlockGetter;getFluidState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"))
     private FluidState nmgFluid(BlockGetter world,BlockPos pos,Entity actor,Predicate<FluidType> push){
         if(nmgBounded(actor)&&world.getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.valid())return Fluids.EMPTY.defaultFluidState();return world.getFluidState(pos);
@@ -29,8 +29,8 @@ public abstract class CavityEntityFluidMixin {
     @Inject(method=NMG_UPDATE,at=@At("RETURN"))
     private void nmgContact(Entity actor,Predicate<FluidType> push,CallbackInfo callback){
         if(!nmgBounded(actor))return;AABB box=actor.getFluidInteractionBox();var body=new CavityContacts.Body(box.minX*16,box.minY*16,box.minZ*16,box.maxX*16,box.maxY*16,box.maxZ*16);var level=actor.level();
-        for(int x=(int)Math.floor(box.minX);x<(int)Math.ceil(box.maxX);x++)for(int y=(int)Math.floor(box.minY);y<(int)Math.ceil(box.maxY);y++)for(int z=(int)Math.floor(box.minZ);z<(int)Math.ceil(box.maxZ);z++){
-            var pos=new BlockPos(x,y,z);if(!level.isLoaded(pos)||!(level.getBlockEntity(pos) instanceof CompositeCellEntity cell)||!cell.valid()||cell.view().cavity().isEmpty())continue;
+        for(var candidate:net.nicomar.nomoregrids.world.LoadedCells.intersecting(level,box)){
+            var pos=candidate.immutable();int x=pos.getX(),y=pos.getY(),z=pos.getZ();if(!level.isLoaded(pos)||!(level.getBlockEntity(pos) instanceof CompositeCellEntity cell)||!cell.valid()||cell.view().cavity().isEmpty())continue;
             var contacts=CavityContacts.query(new CellPos(x,y,z),cell.view().cavity().orElseThrow(),body,actor.getX()*16,actor.getEyeY()*16,actor.getZ()*16);
             for(var entry:contacts.entrySet()){
                 var fluid=entry.getKey()==CavityCell.Kind.WATER?Fluids.WATER.defaultFluidState():Fluids.LAVA.defaultFluidState();var type=fluid.getType().getFluidType();var tracker=nmgTracker(type);var contact=entry.getValue();double height=Math.max(0,contact.top16()/16-actor.getBoundingBox().minY);
