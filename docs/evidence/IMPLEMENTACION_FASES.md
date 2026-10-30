@@ -28,3 +28,27 @@ fuera de orden y límites. No ejecutadas. Revisión estructural y parser Java.
 Fuentes de plataforma: fuentes NeoForge 26.2.0.88 y jars oficiales Minecraft 26.2
 consultados mediante javap (lectura de firmas, sin ejecutar clases del juego ni
 compilar). Se usan Identifier, ValueInput/ValueOutput y las firmas de 26.2.
+
+## Construcción, familias, apoyo y materiales (F2–F4)
+
+Implementados solver de colocación precisa, orientación por mirada, longitud
+ajustada hasta el siguiente límite, estado de modos por jugador y familias de
+geometría local. Economía de fragmentos con selección de tamaño exacto/mayor,
+sobrante obligatorio, unión de dos fragmentos compatibles y recuperación según
+loot. El inventario de entrada permanece intacto si el plan falla.
+
+Conexiones: puertos con coincidencia espacial, tipo, orientación y sección;
+resolución determinista con detección de ciclos y máximo 16 pasadas. Apoyos:
+cobertura exacta por unión de rectángulos y rechazo de dependencias sin raíz.
+Luz: emisión máxima y sellado opaco a resolución de casilla. Mallas: extracción
+de caras de uniones de cajas con sustracción de superficies internas; las
+geometrías/datos persistentes no se modifican al ocultarlas.
+
+Decisión: las geometrías de familia son modelos locales del núcleo; la captura
+vanilla debe tomar las formas reales de la versión instalada, especialmente la
+colisión de vallas, que puede exceder el modelo visible. No se certifica ese caso
+usando solamente estas plantillas. La integración del render debe conservar
+UV y transformaciones locales; BoxMesh entrega rectángulos, no texturas horneadas.
+
+Pruebas escritas de conservación, inventario lleno, apoyo real, ciclos y caras
+internas. No ejecutadas. Parser y comprobación estructural sin compilación.
