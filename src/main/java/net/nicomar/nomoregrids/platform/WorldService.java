@@ -244,7 +244,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
                 boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
                 if(!captured)throw new IllegalArgumentException("World changed before conversion");
             }
-            try{if(CellView.from(cell,after).encode().length>SnapshotAssembler.CHUNK)throw new IllegalArgumentException("COMPLEXITY_LIMIT: public cell update exceeds 64 KiB");}
+            try{if(CellView.from(cell,after).encode().length>SnapshotAssembler.MAX)throw new IllegalArgumentException("COMPLEXITY_LIMIT: public cell update exceeds 2 MiB");}
             catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: cell encoding",ex);}
             int collisionBoxes=0;for(UUID id:after.at(cell))collisionBoxes+=after.records().get(id).geometry().collision().boxes().size();
             if(collisionBoxes>512)throw new IllegalArgumentException("COMPLEXITY_LIMIT: cell collision shape");

@@ -8,7 +8,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | Fase | Código disponible | Trabajo de implementación restante |
 |---|---|---|
 | F0 | Versiones fijadas, wrapper oficial y metadatos MIT; registros técnicos; consulta de firmas exactas de Minecraft/NeoForge | Resolver cualquier incompatibilidad de tipos al compilar |
-| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos y payloads de acciones | Restauración nativa exacta cuando vuelva a ser representable; deltas generales y transporte fragmentado conectados; endurecer recuperación intermod y compactación |
+| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos y payloads de acciones | Restauración nativa exacta cuando vuelva a ser representable; endurecer recuperación intermod y compactación |
 | F2 | Colocación compartida cliente/servidor, 24 rotaciones, losas/escaleras/cubos, selección, minería, reemplazo, controles y preview con validación del servidor | Contorno fino por componente, matriz completa y fidelidad de modelos/tints ejecutada |
 | F3 | Paneles/barrotes recortables, fragmentos/recetas, vallas/muros, puertos geométricos, resolución estable de conexiones y esquinas de escaleras 3D en el host | Reaccionar a cambios nativos externos; verificar extremos, tapas y recursos visuales |
 | F4 | Materiales/luz, parches exactos, cadenas estables, dependientes en operaciones NMG, contactos por área, fricción/rebote/sonidos y escalada | Pérdida de soporte nativo externo, decoración con datos, efectos, fuego y explosiones por componente |
@@ -36,7 +36,7 @@ inyección de fallos real, integración PB y benchmarks. No existe JAR generado.
 
 ## Decisiones y límites de la integración actual
 
-- Commits locales por bloques coherentes; sin push, publicación ni cambios de versiones.
+- Commits por bloques coherentes, publicados en GitHub en `26.2`; sin cambios de versiones fijadas.
 - Edición experimental explícita. Soporte no integrado se rechaza antes del consumo.
 - El inventario y su recibo se guardan juntos en los datos nativos del jugador;
   se verifica en disco antes de escribir checkpoints de secciones.
@@ -44,7 +44,8 @@ inyección de fallos real, integración PB y benchmarks. No existe JAR generado.
   anterior; la recuperación usa el diario, sin cobrar ni soltar loot a ciegas.
 - Si loot o sobrante no caben en el inventario, se rechaza la operación entera.
   Todavía no hay entrega mediante entidades de ítem en el mundo.
-- Hasta conectar transporte fragmentado, una réplica de celda no supera 64 KiB.
+- Réplicas públicas hasta 2 MiB viajan en fragmentos de 64 KiB; deltas con hashes
+  de base/destino y revisiones, snapshot al seguir el chunk y resync ante divergencia.
 - El diario conserva toda la historia en disco y memoria. No está compactado ni
   certificado para mundos grandes; no se trunca automáticamente una cola corrupta.
 - En Windows NIO se omite únicamente el fsync de directorios, que ese proveedor

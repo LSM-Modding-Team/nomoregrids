@@ -40,6 +40,7 @@ public final class ConstructionControls {
     private ConstructionControls(){}
     public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
     private static void payloads(net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event){
+        event.register(net.nicomar.nomoregrids.network.CellFragmentPayload.TYPE,(packet,context)->context.enqueueWork(()->net.nicomar.nomoregrids.client.selection.ClientCellReplication.accept(packet)));
         event.register(net.nicomar.nomoregrids.network.SessionPayload.TYPE,(packet,context)->context.enqueueWork(()->{
             if(!packet.profileHash().equals(net.nicomar.nomoregrids.network.SessionPayload.localHash())||!packet.rules().equals(net.nicomar.nomoregrids.network.SessionPayload.localRules())){context.disconnect(net.minecraft.network.chat.Component.translatable("message.nomoregrids.profile_mismatch"));return;}
             ClientPacketDistributor.sendToServer(new net.nicomar.nomoregrids.network.SessionAckPayload(net.nicomar.nomoregrids.network.SessionPayload.fingerprint()));
@@ -74,7 +75,7 @@ public final class ConstructionControls {
     private static void keys(RegisterKeyMappingsEvent event){event.registerCategory(CATEGORY);for(var key:List.of(PRECISE,EXPANDED,ADJUSTED,ALIGN,LATERAL,REPLACE,LOCK))event.register(key);}
     private static ModePayload packet(){return new ModePayload(MODES.precise,MODES.expanded,MODES.adjusted,LATERAL.isDown(),REPLACE.isDown(),MODES.axis(),MODES.offset(),Math.floorMod(MODES.candidate(),64),MODES.alignment().isPresent(),alignmentAxis,alignmentSign,alignmentPlane,alignmentRotation,lengthSelection,MODES.alignment().isPresent()?alignmentProperties:Map.of());}
     private static void tick(ClientTickEvent.Post event){
-        var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;lastSent=null;lastDimension=null;return;}
+        var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;lastSent=null;lastDimension=null;net.nicomar.nomoregrids.client.selection.ClientCellReplication.reset();return;}
         if(!mc.level.dimension().equals(lastDimension)){MODES.changedDimension();lengthSelection=0;lastDimension=mc.level.dimension();}
         if(mc.gui.screen()!=null){preview=null;var p=packet();var inactive=new ModePayload(p.precise(),p.expanded(),p.adjusted(),false,false,p.axis(),p.offset(),p.candidate(),p.aligned(),p.alignmentAxis(),p.alignmentSign(),p.alignmentPlane(),p.alignmentRotation(),p.length(),p.alignmentProperties());if(!inactive.equals(lastSent)){ClientPacketDistributor.sendToServer(inactive);lastSent=inactive;}return;}
         while(PRECISE.consumeClick())MODES.precise=!MODES.precise;while(EXPANDED.consumeClick())MODES.expanded=!MODES.expanded;while(ADJUSTED.consumeClick())MODES.adjusted=!MODES.adjusted;

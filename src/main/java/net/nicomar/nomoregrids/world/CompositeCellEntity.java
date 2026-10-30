@@ -27,7 +27,8 @@ public final class CompositeCellEntity extends BlockEntity {
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(view.replicas().isEmpty())throw new IllegalArgumentException("Empty cells must be restored to air");
-        this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
+        var previous=this.view;this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
+        if(level instanceof net.minecraft.server.level.ServerLevel server)net.nicomar.nomoregrids.network.CellReplication.changed(server,worldPosition,previous,view);
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
     }
     private void updateLight(){
@@ -93,7 +94,10 @@ public final class CompositeCellEntity extends BlockEntity {
         if(preserved!=null){output.putString("nmg_public",preserved);return;}
         try{output.putString("nmg_public",Base64.getEncoder().encodeToString(view.encode()));}catch(IOException ex){throw new IllegalStateException("Cannot save cell",ex);}
     }
-    @Override public CompoundTag getUpdateTag(HolderLookup.Provider lookup){return saveWithoutMetadata(lookup);}
-    @Override public ClientboundBlockEntityDataPacket getUpdatePacket(){return ClientboundBlockEntityDataPacket.create(this);}
+    @Override public CompoundTag getUpdateTag(HolderLookup.Provider lookup){
+        // Public replicas travel via the bounded fragment protocol, including initial chunk tracking.
+        return new CompoundTag();
+    }
+    @Override public ClientboundBlockEntityDataPacket getUpdatePacket(){return null;}
     @Override public ModelData getModelData(){return valid?ModelData.builder().with(VIEW,view).build():ModelData.EMPTY;}
 }

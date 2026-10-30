@@ -445,3 +445,18 @@ Decisión: permitir Windows con esa limitación explícita de durabilidad de
 metadatos ante apagado abrupto. Los errores reales de archivos siguen fallando.
 Pruebas escritas de creación, reapertura del diario, reemplazo y rutas inválidas;
 no ejecutadas. Estructura y whitespace aprobados; sin Gradle ni Minecraft.
+
+## Entrega: réplica fragmentada y deltas conectados
+
+Se conecta el ensamblador existente a payloads reales de celda: snapshot al enviar
+el chunk, delta de UUID/revisiones durante edición y resync limitado a jugadores
+que siguen el chunk. Se comprueban SHA-256, base, destino, duplicados y límites
+antes de instalar. Ensamblajes caducan y se separan por conexión, mundo y celda.
+El paquete BE deja de transportar el snapshot completo; los datos privados nunca
+viajan en esta ruta. Se conserva el snapshot público completo en disco.
+
+Decisión: protocolo experimental 4 para impedir conexiones con el transporte
+anterior. No cambia la interpretación del guardado ni las versiones fijadas.
+Consulta estática de ChunkWatchEvent.Sent y PacketDistributor en NeoForge exacto,
+y chunkMap/getPlayers con javap del cliente oficial 26.2. Comprobaciones estáticas
+del repositorio y whitespace; compilación, tests Java y Minecraft no ejecutados.

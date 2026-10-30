@@ -8,7 +8,7 @@ import net.nicomar.nomoregrids.persistence.*;
 /** Read-only public replicas. No item payload, private material payload or authority lives in a cell. */
 public record CellView(List<PieceRecord> replicas) {
     public static final int MAX_BYTES=2*1024*1024;
-    public CellView{replicas=List.copyOf(replicas);if(replicas.size()>64)throw new IllegalArgumentException("Cell reference limit");
+    public CellView{replicas=replicas.stream().sorted(Comparator.comparing(PieceRecord::pieceId)).toList();if(replicas.size()>64)throw new IllegalArgumentException("Cell reference limit");
         Set<UUID> ids=new HashSet<>();for(var p:replicas)if(!ids.add(p.pieceId())||p.itemPayload().size()!=0||p.materialPayload().size()!=0)throw new IllegalArgumentException("Invalid public replica");}
     public static CellView from(CellPos cell,net.nicomar.nomoregrids.world.PieceIndex index){
         var pieces=new ArrayList<PieceRecord>();
