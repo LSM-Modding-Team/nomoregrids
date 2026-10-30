@@ -829,3 +829,24 @@ el hook no dispone del resto de su tick vanilla anterior. Puertas y trampillas
 reciben potencia por puertos y reutilizan su validación de giro.
 Prueba pura de inversión/bloqueo/restauración escrita, no ejecutada. Revisión
 sintáctica, de imports y recursos; sin compilación ni ejecución de circuitos.
+
+## Recorridos de raíles y puente de vagonetas
+
+Raíles rectos, curvos y ascendentes vanilla tienen perfil propio, apoyo plano y
+extremos/tangentes transformados. El plan resuelve conexiones cercanas y captura
+un vecino nativo cuando necesita modificar su forma; las uniones existentes
+pueden conservar al vecino nativo. Un desplazamiento de 1/16 no acredita
+continuidad: una unión ausente o ambigua detiene el recorrido. Curvas usan arco
+circular y pendientes una transición suave con alturas de extremo nativas.
+Los dos comportamientos nativos de vagoneta tienen un hook de recorrido cerca
+de tramos convertidos; conservan los pasos de entidad/portal/fluidos y publican
+interpolación de movimiento experimental. Velocidad máxima y rozamiento usan
+el comportamiento nativo; propulsión, frenado, detectores y activadores están
+conectados. La colocación de ítems de vagoneta consulta la pieza visible dentro
+de su propio método vanilla, valida posición/colisión y conserva consumo/spawn
+nativos, sin sustituir Level ni instalar raíles temporales.
+Recorridos de pared/techo no exponen un raíl bajo gravedad vertical. Cartas,
+curvas, pendientes, choques e interpolación necesitan validación real: no se
+certifica equivalencia física exacta con el motor vanilla sin ejecución.
+Pruebas puras de giros, altura, tangentes y separación escritas, no ejecutadas.
+Revisión sintáctica/imports/recursos; sin compilación ni Minecraft.

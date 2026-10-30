@@ -11,7 +11,10 @@
     "CavityEntityFluidMixin",
     "CavityFluidEffectMixin",
     "FunctionalPlayerMixin",
-    "FunctionalDropMixin"
+    "FunctionalDropMixin",
+    "MinecartBehaviorAccess",
+    "ComponentRailMovementMixin",
+    "ComponentMinecartItemMixin"
   ],
   "injectors": {
     "defaultRequire": 1

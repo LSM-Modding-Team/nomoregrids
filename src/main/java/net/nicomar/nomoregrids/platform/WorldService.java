@@ -135,7 +135,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var plan=fluids.prepare(WorldGroups.prepare(this,level,placementPlan(player,hand,hit,mode,UUID.randomUUID(),true)));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
     }
     public void executePrepared(OperationPlan original)throws IOException{
-        try(var nativeView=new WorldNativeView(original.effects())){var plan=fluids.prepare(functionals.prepare(circuits.prepare(WorldGroups.prepare(this,level,original))));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
+        try(var nativeView=new WorldNativeView(original.effects())){var plan=fluids.prepare(functionals.prepare(circuits.prepare(WorldRails.prepare(this,WorldGroups.prepare(this,level,original)))));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}}
     }
     public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
@@ -162,9 +162,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(state.getBlock() instanceof LiquidBlock)continue;
             if(!state.isAir()&&state.getBlock()!=NmgContent.CELL.get()){
                 var paintable=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.nativeBlock(state));
-                if(paintable.isEmpty()&&!WorldCircuits.eligible(state)&&!WorldGroups.eligible(state)&&!WorldDecorations.eligible(state)&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+                if(paintable.isEmpty()&&!WorldRails.eligible(state)&&!WorldCircuits.eligible(state)&&!WorldGroups.eligible(state)&&!WorldDecorations.eligible(state)&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
                 if(WorldGroups.eligible(state)){for(var nativeMember:WorldGroups.captureNative(level,at))if(changes.stream().flatMap(c->c.after().stream()).noneMatch(p->p.origin16().equals(nativeMember.origin16())))changes.add(new OperationPlan.Change(nativeMember.pieceId(),Optional.empty(),Optional.of(nativeMember)));continue;}
-                PieceRecord nativePiece=WorldCircuits.eligible(state)?WorldCircuits.capture(state,level,at,UUID.randomUUID()):WorldDecorations.eligible(state)?WorldDecorations.capture(state,level,at,UUID.randomUUID(),null):WorldFunctionals.eligible(state)?WorldFunctionals.capture(state,level,at,UUID.randomUUID()):paintable.isPresent()?paintable.orElseThrow().captureNative(level,at,UUID.randomUUID()):NativeStates.capture(state,level,at,UUID.randomUUID());
+                PieceRecord nativePiece=WorldRails.eligible(state)?WorldRails.capture(state,level,at,UUID.randomUUID()):WorldCircuits.eligible(state)?WorldCircuits.capture(state,level,at,UUID.randomUUID()):WorldDecorations.eligible(state)?WorldDecorations.capture(state,level,at,UUID.randomUUID(),null):WorldFunctionals.eligible(state)?WorldFunctionals.capture(state,level,at,UUID.randomUUID()):paintable.isPresent()?paintable.orElseThrow().captureNative(level,at,UUID.randomUUID()):NativeStates.capture(state,level,at,UUID.randomUUID());
                 changes.add(new OperationPlan.Change(nativePiece.pieceId(),Optional.empty(),Optional.of(nativePiece)));
             }
         }
@@ -186,7 +186,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void remove(ServerPlayer player,UUID id,UUID operation)throws IOException{
         if(repeated(operation,player,OperationPlan.Kind.REMOVE))return;
         PieceRecord target=snapshot().records().get(id);if(target==null)throw new IllegalArgumentException("STALE_REVISION");adapters.require(target);
-        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks",WorldFunctionals.ADAPTER,WorldDecorations.ADAPTER,WorldGroups.ADAPTER,WorldCircuits.ADAPTER).contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
+        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks",WorldFunctionals.ADAPTER,WorldDecorations.ADAPTER,WorldGroups.ADAPTER,WorldCircuits.ADAPTER,WorldRails.ADAPTER).contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
         var changes=new ArrayList<OperationPlan.Change>();boolean damage=true;for(var member:WorldGroups.registry(snapshot()).members(id)){var old=snapshot().records().get(member);if(!player.isCreative()){recoverLoot(player,old,slots,damage);damage=false;}changes.add(new OperationPlan.Change(member,Optional.of(old),Optional.empty()));}completeSupport(player,changes,slots);
         var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.REMOVE,changes,before,NativeInventory.encode(player,slots));executePrepared(plan);
@@ -195,7 +195,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         recoverLoot(player,target,slots,true);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots,boolean damageTool){
-        boolean circuit=WorldCircuits.piece(target);boolean grouped=WorldGroups.piece(target);boolean decoration=WorldDecorations.piece(target);boolean functional=WorldFunctionals.piece(target);boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!circuit&&!grouped&&!decoration&&!functional&&!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
+        boolean circuit=WorldCircuits.piece(target)||WorldRails.piece(target);boolean grouped=WorldGroups.piece(target);boolean decoration=WorldDecorations.piece(target);boolean functional=WorldFunctionals.piece(target);boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!circuit&&!grouped&&!decoration&&!functional&&!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
         var state=NativeStates.resolve(target);var at=pos(target.origin16().cell());
         int length=circuit||grouped||decoration||paintable||functional?16:net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
         var loot=circuit?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):grouped?WorldGroups.drops(target):decoration?WorldDecorations.drops(target,level,player):functional?functionals.drops(target,player):paintable?net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB recovery")).drops(player,target):player.hasCorrectToolForDrops(state)?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):List.<ItemStack>of();
@@ -369,7 +369,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private void validateSystem(OperationPlan plan,PieceIndex before,PieceIndex after){
         if(plan.kind()!=OperationPlan.Kind.SYSTEM)throw new IllegalArgumentException("Invalid world operation");
         for(var cell:plan.affectedCells()){var at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION");}
-        for(var c:plan.changes())c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");});
+        for(var c:plan.changes())c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");if(!WorldSupport.supported(level,after,plan.affectedCells(),p,catalog))throw new IllegalArgumentException("NO_SUPPORT");});
         try{for(var cell:plan.pieceCells()){
             CellView.from(cell,after).encode();int boxes=0;for(UUID id:after.at(cell))boxes+=after.records().get(id).geometry().collision().boxes().size();if(boxes>512)throw new IllegalArgumentException("COMPLEXITY_LIMIT: world collision");
         }for(var section:plan.pieceCells().stream().map(CellPos::section).distinct().toList())SectionStore.encode(section,0,after.ownedBy(section).stream().map(after.records()::get).toList());}
