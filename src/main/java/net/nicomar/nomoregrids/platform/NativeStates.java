@@ -16,6 +16,10 @@ public final class NativeStates {
     private NativeStates(){}
     public static BlockState resolve(PieceRecord piece){return resolve(piece.sourceBlockId(),piece.sourceState());}
     public static BlockState original(PieceRecord piece){
+        if(piece.adapterId().value().equals("nomoregrids:paintableblocks")&&piece.itemPayload().size()>0){
+            var envelope=com.google.gson.JsonParser.parseString(new String(piece.itemPayload().copy(),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();if(envelope.get("schema").getAsInt()!=1)throw new IllegalArgumentException("Unknown PB recovery image");
+            if(envelope.has("native")){var properties=new HashMap<String,String>();envelope.getAsJsonObject("native").getAsJsonObject("state").entrySet().forEach(e->properties.put(e.getKey(),e.getValue().getAsString()));return resolve(piece.sourceBlockId(),properties);}
+        }
         if(!piece.adapterId().value().equals("nomoregrids:box")||piece.geometryPayload().size()==0)return resolve(piece);
         try{var image=net.nicomar.nomoregrids.persistence.NativeStateImage.decode(piece.geometryPayload());return resolve(image.block(),image.properties());}
         catch(java.io.IOException ex){throw new IllegalArgumentException("INVALID_DATA: native capture image",ex);}

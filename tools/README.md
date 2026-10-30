@@ -10,3 +10,10 @@ extensiones se pueden usar wheels con `pip install --only-binary=:all:`. No es
 dependencia del mod ni se ejecuta durante el build.
 
 Herramientas propias de desarrollo y diagnóstico. No contiene scripts de instalación, descarga ni publicación automáticos.
+
+
+`python tools/check_api_imports.py --minecraft <client.jar> --neoforge-sources
+<neoforge-sources.jar>` busca imports explícitos en archivos de la versión fijada
+proporcionados localmente. Solo lee ZIP y texto; no descarga, resuelve dependencias,
+compila ni ejecuta Java. No valida métodos, comodines ni extensiones parcheadas.
+Los artefactos inspeccionados se mantienen fuera de Git.

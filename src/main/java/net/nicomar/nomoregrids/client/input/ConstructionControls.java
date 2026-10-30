@@ -55,6 +55,9 @@ public final class ConstructionControls {
         boolean slab=mc.hitResult instanceof BlockHitResult hit&&mc.level.getBlockState(hit.getBlockPos()).getBlock() instanceof net.minecraft.world.level.block.SlabBlock&&mc.player.getItemInHand(event.getHand()).getItem() instanceof net.minecraft.world.item.BlockItem item&&item.getBlock() instanceof net.minecraft.world.level.block.SlabBlock;
         var held=mc.player.getItemInHand(event.getHand());boolean fragment=held.getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem;
         boolean cuttable=fragment||held.getItem() instanceof net.minecraft.world.item.BlockItem item&&net.nicomar.nomoregrids.material.FragmentItem.cuttable(item.getBlock());
+        if(event.isUseItem()&&cell&&net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.editingItem(held)).isPresent()){
+            ClientPacketDistributor.sendToServer(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.EDIT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;
+        }
         if(event.isUseItem()&&(MODES.precise||MODES.expanded||LATERAL.isDown()||cell||slab||fragment||MODES.adjusted&&cuttable||MODES.alignment().isPresent())&&(held.getItem() instanceof net.minecraft.world.item.BlockItem||fragment)){
             ClientPacketDistributor.sendToServer(packet(),new ActionPayload(UUID.randomUUID(),ActionPayload.Action.PLACE,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);
         }else if(event.isAttack()&&cell&&mc.player.isCreative()){
@@ -70,7 +73,7 @@ public final class ConstructionControls {
         while(PRECISE.consumeClick())MODES.precise=!MODES.precise;while(EXPANDED.consumeClick())MODES.expanded=!MODES.expanded;while(ADJUSTED.consumeClick())MODES.adjusted=!MODES.adjusted;
         while(ALIGN.consumeClick())if(mc.hitResult instanceof BlockHitResult hit&&(preview!=null||MODES.alignment().isPresent())){
             if(MODES.alignment().isEmpty()&&preview!=null){Direction6 normal=Direction6.valueOf(hit.getDirection().name());alignmentAxis=normal.axis();alignmentSign=normal.sign();alignmentRotation=preview.orientation();
-                var properties=new HashMap<String,String>();preview.sourceState().forEach((key,value)->{if(Set.of("axis","facing","half","type").contains(key))properties.put(key,value);});alignmentProperties=Map.copyOf(properties);
+                var properties=new HashMap<String,String>();preview.sourceState().forEach((key,value)->{if(Set.of("axis","facing","half","type").contains(key))properties.put(key,value);});if(preview.adapterId().value().equals("nomoregrids:paintableblocks")){var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available();if(bridge.isPresent())properties.put("pb_orientation",Integer.toString(bridge.orElseThrow().designOrientation(preview)));}alignmentProperties=Map.copyOf(properties);
                 var bounds=preview.worldOccupation().bounds();GridPoint face=normal.sign()>0?bounds.min():bounds.max();alignmentPlane=normal.axis()==0?face.x():normal.axis()==1?face.y():face.z();}
             MODES.align(new GridPoint(Math.round(hit.getLocation().x*16),Math.round(hit.getLocation().y*16),Math.round(hit.getLocation().z*16)));
         }

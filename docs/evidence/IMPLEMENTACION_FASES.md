@@ -321,3 +321,39 @@ La colisión box-box usa aritmética integral directamente; convexos conservan S
 Pruebas escritas de roundtrip, fuentes completas, slots únicos, retardos tras
 restaurar, corrupción conservada, secuencia durable, máscara de losa y pendiente.
 Revisión estructural y parser de 142 fuentes aprobados; Java no ejecutado.
+
+
+## Puente nativo Paintable Blocks (F6)
+
+PaintableBridge aislado y opcional contra la referencia fijada. preparedFor
+reutiliza la preparación nativa del ítem; captura la BE válida con diseño,
+identidad/revisión, componentes y NBT privado restante. Los originales se
+contrastan antes del commit y al reparar; nunca se sobrescribe otro bloque PB
+por coincidir solamente su BlockState. El template del ítem omite la copia del
+diseño y se combina con el diseño recuperado, conservando sus otros componentes.
+
+La geometría de ocupación/selección conserva convexos y raycast de unión;
+intervalos fusionados evitan seleccionar caras internas. La instantánea de cajas
+es filtro conservador, no sustituto para aceptar invasión. Colisión y apoyo se
+obtienen de DesignGeometry.shape/supportShape del origen, incluida su política
+nativa de colisión 16³ para pendientes. No se anuncia física continua de pendientes.
+NMG aplica solo la transformación externa. K/R conservan orientación interna PB
+cuando corresponde; recuperar compone la rotación externa mediante correspondencia
+de ejes, sin asumir que los IDs PB sean los mismos IDs NMG.
+
+Pincel y EditingToolItem simples usan DesignOperations para generar candidato;
+resuelven punto/cara en marco local, coste de pigmento sobre inventario copiado,
+evento PB y permisos de retirada; validación completa antes del commit NMG.
+No se instalan setters contra un mundo falso. La recuperación evalúa la política
+de loot nativa con una BE temporal sin nivel, restaurando sus datos privados;
+no se publica ni convierte en segunda autoridad. Guantes/tenazas conservan sus
+reglas originales. Las herramientas de volumen/pendientes y pintura por área
+no están conectadas: F6 permanece parcial y sin certificación.
+
+Se ampliaron las consultas de apoyo del contenedor y se aisló LinkageError de
+carga opcional. Una consulta de imports detectó y corrigió ModelData/ModelProperty:
+la fuente exacta usa net.neoforged.neoforge.model.data, sin el segmento client.
+`tools/check_api_imports.py` comprueba 58 imports explícitos contra los archivos
+inspeccionados; no verifica miembros, comodines, tipos ni compila. Pruebas de
+rayos internos/alcance escritas. Estructura, parser de 145 fuentes e imports
+aprobados. No se ha ejecutado Java, PB ni Minecraft.

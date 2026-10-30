@@ -24,6 +24,7 @@ public final class CompositeCellBlock extends BaseEntityBlock {
     @Override protected VoxelShape getCollisionShape(BlockState state,BlockGetter world,BlockPos pos,CollisionContext context){
         return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.shape(true):Shapes.block();
     }
+    @Override protected VoxelShape getBlockSupportShape(BlockState state,BlockGetter world,BlockPos pos){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.supportShape():Shapes.empty();}
     @Override protected RenderShape getRenderShape(BlockState state){return RenderShape.MODEL;}
     @Override protected boolean useShapeForLightOcclusion(BlockState state){return true;}
     @Override protected VoxelShape getOcclusionShape(BlockState state){return state.getValue(SEALED)?Shapes.block():Shapes.empty();}

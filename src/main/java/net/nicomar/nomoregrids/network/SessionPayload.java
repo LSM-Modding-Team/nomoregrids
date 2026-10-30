@@ -31,7 +31,7 @@ public record SessionPayload(int schema,String profileHash,ProtocolRules rules,b
     }
     public static ProtocolRules localRules(){
         java.util.Map<String,Integer> versions=new java.util.HashMap<>();versions.put("nomoregrids:box",1);
-        if(net.neoforged.fml.ModList.get().isLoaded("paintableblocks"))try{var adapter=new net.nicomar.nomoregrids.compat.paintableblocks.PaintableAdapter(SessionPayload.class.getClassLoader());versions.put(adapter.id().value(),adapter.dataVersion());}catch(ReflectiveOperationException|RuntimeException ignored){}
+        if(net.neoforged.fml.ModList.get().isLoaded("paintableblocks"))try{var adapter=new net.nicomar.nomoregrids.compat.paintableblocks.PaintableAdapter(SessionPayload.class.getClassLoader());versions.put(adapter.id().value(),adapter.dataVersion());}catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){}
         return ProtocolRules.defaults(versions);
     }
     public static String fingerprint(){

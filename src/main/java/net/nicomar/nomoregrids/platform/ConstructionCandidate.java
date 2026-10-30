@@ -17,16 +17,16 @@ import net.nicomar.nomoregrids.compat.vanilla.VanillaCatalog;
 public final class ConstructionCandidate {
     private ConstructionCandidate(){}
     public static PieceRecord build(Player player,InteractionHand hand,BlockHitResult hit,ModePayload mode,VanillaCatalog catalog,UUID id){
-        var stack=player.getItemInHand(hand);net.minecraft.world.level.block.Block block;
+        var stack=player.getItemInHand(hand);var paintable=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.placementItem(stack)).orElse(null);net.minecraft.world.level.block.Block block;
         if(stack.getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem)block=net.nicomar.nomoregrids.material.FragmentItem.read(stack).block();
-        else if(stack.getItem() instanceof BlockItem item){block=item.getBlock();if(!net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,item.getDefaultInstance()))throw new IllegalArgumentException("Item metadata requires a dedicated adapter");}
+        else if(stack.getItem() instanceof BlockItem item){block=item.getBlock();if(paintable==null&&!net.minecraft.world.item.ItemStack.isSameItemSameComponents(stack,item.getDefaultInstance()))throw new IllegalArgumentException("Item metadata requires a dedicated adapter");}
         else throw new IllegalArgumentException("Not a construction item");
-        if(!catalog.identifiers().contains(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString()))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+        if(paintable==null&&!catalog.identifiers().contains(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString()))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
         var context=new BlockPlaceContext(player,hand,stack,hit);
         if(!player.level().isLoaded(context.getClickedPos()))throw new IllegalArgumentException("UNLOADED_REGION");
         for(var side:net.minecraft.core.Direction.values())if(!player.level().isLoaded(context.getClickedPos().relative(side)))throw new IllegalArgumentException("UNLOADED_REGION");
         var state=block.getStateForPlacement(context);
-        if(state==null||!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+        if(state==null||paintable==null&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
         if(mode.aligned()){
             var values=new HashMap<>(NativeStates.properties(state));mode.alignmentProperties().forEach((key,value)->{if(values.containsKey(key))values.put(key,value);});
             state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);
@@ -43,7 +43,8 @@ public final class ConstructionCandidate {
             state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);
         }
         if(mode.expanded()&&!slab&&!stair&&NativeStates.properties(state).containsKey("axis")){var values=new HashMap<>(NativeStates.properties(state));values.put("axis","z");state=NativeStates.resolve(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),values);}
-        var piece=NativeStates.capture(state,player.level(),context.getClickedPos(),id);
+        var piece=paintable==null?NativeStates.capture(state,player.level(),context.getClickedPos(),id):paintable.placement(context,id);
+        if(paintable!=null&&mode.aligned()&&mode.alignmentProperties().containsKey("pb_orientation"))piece=paintable.oriented(piece,Integer.parseInt(mode.alignmentProperties().get("pb_orientation")));
         if(mode.lateral()&&normal.axis()!=1&&(slab||stair)){
             if(stair){var look=player.getLookAngle();orientation=PlacementSolver.stairOrientation(normal,look.x,look.y,look.z,0);}
             else for(var rotation:Rotation.all())if(Direction6.DOWN.rotated(rotation.id())==normal.opposite()){orientation=rotation.id();break;}
@@ -59,7 +60,7 @@ public final class ConstructionCandidate {
             var at=context.getClickedPos();origin=new GridPoint(normal.axis()==0?origin.x():at.getX()*16L,normal.axis()==1?origin.y():at.getY()*16L,normal.axis()==2?origin.z():at.getZ()*16L);
         }
         if(mode.replace()&&player.level().getBlockEntity(hit.getBlockPos()) instanceof net.nicomar.nomoregrids.world.CompositeCellEntity cell){
-            var target=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();origin=target.origin16().add(target.pivot16()).subtract(piece.pivot16());orientation=target.orientation();
+            var target=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(paintable!=null&&target.adapterId().value().equals("nomoregrids:paintableblocks"))piece=paintable.oriented(piece,paintable.designOrientation(target));origin=target.origin16().add(target.pivot16()).subtract(piece.pivot16());orientation=target.orientation();
         }
         var geometry=piece.geometry();BinaryData itemData=piece.itemPayload();
         if(net.nicomar.nomoregrids.material.FragmentItem.cuttable(block)){

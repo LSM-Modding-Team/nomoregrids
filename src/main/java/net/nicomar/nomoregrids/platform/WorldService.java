@@ -37,6 +37,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private final Map<UUID,Long> sequences=new HashMap<>();
     private final Map<UUID,OperationPlan> history=new HashMap<>();
     private final Set<UUID> knownIds=new HashSet<>();
+    private final Map<UUID,Runnable> permissionHooks=new HashMap<>();
     private OperationEngine engine;
     private boolean recovering;
 
@@ -127,8 +128,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");
             var state=level.getBlockState(at);
             if(!state.isAir()&&state.getBlock()!=NmgContent.CELL.get()){
-                if(!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
-                PieceRecord nativePiece=NativeStates.capture(state,level,at,UUID.randomUUID());
+                var paintable=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.nativeBlock(state));
+                if(paintable.isEmpty()&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+                PieceRecord nativePiece=paintable.isPresent()?paintable.orElseThrow().captureNative(level,at,UUID.randomUUID()):NativeStates.capture(state,level,at,UUID.randomUUID());
                 changes.add(new OperationPlan.Change(nativePiece.pieceId(),Optional.empty(),Optional.of(nativePiece)));
             }
         }
@@ -150,7 +152,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void remove(ServerPlayer player,UUID id,UUID operation)throws IOException{
         if(repeated(operation,player,OperationPlan.Kind.REMOVE))return;
         PieceRecord target=snapshot().records().get(id);if(target==null)throw new IllegalArgumentException("STALE_REVISION");adapters.require(target);
-        if(!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
+        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks").contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
         if(!player.isCreative())recoverLoot(player,target,slots);
         var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(target),Optional.empty())));completeSupport(player,changes,slots);
@@ -160,10 +162,11 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         recoverLoot(player,target,slots,true);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots,boolean damageTool){
-        if(!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
+        boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
         var state=NativeStates.resolve(target);var at=pos(target.origin16().cell());
-        int length=net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
-        if(player.hasCorrectToolForDrops(state))for(var item:Block.getDrops(state,level,at,null,player,player.getMainHandItem())){
+        int length=paintable?16:net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
+        var loot=paintable?net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB recovery")).drops(player,target):player.hasCorrectToolForDrops(state)?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):List.<ItemStack>of();
+        for(var item:loot){
             if(length<16&&item.getItem()==state.getBlock().asItem())item=net.nicomar.nomoregrids.material.FragmentItem.create(state.getBlock(),length).copyWithCount(item.getCount());NativeInventory.insert(slots,item);
         }
         int selected=player.getInventory().getSelectedSlot();ItemStack tool=slots.get(selected);
@@ -171,6 +174,14 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             int damage=EnchantmentHelper.processDurabilityChange(level,tool,1);tool.setDamageValue(Math.addExact(tool.getDamageValue(),damage));
             if(tool.getDamageValue()>=tool.getMaxDamage())slots.set(selected,ItemStack.EMPTY);
         }
+    }
+    public void editPaintable(ServerPlayer player,InteractionHand hand,UUID id,BlockHitResult hit,UUID operation)throws IOException{
+        if(repeated(operation,player,OperationPlan.Kind.EDIT))return;var old=snapshot().records().get(id);if(old==null||!old.adapterId().value().equals("nomoregrids:paintableblocks"))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+        var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB interaction"));
+        var slots=NativeInventory.copy(player);var before=NativeInventory.encode(player,slots);var edit=bridge.edit(player,hand,old,hit,slots,player.isShiftKeyDown());
+        var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(old),edit.after())));completeSupport(player,changes,slots);
+        var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,changes,before,NativeInventory.encode(player,slots));
+        permissionHooks.put(operation,()->bridge.permission(player,hand,old,hit.getBlockPos(),edit.nativePlan()));try{engine.execute(plan);}finally{permissionHooks.remove(operation);}
     }
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){completeSupport(player,changes,slots,false);}
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots,boolean preview){
@@ -229,7 +240,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(state.getBlock()==NmgContent.CELL.get()){
                 if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("INVALID_DATA");
             }else if(!state.isAir()){
-                boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&NativeStates.original(c.after().orElseThrow()).equals(state));
+                boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
                 if(!captured)throw new IllegalArgumentException("World changed before conversion");
             }
             try{if(CellView.from(cell,after).encode().length>SnapshotAssembler.CHUNK)throw new IllegalArgumentException("COMPLEXITY_LIMIT: public cell update exceeds 64 KiB");}
@@ -255,6 +266,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(!WorldSupport.supported(level,after,plan.affectedCells(),p,catalog))throw new IllegalArgumentException("NO_SUPPORT");
         }
         var event=new BeforeOperationEvent(level,plan,preview);NeoForge.EVENT_BUS.post(event);if(event.isCanceled())throw new IllegalArgumentException("PROTECTED");
+        if(!preview&&permissionHooks.containsKey(plan.id()))permissionHooks.get(plan.id()).run();
         for(var c:plan.changes())if(!preview&&c.before().isPresent()&&c.after().isEmpty()){
             var p=c.before().orElseThrow();var permission=new net.nicomar.nomoregrids.event.PieceBreakPermissionEvent(level,pos(p.origin16().cell()),NativeStates.resolve(p),player,p.pieceId());NeoForge.EVENT_BUS.post(permission);if(permission.isCanceled())throw new IllegalArgumentException("PROTECTED");
         }
@@ -268,10 +280,14 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
                 if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid()||!entity.view().equals(CellView.from(cell,before)))throw new IllegalArgumentException("STALE_REVISION: replica requires recovery");
             }else if(state.getBlock()==NmgContent.CELL.get())throw new IllegalArgumentException("INVALID_DATA: unrecognized cell is retained");
             else if(!state.isAir()){
-                boolean expected=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&NativeStates.original(c.after().orElseThrow()).equals(state));
+                boolean expected=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&matchesOriginalWorld(c.after().orElseThrow(),at,state));
                 if(!expected)throw new IllegalArgumentException("STALE_REVISION: native world changed");
             }
         }
+    }
+    private boolean matchesOriginalWorld(PieceRecord p,BlockPos at,net.minecraft.world.level.block.state.BlockState state){
+        if(!NativeStates.original(p).equals(state))return false;
+        return !p.adapterId().value().equals("nomoregrids:paintableblocks")||net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.matchesOriginal(p,level,at)).isPresent();
     }
     @Override public void install(OperationPlan plan,PieceIndex after)throws IOException{
         long sequence=sequences.computeIfAbsent(plan.id(),key->(long)sequences.size()+1);history.put(plan.id(),plan);
@@ -296,7 +312,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             var state=level.getBlockState(pos(cell));
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&!entity.valid())continue;
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownIds.contains(p.pieceId())))continue;
-            boolean expectedNative=snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&NativeStates.original(p).equals(state));
+            boolean expectedNative=snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
             if(state.isAir()||state.getBlock()==NmgContent.CELL.get()||expectedNative)syncCell(cell,snapshot());
             else if(!snapshot().at(cell).isEmpty())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }

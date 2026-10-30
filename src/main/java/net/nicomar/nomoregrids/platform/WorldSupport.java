@@ -18,15 +18,20 @@ public final class WorldSupport {
                 var pos=WorldService.pos(cell);if(!level.isLoaded(pos))throw new IllegalArgumentException("UNLOADED_REGION: support");
                 if(changed.contains(cell)||!index.at(cell).isEmpty()){
                     for(UUID id:index.at(cell))if(!id.equals(dependent.pieceId())&&seen.add(id)){
-                        var p=index.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||!p.adapterId().value().equals("nomoregrids:box")||!SupportPatches.required(p).isEmpty())continue;
-                        surfaces.addAll(SupportPatches.surfaces(p.geometry().collision().transform(net.nicomar.nomoregrids.geometry.Rotation.of(p.orientation()),p.pivot16(),p.origin16())));
+                        var p=index.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||!SupportPatches.required(p).isEmpty())continue;
+                        net.nicomar.nomoregrids.geometry.BoxUnion support;
+                        if(p.adapterId().value().equals("nomoregrids:box"))support=p.geometry().occupation();
+                        else if(p.adapterId().value().equals("nomoregrids:paintableblocks"))support=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB support")).support(p.geometryPayload());
+                        else continue;
+                        surfaces.addAll(SupportPatches.surfaces(support.transform(net.nicomar.nomoregrids.geometry.Rotation.of(p.orientation()),p.pivot16(),p.origin16())));
                     }
                 }else{
                     var state=level.getBlockState(pos);if(state.isAir()||state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)continue;
-                    if(catalog.eligible(state)&&!SupportPatches.required(NativeStates.capture(state,level,pos,UUID.randomUUID())).isEmpty())continue;
+                    var nativePiece=catalog.eligible(state)?NativeStates.capture(state,level,pos,UUID.randomUUID()):null;
+                    if(nativePiece!=null&&!SupportPatches.required(nativePiece).isEmpty())continue;
                     Direction face=Direction.valueOf(requirement.normal().opposite().name());
                     if(!catalog.eligible(state)&&!state.isFaceSturdy(level,pos,face))continue;
-                    try{surfaces.addAll(SupportPatches.surfaces(NativeStates.boxes(state.getCollisionShape(level,pos)).transform(net.nicomar.nomoregrids.geometry.Rotation.of(0),GridPoint.ZERO,new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))));}
+                    try{var support=nativePiece!=null?nativePiece.geometry().occupation():NativeStates.boxes(state.getBlockSupportShape(level,pos));surfaces.addAll(SupportPatches.surfaces(support.transform(net.nicomar.nomoregrids.geometry.Rotation.of(0),GridPoint.ZERO,new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))));}
                     catch(IllegalArgumentException ex){throw new IllegalArgumentException("NO_SUPPORT: native anchor geometry needs an adapter",ex);}
                 }
             }

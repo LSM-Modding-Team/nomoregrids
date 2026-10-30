@@ -31,7 +31,7 @@ public final class CellModel implements DynamicBlockStateModel {
     private final BlockStateModelPart fallback;
     private final PaintableAdapter paintable;
     public CellModel(BlockStateModelPart fallback){this.fallback=fallback;
-        PaintableAdapter optional=null;try{optional=new PaintableAdapter(CellModel.class.getClassLoader());}catch(ReflectiveOperationException|IllegalArgumentException ignored){}paintable=optional;}
+        PaintableAdapter optional=null;try{optional=new PaintableAdapter(CellModel.class.getClassLoader());}catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){}paintable=optional;}
     private record Key(CellView view,BlockPos cell,CellModel resourceGeneration){}
     @Override public Object createGeometryKey(BlockAndTintGetter world,BlockPos pos,BlockState state,RandomSource random){return new Key(world.getModelData(pos).get(CompositeCellEntity.VIEW),pos.immutable(),this);}
     @Override public Material.Baked particleMaterial(){return fallback.particleMaterial();}

@@ -10,8 +10,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.*;
 import net.minecraft.world.phys.shapes.*;
-import net.neoforged.neoforge.client.model.data.ModelData;
-import net.neoforged.neoforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.model.data.ModelData;
+import net.neoforged.neoforge.model.data.ModelProperty;
 import net.nicomar.nomoregrids.registry.NmgContent;
 import net.nicomar.nomoregrids.geometry.*;
 
@@ -21,12 +21,12 @@ public final class CompositeCellEntity extends BlockEntity {
     private CellView view=new CellView(List.of());
     private String preserved;
     private boolean valid;
-    private VoxelShape collisionCache,selectionCache;
+    private VoxelShape collisionCache,selectionCache,supportCache;
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(view.replicas().isEmpty())throw new IllegalArgumentException("Empty cells must be restored to air");
-        this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
+        this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;supportCache=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
     }
     private void updateLight(){
@@ -55,8 +55,20 @@ public final class CompositeCellEntity extends BlockEntity {
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
         }if(collision){collisionCache=shape;return shape;}selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
     }
+    public VoxelShape supportShape(){
+        if(!valid)return Shapes.empty();if(supportCache!=null)return supportCache;VoxelShape shape=Shapes.empty();
+        long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
+        for(var p:view.replicas()){
+            if(p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)||!net.nicomar.nomoregrids.simulation.support.SupportPatches.required(p).isEmpty())continue;BoxUnion support;
+            if(p.adapterId().value().equals("nomoregrids:box"))support=p.geometry().occupation();
+            else if(p.adapterId().value().equals("nomoregrids:paintableblocks")){
+                var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available();if(bridge.isEmpty())continue;try{support=bridge.orElseThrow().support(p.geometryPayload());}catch(RuntimeException ex){continue;}
+            }else continue;
+            for(var box:support.transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()).boxes())shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
+        }supportCache=shape;return shape;
+    }
     @Override protected void loadAdditional(ValueInput input){
-        super.loadAdditional(input);collisionCache=null;selectionCache=null;preserved=input.getStringOr("nmg_public","");valid=false;
+        super.loadAdditional(input);collisionCache=null;selectionCache=null;supportCache=null;preserved=input.getStringOr("nmg_public","");valid=false;
         try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=!view.replicas().isEmpty();}
         catch(IOException|IllegalArgumentException ex){view=new CellView(List.of());}
     }

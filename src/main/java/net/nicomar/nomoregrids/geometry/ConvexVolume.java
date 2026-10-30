@@ -77,13 +77,16 @@ public final class ConvexVolume {
         return new Vec(x.x()*p.x+y.x()*p.y+z.x()*p.z,x.y()*p.x+y.y()*p.y+z.y()*p.z,x.z()*p.x+y.z()*p.y+z.z()*p.z);
     }
     public record Hit(double distance,int plane,Vec point){}
-    public Optional<Hit> ray(Vec origin,Vec direction,double reach){
-        double length=direction.length();if(length==0||reach<0||!Double.isFinite(reach))throw new IllegalArgumentException("Invalid ray");
+    public record RayInterval(double near,double far,int enterPlane,int exitPlane){}
+    public Optional<RayInterval> interval(Vec origin,Vec direction,double reach){
+        double length=direction.length();if(length==0||!Double.isFinite(length)||reach<0||!Double.isFinite(reach))throw new IllegalArgumentException("Invalid ray");
         Vec d=direction.scale(1/length);double near=Double.NEGATIVE_INFINITY,far=Double.POSITIVE_INFINITY;int entry=-1,exit=-1;
         for(int i=0;i<planes.size();i++){var p=planes.get(i);double speed=p.normal.dot(d),distance=p.distance-p.normal.dot(origin);
             if(Math.abs(speed)<1e-12){if(distance<0)return Optional.empty();continue;}double t=distance/speed;
             if(speed<0&&t>near){near=t;entry=i;}else if(speed>0&&t<far){far=t;exit=i;}if(near>far)return Optional.empty();}
-        double t=near>=0?near:far;int face=near>=0?entry:exit;
-        return t<0||t>reach||face<0?Optional.empty():Optional.of(new Hit(t,face,origin.add(d.scale(t))));
+        return far<0||near>reach||entry<0||exit<0?Optional.empty():Optional.of(new RayInterval(near,far,entry,exit));
+    }
+    public Optional<Hit> ray(Vec origin,Vec direction,double reach){
+        return interval(origin,direction,reach).flatMap(interval->{double t=interval.near>=0?interval.near:interval.far;int plane=interval.near>=0?interval.enterPlane:interval.exitPlane;return t>reach?Optional.empty():Optional.of(new Hit(t,plane,origin.add(direction.scale(t/direction.length()))));});
     }
 }

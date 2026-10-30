@@ -47,7 +47,7 @@ public final class NmgRuntime {
         WorldService existing=SERVICES.get(level);if(existing!=null)return existing;
         var adapters=new AdapterRegistry();adapters.register(new BoxAdapter());
         if(ModList.get().isLoaded("paintableblocks"))try{adapters.register(new PaintableAdapter(NmgRuntime.class.getClassLoader()));}
-        catch(ReflectiveOperationException|RuntimeException ex){NoMoreGrids.LOGGER.warn("PB adapter unavailable; data will be retained",ex);}
+        catch(ReflectiveOperationException|RuntimeException|LinkageError ex){NoMoreGrids.LOGGER.warn("PB adapter unavailable; data will be retained",ex);}
         adapters.freeze();var service=new WorldService(level,adapters);SERVICES.put(level,service);return service;
     }
     private static void load(LevelEvent.Load event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
@@ -101,6 +101,10 @@ public final class NmgRuntime {
                     if(!player.isCreative())throw new IllegalArgumentException("Survival removal uses native mining progress");
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
                     var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.remove(player,piece.pieceId(),packet.operation());
+                }
+                case EDIT->{
+                    if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
+                    var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation());
                 }
                 case LOCK->{
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
