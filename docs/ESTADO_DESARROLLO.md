@@ -15,7 +15,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | F5 | Cavidades 16³ conectadas a diario, réplicas, cubos, redistribución, flujo/reacciones, máscara convexa, cadencias y malla de caras fusionadas | Ampliar planificación de regiones activas grandes; validar puente vanilla, efectos físicos, cadencias y reacciones en el juego |
 | F6 | API versionada, captura/colocación PB, convexos/render, apoyo nativo, pincel por áreas, herramientas simples, volumen/pendientes con selección por revisiones, costes por copia y loot nativo | Lotes que mezclen PB nativos y convertidos; pruebas del ciclo completo en dedicado |
 | F7 | Autoridad única, captura nativa, codec/checkpoints privados, barriles y hornos nativos con recetas, ticking y menús conectados | Capacidades transaccionales entre mods, XP y autofill de menús, cadencia con más de 16 hornos, grupos y migración de dueño al mover |
-| F8 | Planificador de pistones con barrido y grupos, red lógica con retardos y continuidad de raíles | Hooks nativos de pistones/redstone/raíles, conectar checkpoints lógicos y movimiento transaccional del mundo; el contenedor bloquea empuje vanilla |
+| F8 | Planificador de barrido, primer hook de pistones con base/cabezal journalizados, red lógica con retardos y continuidad de raíles | Empujes mixtos con bloques nativos, grupos, PB, continuidad nativa de raíles y circuitos/redstone conectados |
 | F9 | Presupuestos previos, caché de formas por celda, reparación diferida/coalescida por tick, LRU por peso, muestras y comandos de diagnóstico/exportación | Conectar cachés globales y mediciones; compactación segura del diario; escenas y certificación medidas |
 
 ## Verificación realizada
@@ -81,3 +81,9 @@ selecciona destino, clic en inventario transfiere y clic en máquina recupera.
 Faltan cursor/drag y autofill transaccionales, XP, capacidades de automatización,
 y gestión de grupos. Se procesan hasta 16 funcionales por tick, aún sin compensar
 cadencia para cantidades mayores. F7 continúa parcial.
+
+F8 conecta el evento nativo de pistón cuando su cara encuentra directamente
+componentes NMG: barrido, entidades y límite 12; extensión/retracción de base y
+cabezal pertenecen al mismo plan durable. El movimiento se aplica de forma
+instantánea. Faltan empujes mixtos de bloques nativos, grupos y movimiento PB;
+se rechazan. Redstone y raíles todavía no tienen un puente completo al mundo.

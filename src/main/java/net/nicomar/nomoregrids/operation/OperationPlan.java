@@ -17,7 +17,7 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
     public static final UUID WORLD_ACTOR=new UUID(0,0);
     public record Effect(String key,CellPos owner,Optional<BinaryData> before,Optional<BinaryData> after){
         public Effect{java.util.Objects.requireNonNull(owner);java.util.Objects.requireNonNull(before);java.util.Objects.requireNonNull(after);
-            if(!key.matches("(fluid|machine|loot|circuit|group):[a-zA-Z0-9_:.-]{1,192}")||before.equals(after))throw new IllegalArgumentException("Invalid world effect");}
+            if(!key.matches("(fluid|machine|loot|circuit|group|native):[a-zA-Z0-9_:.-]{1,192}")||before.equals(after))throw new IllegalArgumentException("Invalid world effect");}
     }
     public OperationPlan(UUID id,UUID actor,Kind kind,List<Change> changes,BinaryData before,BinaryData after){this(id,actor,kind,changes,before,after,List.of());}
     public record Change(UUID id, Optional<PieceRecord> before, Optional<PieceRecord> after) {

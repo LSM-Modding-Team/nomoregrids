@@ -15,6 +15,7 @@ public final class WorldMutationHooks {
     public static boolean before(ServerLevel level,BlockPos pos,BlockState state){
         var service=NmgRuntime.existing(level);if(service==null||service.writing()||level.getBlockState(pos).equals(state))return true;
         var cell=new CellPos(pos.getX(),pos.getY(),pos.getZ());
+        if(service.nativeGoal(cell).isPresent())try{service.releaseNativeGoal(cell);}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
         if(level.getBlockState(pos).getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock&&!state.getFluidState().isEmpty()){
             try{service.fluids().incoming(cell,state.getFluidState());}catch(IOException|RuntimeException ex){if(service.quarantined())NmgRuntime.failed(level,ex);}return false;
         }

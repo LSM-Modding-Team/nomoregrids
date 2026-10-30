@@ -326,7 +326,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var c:plan.changes())knownIds.add(c.id());
         reconcileResources(plan,sequence);
         applyEffects(plan);
-        writing++;try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{writing--;}
+        writing++;try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")||e.key().startsWith("native:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{writing--;}
         Set<SectionPos> effectSections=new HashSet<>();plan.effects().forEach(e->effectSections.add(e.owner().section()));
         for(var section:effectSections)effectStore.write(section,sequence,sectionEffects(section));
         Set<SectionPos> sections=new HashSet<>();for(var c:plan.changes()){c.before().ifPresent(p->sections.add(p.ownerSection()));c.after().ifPresent(p->sections.add(p.ownerSection()));}
@@ -335,6 +335,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private Map<String,WorldEffectStore.Value> sectionEffects(SectionPos section){var result=new TreeMap<String,WorldEffectStore.Value>();effects.forEach((key,value)->{if(value.owner().section().equals(section))result.put(key,value);});return result;}
     private void validateEffects(OperationPlan plan){
         for(var e:plan.effects())if(!Objects.equals(Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data),e.before())||effects.containsKey(e.key())&&!effects.get(e.key()).owner().equals(e.owner()))throw new IllegalArgumentException("STALE_REVISION: world effects");
+        var afterIndex=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
+        for(var e:plan.effects())if(e.key().startsWith("native:")&&e.after().isPresent()&&!afterIndex.at(e.owner()).isEmpty())throw new IllegalArgumentException("OVERLAP: native mechanism goal");
         var proposed=new TreeMap<>(effects);for(var e:plan.effects()){if(e.after().isPresent())proposed.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else proposed.remove(e.key());}
         for(var section:plan.effects().stream().map(e->e.owner().section()).distinct().toList()){
             var values=new TreeMap<String,WorldEffectStore.Value>();proposed.forEach((k,v)->{if(v.owner().section().equals(section))values.put(k,v);});try{WorldEffectStore.encode(1,values);}catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: section effects",ex);}
@@ -360,8 +362,15 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void executeWorld(List<OperationPlan.Change> changes,List<OperationPlan.Effect> effects)throws IOException{
         if(changes.isEmpty()&&effects.isEmpty())return;executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,changes,BinaryData.EMPTY,BinaryData.EMPTY,effects));
     }
+    public static String nativeKey(CellPos c){return "native:"+c.x()+":"+c.y()+":"+c.z();}
+    public Optional<net.minecraft.world.level.block.state.BlockState> nativeGoal(CellPos cell){var value=effects.get(nativeKey(cell));if(value==null)return Optional.empty();try{var image=NativeStateImage.decode(value.data());return Optional.of(NativeStates.resolve(image.block(),image.properties()));}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: native goal",ex);}}
+    public OperationPlan.Effect nativeChange(CellPos cell,net.minecraft.world.level.block.state.BlockState after){var old=Optional.ofNullable(effects.get(nativeKey(cell))).map(WorldEffectStore.Value::data);var data=new NativeStateImage(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(after.getBlock()).toString()),NativeStates.properties(after)).encode();return new OperationPlan.Effect(nativeKey(cell),cell,old,Optional.of(data));}
+    public void releaseNativeGoal(CellPos cell)throws IOException{var old=effects.get(nativeKey(cell));if(old!=null)executeWorld(List.of(),List.of(new OperationPlan.Effect(nativeKey(cell),cell,Optional.of(old.data()),Optional.empty())));}
     private void syncCell(CellPos cell,PieceIndex index)throws IOException{
         BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IOException("Region unloaded during commit");
+        var goal=nativeGoal(cell);if(goal.isPresent()){
+            if(!index.at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native goal conflicts with component authority");if(!level.getBlockState(at).equals(goal.orElseThrow())&&!level.setBlock(at,goal.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native mechanism projection rejected");return;
+        }
         var nativeState=fluids.at(cell).isEmpty()?nativeProjection(cell,index):Optional.<net.minecraft.world.level.block.state.BlockState>empty();if(nativeState.isPresent()){
             if(!level.getBlockState(at).equals(nativeState.orElseThrow())&&!level.setBlock(at,nativeState.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native restoration rejected");return;
         }
@@ -391,7 +400,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&!entity.valid())continue;
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownIds.contains(p.pieceId())))continue;
             boolean expectedNative=nativeProjection(cell,snapshot()).filter(state::equals).isPresent()||snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
-            if(state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative)syncCell(cell,snapshot());
+            if(nativeGoal(cell).isPresent()||state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative)syncCell(cell,snapshot());
             else if(!snapshot().at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }
     }
@@ -400,6 +409,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         chunk.getBlockEntities().forEach((pos,entity)->{if(entity instanceof CompositeCellEntity)cells.add(pos);});
         for(int y=level.getMinSectionY();y<level.getMaxSectionY();y++)for(UUID id:snapshot().referencedBy(new SectionPos(chunkPos.x(),y,chunkPos.z())))
             for(var cell:snapshot().records().get(id).worldOccupation().cells(8))if(Math.floorDiv(cell.x(),16)==chunkPos.x()&&Math.floorDiv(cell.z(),16)==chunkPos.z())cells.add(pos(cell));
+        for(var e:effects.entrySet())if(e.getKey().startsWith("native:")){var c=e.getValue().owner();if(Math.floorDiv(c.x(),16)==chunkPos.x()&&Math.floorDiv(c.z(),16)==chunkPos.z())cells.add(pos(c));}
         for(var c:fluids.snapshot().keySet())if(Math.floorDiv(c.x(),16)==chunkPos.x()&&Math.floorDiv(c.z(),16)==chunkPos.z())cells.add(pos(c));
         return Set.copyOf(cells);
     }

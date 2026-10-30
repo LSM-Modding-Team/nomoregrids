@@ -577,3 +577,19 @@ Movimiento funcional entre secciones se rechaza antes del commit.
 64 imports explícitos consultados en jars/fuentes exactos; parser, recursos y
 whitespace pasan. Firmas revisadas con javap. Compilación, pruebas Java y juego
 no ejecutados. F7 sigue siendo una integración parcial.
+
+## Entrega: primer puente nativo de pistones
+
+PistonEvent.Pre se intercepta cuando la cara encuentra NMG directamente. El
+planificador existente calcula cierre, barrido, adhesión, límite de 12 y bloqueos
+por entidades/carga. Base y cabezal se escriben como imágenes nativas en efectos
+del mismo commit que las piezas. La recuperación reinstala esas imágenes; un
+write externo libera su descriptor antes de cambiar el bloque, evitando replay
+de un cabezal ya retirado. Se conserva el bloqueo vanilla del contenedor para
+impedir una segunda ruta de movimiento.
+
+Decisión: primer puente instantáneo, sin animación intermedia; se publica Post
+solo tras la aplicación completa. Empujes mixtos, grupos, PB y movimiento funcional
+entre dueños aún se rechazan. No se declara F8 completa. Firmas de PistonEvent y
+PistonBaseBlock/Head verificadas en fuentes exactas/javap; parser y revisiones
+estáticas pasan. No se ejecutan compilación, pruebas Java ni Minecraft.
