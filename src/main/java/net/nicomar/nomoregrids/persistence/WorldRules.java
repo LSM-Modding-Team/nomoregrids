@@ -8,6 +8,7 @@ import net.nicomar.nomoregrids.network.ProtocolRules;
 
 /** A world never silently changes its adapter interpretation or physical manifest. */
 public final class WorldRules {
+    private static final java.util.Set<String> ADDITIVE_PROFILES=java.util.Set.of("357a1a149cf97ad04b875f9625ee4d4480ee396ac991e169a01c9d9e56630e13");
     private WorldRules(){}
     public static void verifyOrCreate(Path path,String profileHash,ProtocolRules rules)throws IOException{
         var expected=new JsonObject();expected.addProperty("schema",1);expected.addProperty("profileHash",profileHash);expected.addProperty("pieceSchema",rules.pieceSchema());expected.addProperty("adapterApi",rules.adapterApi());
@@ -17,7 +18,8 @@ public final class WorldRules {
             if(Files.size(path)>16384)throw new IOException("World rules budget; original retained");
             try{
                 var existing=JsonParser.parseString(Files.readString(path,StandardCharsets.UTF_8)).getAsJsonObject();var previous=existing.getAsJsonObject("adapters");
-                var comparison=existing.deepCopy();comparison.remove("adapters");var interpretation=expected.deepCopy();interpretation.remove("adapters");
+                boolean additive=ADDITIVE_PROFILES.contains(existing.get("profileHash").getAsString())&&!existing.get("profileHash").getAsString().equals(profileHash);
+                var comparison=existing.deepCopy();if(additive)comparison.addProperty("profileHash",profileHash);comparison.remove("adapters");var interpretation=expected.deepCopy();interpretation.remove("adapters");
                 if(!comparison.equals(interpretation)||previous.size()>64)throw new IOException("World rules mismatch; migration required and original retained");
                 for(var e:previous.entrySet()){
                     new net.nicomar.nomoregrids.core.ResourceId(e.getKey());int version=e.getValue().getAsBigDecimal().intValueExact();if(version<1)throw new IOException("Invalid retained adapter version");
@@ -25,7 +27,7 @@ public final class WorldRules {
                 }
                 // Missing dependencies keep their recorded version for conservative substitutes.
                 // Newly installed adapters may extend the catalogue without reinterpreting old payloads.
-                boolean changed=false;for(var e:adapters.entrySet())if(!previous.has(e.getKey())){previous.add(e.getKey(),e.getValue());changed=true;}
+                boolean changed=additive;if(additive){var backup=path.resolveSibling("rules-before-"+existing.get("profileHash").getAsString()+".json");if(!Files.exists(backup))SectionStore.atomic(backup,Files.readAllBytes(path));existing.addProperty("profileHash",profileHash);}for(var e:adapters.entrySet())if(!previous.has(e.getKey())){previous.add(e.getKey(),e.getValue());changed=true;}
                 if(previous.size()>64)throw new IOException("World adapter catalogue budget");
                 if(changed)SectionStore.atomic(path,existing.toString().getBytes(StandardCharsets.UTF_8));
             }catch(RuntimeException ex){throw new IOException("Invalid world rules; original retained",ex);}

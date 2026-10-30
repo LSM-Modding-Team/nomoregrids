@@ -67,6 +67,7 @@ public final class CompositeCellBlock extends BaseEntityBlock implements LiquidB
         for(var p:cell.view().replicas())try{if(!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE))min=Math.min(min,net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getExplosionResistance(level,pos,explosion));}catch(RuntimeException ignored){}return min;
     }
     @Override protected void onExplosionHit(BlockState state,net.minecraft.server.level.ServerLevel level,BlockPos pos,Explosion explosion,java.util.function.BiConsumer<net.minecraft.world.item.ItemStack,BlockPos> drops){net.nicomar.nomoregrids.platform.WorldMaterials.explode(level,pos,explosion);}
+    @Override protected void entityInside(BlockState state,Level level,BlockPos pos,net.minecraft.world.entity.Entity entity,net.minecraft.world.entity.InsideBlockEffectApplier effects,boolean swept){net.nicomar.nomoregrids.platform.WorldMaterials.inside(level,pos,entity,effects,swept);}
     @Override public void stepOn(Level level,BlockPos pos,BlockState state,net.minecraft.world.entity.Entity entity){
         if(level.getBlockEntity(pos) instanceof CompositeCellEntity cell)cell.ground(entity).ifPresent(p->{var nativeState=net.nicomar.nomoregrids.platform.NativeStates.resolve(p);nativeState.getBlock().stepOn(level,pos,nativeState,entity);});
     }

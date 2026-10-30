@@ -14,7 +14,8 @@
     "FunctionalDropMixin",
     "MinecartBehaviorAccess",
     "ComponentRailMovementMixin",
-    "ComponentMinecartItemMixin"
+    "ComponentMinecartItemMixin",
+    "ComponentMovementFactorsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -14,6 +14,13 @@ public final class PieceQueries {
         static final PaintableAdapter INSTANCE=create();
         private static PaintableAdapter create(){try{return new PaintableAdapter(PieceQueries.class.getClassLoader());}catch(ReflectiveOperationException|RuntimeException|LinkageError ex){return null;}}
     }
+    public static List<ConvexVolume> volumes(PieceRecord p,String role){
+        if(!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){
+            if(WorldDecorations.piece(p))return net.nicomar.nomoregrids.compat.vanilla.DecorationAdapter.boxes(p,role.equals("collision")?"collision":"selection").stream().map(v->v.transformed(p.orientation(),p.pivot16(),p.origin16())).toList();
+            if(p.adapterId().value().equals("nomoregrids:paintableblocks")&&OptionalPaintable.INSTANCE!=null)return OptionalPaintable.INSTANCE.occupation(p).stream().map(v->v.transformed(p.orientation(),p.pivot16(),p.origin16())).toList();
+        }
+        var shape=role.equals("collision")?p.geometry().collision():role.equals("selection")?p.geometry().selection():p.geometry().occupation();return shape.transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()).boxes().stream().map(b->ConvexVolume.box(b.min().x(),b.min().y(),b.min().z(),b.max().x(),b.max().y(),b.max().z())).toList();
+    }
     public record Hit(double distance16,Vec3 point,Direction face){}
     public static Optional<Hit> ray(PieceRecord p,Vec3 start,Vec3 end){
         Vec3 delta=end.subtract(start);double reach=delta.length()*16;if(reach<1e-12)return Optional.empty();

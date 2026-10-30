@@ -873,3 +873,24 @@ Se corrige /nmg validate para cavidades, proyecciones nativas y sustitutos públ
 Prueba de checkpoint sellado con cola incremental escrita, no ejecutada. Revisión
 estática de sintaxis/imports/recursos/whitespace; no se ha ejecutado el worker en
 un mundo, ni compilado o arrancado Minecraft.
+
+## Contactos materiales y absorción de explosiones
+
+Se calcula el plan NMG en Detonate antes de destruir bloques nativos, y se añade
+al listado que otros listeners aún pueden filtrar. Cada componente usa muestras
+convexas y absorción por espesores/materiales a lo largo de rayos; los intervalos
+de un UUID se unen para no cobrar dos veces primitivas/celdas repetidas. El DDA
+visita celdas intermedias exactas, se cierra ante regiones descargadas y considera
+barreras nativas y microvolúmenes de fluido. Hasta 64 muestras por componente
+acotan la consulta, con energía aleatoria de la escala nativa; no se promete que
+coincida con cada rayo aleatorio del algoritmo vanilla.
+Fuego examina caras convexas reales y comprueba que estén expuestas, incluidas
+caras PB inclinadas; una caja conservadora no crea una cara de fuego. Factores
+de velocidad/salto proceden del contacto de suelo con mayor área real; miel y
+redes reciben contactos geométricos. Se añaden perfiles vanilla estáticos de
+materiales (miel/slime/magma/arena de almas/barro/redes/hielos estables).
+La ampliación del catálogo conserva las interpretaciones anteriores: se permite
+solo el hash previo conocido y se guarda rules-before-<hash>.json antes de
+actualizarlo. Un hash desconocido sigue requiriendo migración explícita.
+Pruebas puras de espesores, uniones y DDA escritas, no ejecutadas. Revisión
+sintáctica/imports/recursos, sin compilación, fuego o explosiones en Minecraft.
