@@ -18,8 +18,8 @@ public final class WorldLoot {
         if(WorldGroups.piece(p)){var drops=WorldGroups.drops(p);if(!drops.isEmpty())effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),p.origin16().cell(),Optional.empty(),Optional.of(encode(level,drops))));return;}
         if(WorldDecorations.piece(p)){var drops=WorldDecorations.drops(p,level,null);if(!drops.isEmpty())effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),p.origin16().cell(),Optional.empty(),Optional.of(encode(level,drops))));return;}
         if(WorldFunctionals.piece(p)){var drops=NmgRuntime.existing(level).functionals().drops(p,null);if(!drops.isEmpty())effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),p.origin16().cell(),Optional.empty(),Optional.of(encode(level,drops))));return;}
-        if(!p.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: world loot");
-        var state=NativeStates.resolve(p);var items=Block.getDrops(state,level,WorldService.pos(p.origin16().cell()),null);int length=FragmentItem.length(p.itemPayload());var drops=new ArrayList<ItemStack>();
+        if(!p.adapterId().value().equals("nomoregrids:box")&&!WorldCircuits.piece(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: world loot");
+        var state=NativeStates.resolve(p);var items=Block.getDrops(state,level,WorldService.pos(p.origin16().cell()),null);int length=WorldCircuits.piece(p)?16:FragmentItem.length(p.itemPayload());var drops=new ArrayList<ItemStack>();
         for(var stack:items)drops.add(length<16&&stack.getItem()==state.getBlock().asItem()?FragmentItem.create(state.getBlock(),length).copyWithCount(stack.getCount()):stack);
         if(!drops.isEmpty())effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),p.origin16().cell(),Optional.empty(),Optional.of(encode(level,drops))));
     }

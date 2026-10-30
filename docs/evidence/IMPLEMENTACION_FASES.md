@@ -808,3 +808,24 @@ sus datos privados una vez y conservan ediciones preparadas al cambiar de secci�
 Se corrigió además una variable local que ocultaba el parámetro de tipos de fluido.
 Prueba pura de extrusión de una pendiente escrita, no ejecutada. Revisión de
 sintaxis/imports/recursos; pendientes compilación y pruebas reales de mecanismos.
+
+## Redstone conectada a puertos y checkpoints
+
+Perfil vanilla explícito de polvo, repetidores, comparadores, antorchas, bloque de
+redstone, palancas, botones y placas. Las redes se forman por planos y áreas de
+puerto coincidentes, con polvo coplanar; compartir host no crea un cable. Entradas
+nativas se muestrean en el contacto y las salidas se exponen únicamente cuando
+coinciden con una cara de consulta vanilla. Comparadores consultan señales
+analógicas y el único inventario funcional; captura nativa conserva su salida.
+SignalNetwork gobierna retardos, inversión de antorchas y bloqueo lateral de
+repetidores. Se guardan valores, eventos pendientes y burnout de antorchas junto
+con las operaciones; división/unión conserva estados por identidad. Componentes
+con regiones descargadas aplazan la simulación sin borrar checkpoints. Cada red
+admite 4096 componentes; redes independientes y controles avanzan con rotación.
+Redes estables no escriben un checkpoint nuevo por el mero avance del reloj.
+Botones/platos y cambios de modo usan autoridad y recibos. Un botón nativo que
+se captura pulsado recibe un plazo completo de liberación (20/30 ticks), porque
+el hook no dispone del resto de su tick vanilla anterior. Puertas y trampillas
+reciben potencia por puertos y reutilizan su validación de giro.
+Prueba pura de inversión/bloqueo/restauración escrita, no ejecutada. Revisión
+sintáctica, de imports y recursos; sin compilación ni ejecución de circuitos.

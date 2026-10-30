@@ -28,6 +28,10 @@ public final class CompositeCellBlock extends BaseEntityBlock implements LiquidB
         return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.shape(true):Shapes.block();
     }
     @Override protected VoxelShape getBlockSupportShape(BlockState state,BlockGetter world,BlockPos pos){return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.supportShape():Shapes.empty();}
+    @Override protected boolean isSignalSource(BlockState state){return true;}
+    @Override protected int getSignal(BlockState state,BlockGetter world,BlockPos pos,net.minecraft.core.Direction direction){return net.nicomar.nomoregrids.platform.WorldCircuits.output(world,pos,direction);}
+    @Override protected int getDirectSignal(BlockState state,BlockGetter world,BlockPos pos,net.minecraft.core.Direction direction){return net.nicomar.nomoregrids.platform.WorldCircuits.output(world,pos,direction);}
+    @Override protected int ownSignal(BlockState state,BlockGetter world,BlockPos pos){int value=0;for(var d:net.minecraft.core.Direction.values())value=Math.max(value,net.nicomar.nomoregrids.platform.WorldCircuits.output(world,pos,d));return value;}
     @Override public boolean isBed(BlockState state,BlockGetter world,BlockPos pos,net.minecraft.world.entity.LivingEntity sleeper){return net.nicomar.nomoregrids.platform.WorldGroups.bedAt(world,pos).isPresent();}
     @Override public net.minecraft.core.Direction getBedDirection(BlockState state,LevelReader world,BlockPos pos){return net.nicomar.nomoregrids.platform.WorldGroups.bedAt(world,pos).map(net.nicomar.nomoregrids.platform.WorldGroups::bedDirection).orElse(net.minecraft.core.Direction.NORTH);}
     @Override public void setBedOccupied(BlockState state,Level world,BlockPos pos,net.minecraft.world.entity.LivingEntity sleeper,boolean occupied){net.nicomar.nomoregrids.platform.WorldGroups.occupied(world,pos,occupied);}

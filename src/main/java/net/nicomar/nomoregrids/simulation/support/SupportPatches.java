@@ -11,6 +11,8 @@ public final class SupportPatches {
         String id=piece.sourceBlockId().value();List<SupportResolver.Patch> local=new ArrayList<>();
         if(id.endsWith("_door")&&"lower".equals(piece.sourceState().get("half")))local.add(new SupportResolver.Patch(Direction6.DOWN,0,0,0,16,16));
         else if(id.endsWith("_bed")){for(var face:BoxMesh.extract(piece.geometry().collision(),4096))if(face.normal()==Direction6.DOWN&&face.plane()==0)local.add(patch(face));}
+        else if(id.equals("minecraft:redstone_wire")||id.equals("minecraft:repeater")||id.equals("minecraft:comparator")||id.endsWith("pressure_plate"))local.add(new SupportResolver.Patch(Direction6.DOWN,0,0,0,16,16));
+        else if(id.equals("minecraft:lever")||id.endsWith("_button")){Direction6 anchor=switch(piece.sourceState().getOrDefault("face","floor")){case "ceiling"->Direction6.UP;case "wall"->Direction6.valueOf(piece.sourceState().getOrDefault("facing","north").toUpperCase(Locale.ROOT)).opposite();default->Direction6.DOWN;};local.add(new SupportResolver.Patch(anchor,anchor.sign()>0?16:0,6,6,10,10));}
         else if(id.endsWith("_carpet")||id.equals("minecraft:snow")){
             for(var face:BoxMesh.extract(piece.geometry().occupation(),4096))if(face.normal()==Direction6.DOWN&&face.plane()==piece.geometry().occupation().bounds().min().y())local.add(patch(face));
         }else if(id.equals("minecraft:torch")||id.equals("minecraft:soul_torch")||id.equals("minecraft:redstone_torch"))local.add(new SupportResolver.Patch(Direction6.DOWN,0,6,6,10,10));

@@ -5,10 +5,10 @@ import java.util.*;
 /** Server-tick circuit, explicit port links only. Never infers an edge from a shared cell. */
 public final class SignalNetwork {
     public static final int MAX_PENDING=262144;
-    public enum Kind { SOURCE,DUST,REPEATER,COMPARATOR }
+    public enum Kind { SOURCE,DUST,REPEATER,COMPARATOR,TORCH }
     public enum Input { REAR,SIDE }
     public record Node(UUID id,Kind kind,int delayTicks,boolean subtract){
-        public Node{Objects.requireNonNull(id);Objects.requireNonNull(kind);if(kind==Kind.REPEATER&&(delayTicks<2||delayTicks>8||delayTicks%2!=0)||kind==Kind.COMPARATOR&&delayTicks!=2||(kind==Kind.SOURCE||kind==Kind.DUST)&&delayTicks!=0)throw new IllegalArgumentException("Native redstone delay required");}
+        public Node{Objects.requireNonNull(id);Objects.requireNonNull(kind);if(kind==Kind.REPEATER&&(delayTicks<2||delayTicks>8||delayTicks%2!=0)||(kind==Kind.COMPARATOR||kind==Kind.TORCH)&&delayTicks!=2||(kind==Kind.SOURCE||kind==Kind.DUST)&&delayTicks!=0)throw new IllegalArgumentException("Native redstone delay required");}
     }
     /** qLength follows actual wire path; contact has length zero and no extra attenuation. */
     public record Edge(UUID from,UUID to,Input input,int qLength){public Edge{Objects.requireNonNull(from);Objects.requireNonNull(to);Objects.requireNonNull(input);if(qLength<0||qLength>4096)throw new IllegalArgumentException("Wire length");}}
@@ -47,12 +47,13 @@ public final class SignalNetwork {
             int strength=value(e.from);if(n.kind==Kind.DUST)strength=Math.max(0,strength-(e.qLength+15)/16);
             if(e.input==Input.REAR)rear=Math.max(rear,strength);else side=Math.max(side,strength);
         }
-        int desired=switch(n.kind){case SOURCE->sources.getOrDefault(id,0);case DUST->Math.max(rear,side);case REPEATER->rear>0?15:0;case COMPARATOR->n.subtract?Math.max(0,rear-side):rear>=side?rear:0;};
+        int desired=switch(n.kind){case SOURCE->sources.getOrDefault(id,0);case DUST->Math.max(rear,side);case REPEATER->side>0?value(id):rear>0?15:0;case COMPARATOR->n.subtract?Math.max(0,rear-side):rear>=side?rear:0;case TORCH->rear==0?15:0;};
         Scheduled old=pending.get(id);if(old!=null&&old.value==desired)return;
         if(old!=null){queue.remove(old);pending.remove(id);}
         if(value(id)==desired)return;
         var next=new Scheduled(Math.addExact(logicalTick,n.delayTicks),id,desired);pending.put(id,next);queue.add(next);
     }
+    public void refresh(){for(var n:nodes.values())if(n.kind!=Kind.SOURCE)schedule(n.id,now);}
     public int advance(long tick,int budget){
         if(tick<now||budget<1)throw new IllegalArgumentException("Circuit clock/budget");now=tick;int processed=0;
         while(processed<budget&&!queue.isEmpty()&&queue.first().tick<=tick){

@@ -21,7 +21,7 @@ public final class NativeStates {
             var envelope=com.google.gson.JsonParser.parseString(new String(piece.itemPayload().copy(),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();if(envelope.get("schema").getAsInt()!=1)throw new IllegalArgumentException("Unknown PB recovery image");
             if(envelope.has("native")){var properties=new HashMap<String,String>();envelope.getAsJsonObject("native").getAsJsonObject("state").entrySet().forEach(e->properties.put(e.getKey(),e.getValue().getAsString()));return resolve(piece.sourceBlockId(),properties);}
         }
-        if(!piece.adapterId().value().equals("nomoregrids:box")&&!WorldGroups.piece(piece)||piece.geometryPayload().size()==0)return resolve(piece);
+        if(!piece.adapterId().value().equals("nomoregrids:box")&&!WorldGroups.piece(piece)&&!WorldCircuits.piece(piece)||piece.geometryPayload().size()==0)return resolve(piece);
         try{var image=net.nicomar.nomoregrids.persistence.NativeStateImage.decode(piece.geometryPayload());return resolve(image.block(),image.properties());}
         catch(java.io.IOException ex){throw new IllegalArgumentException("INVALID_DATA: native capture image",ex);}
     }
