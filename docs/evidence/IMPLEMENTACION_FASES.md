@@ -993,3 +993,17 @@ Se eliminó además una comprobación duplicada en el diagnóstico de réplicas.
 Revisión estática: 240 fuentes Java sin errores sintácticos; recursos, imports
 explícitos y whitespace correctos. No se ha comprobado compilación, carga de
 mixins, recuperación ante cortes ni interacción de hoppers en ejecución.
+
+## Estructura de grupos y reconciliación de camas
+
+Los dos miembros nativos de una puerta/cama deben coincidir en bloque, marco,
+propiedades comunes y base transformada; capturar una pareja incompleta o mover
+solo una parte se rechaza. La validación de estructura se aplica a los grupos
+tocados, sin impedir operaciones ajenas por grupos antiguos protegidos. Reemplazar
+por la misma familia conserva frente, bisagra/apertura y base completa incluso
+al seleccionar la cabeza o parte superior. La ocupación de camas se reconcilia
+con los durmientes del mundo, actualizando la pareja entera en un solo plan.
+Los recorridos presupuestados de camas y raíles tienen cursor por dimensión; un
+cursor global podía revisar siempre la misma mitad al alternar dos mundos.
+Revisión sintáctica/estructural/imports y whitespace, sin compilación ni pruebas
+de dormir, respawn, reemplazo, movimiento o señales en varias dimensiones.

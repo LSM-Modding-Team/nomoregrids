@@ -75,7 +75,7 @@ public final class NmgRuntime {
                 });
             }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
         }
-        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);var service=SERVICES.get(level);advance(service,"fluid",()->service.fluids().tick());advance(service,"functional",()->service.functionals().tick());advance(service,"circuit",()->service.circuits().tick());advance(service,"rail",()->WorldRails.tick(service));advance(service,"checkpoint",service::maintenance);}
+        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);var service=SERVICES.get(level);advance(service,"fluid",()->service.fluids().tick());advance(service,"functional",()->service.functionals().tick());advance(service,"group",()->WorldGroups.tick(service));advance(service,"circuit",()->service.circuits().tick());advance(service,"rail",()->WorldRails.tick(service));advance(service,"checkpoint",service::maintenance);}
         var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
     }
     private static void advance(WorldService service,String phase,WorldService.TickAction action){if(service.quarantined())return;try{service.measured(phase,action);}catch(IOException|RuntimeException ex){if(service.quarantined())quarantine(service.level(),ex);else NoMoreGrids.LOGGER.debug("NMG {} update deferred: {}",phase,ex.toString());}}
