@@ -20,6 +20,7 @@ import net.nicomar.nomoregrids.compat.vanilla.*;
 import net.nicomar.nomoregrids.core.*;
 import net.nicomar.nomoregrids.event.BeforeOperationEvent;
 import net.nicomar.nomoregrids.geometry.*;
+import net.nicomar.nomoregrids.geometry.Rotation;
 import net.nicomar.nomoregrids.network.*;
 import net.nicomar.nomoregrids.operation.*;
 import net.nicomar.nomoregrids.persistence.*;
@@ -320,8 +321,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public Set<BlockPos> cellsInChunk(net.minecraft.world.level.chunk.LevelChunk chunk){
         var chunkPos=chunk.getPos();Set<BlockPos> cells=new HashSet<>();
         chunk.getBlockEntities().forEach((pos,entity)->{if(entity instanceof CompositeCellEntity)cells.add(pos);});
-        for(int y=level.getMinSectionY();y<level.getMaxSectionY();y++)for(UUID id:snapshot().referencedBy(new SectionPos(chunkPos.x,y,chunkPos.z)))
-            for(var cell:snapshot().records().get(id).worldOccupation().cells(8))if(Math.floorDiv(cell.x(),16)==chunkPos.x&&Math.floorDiv(cell.z(),16)==chunkPos.z)cells.add(pos(cell));
+        for(int y=level.getMinSectionY();y<level.getMaxSectionY();y++)for(UUID id:snapshot().referencedBy(new SectionPos(chunkPos.x(),y,chunkPos.z())))
+            for(var cell:snapshot().records().get(id).worldOccupation().cells(8))if(Math.floorDiv(cell.x(),16)==chunkPos.x()&&Math.floorDiv(cell.z(),16)==chunkPos.z())cells.add(pos(cell));
         return Set.copyOf(cells);
     }
     public void repairChunk(net.minecraft.world.level.chunk.LevelChunk chunk)throws IOException{

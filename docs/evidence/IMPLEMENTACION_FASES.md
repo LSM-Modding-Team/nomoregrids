@@ -406,3 +406,14 @@ funcional. Permanecen pendientes fuego, explosiones y efectos especiales.
 Pruebas escritas de área, empate estable, unión sin doble peso, separación y
 cara de escalera oculta. Revisión estructural, parser de 147 fuentes e imports
 explícitos aprobados. Sin compilación ni ejecución Java/Minecraft.
+
+## Corrección de errores de compilación reportados
+
+Sustituidas seis llamadas a displayClientMessage por sendOverlayMessage(Component),
+conservando los mensajes de acción. ChunkPos usa x()/z() en WorldService y
+NmgRuntime. Un import explícito selecciona geometry.Rotation frente a la
+rotación de bloques vanilla.
+
+Comprobación estructural y git diff --check aprobados. El parser no pudo
+ ejecutarse porque este entorno no conserva las dependencias Tree-sitter.
+No se ejecutaron Gradle, compileJava ni Minecraft; no se acredita compilación.

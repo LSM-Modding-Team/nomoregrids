@@ -44,7 +44,7 @@ public final class ConstructionControls {
             if(!packet.profileHash().equals(net.nicomar.nomoregrids.network.SessionPayload.localHash())||!packet.rules().equals(net.nicomar.nomoregrids.network.SessionPayload.localRules())){context.disconnect(net.minecraft.network.chat.Component.translatable("message.nomoregrids.profile_mismatch"));return;}
             ClientPacketDistributor.sendToServer(new net.nicomar.nomoregrids.network.SessionAckPayload(net.nicomar.nomoregrids.network.SessionPayload.fingerprint()));
             MODES.precise=packet.precise();MODES.expanded=packet.expanded();MODES.adjusted=packet.adjusted();MODES.changedDimension();lengthSelection=0;lastSent=null;
-            if(Minecraft.getInstance().player!=null)Minecraft.getInstance().player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.session"),true);
+            if(Minecraft.getInstance().player!=null)Minecraft.getInstance().player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.session"));
         }));
         event.register(ActionResultPayload.TYPE,(packet,context)->context.enqueueWork(()->{
         if(packet.operation().equals(probe)){if(Objects.equals(preview,probedPreview))previewColor=packet.accepted()?(packet.reason().equals("PENDING_LOOT")?0xffffbf00:0xff44cc55):0xffff3333;}
@@ -107,7 +107,7 @@ public final class ConstructionControls {
         var mc=Minecraft.getInstance();if(mc.gui.screen()!=null||mc.player==null)return;
         if(ADJUSTED.isDown()){
             int direction=event.getScrollDeltaY()>0?1:event.getScrollDeltaY()<0?-1:0;lengthSelection=Math.floorMod((lengthSelection==0?16:lengthSelection)-1+direction,16)+1;MODES.adjusted=true;
-            mc.player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.length",lengthSelection),true);event.setCanceled(true);return;
+            mc.player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.length",lengthSelection));event.setCanceled(true);return;
         }
         if(mc.hasAltDown()||mc.hasControlDown()){
             int steps=event.getScrollDeltaY()>0?1:event.getScrollDeltaY()<0?-1:0;
@@ -115,7 +115,7 @@ public final class ConstructionControls {
         }
     }
     private static void middle(InputEvent.MouseButton.Pre event){var mc=Minecraft.getInstance();if(mc.player==null||mc.gui.screen()!=null||event.getButton()!=GLFW.GLFW_MOUSE_BUTTON_MIDDLE||event.getAction()!=GLFW.GLFW_PRESS)return;
-        if(ADJUSTED.isDown()){lengthSelection=0;MODES.adjusted=true;mc.player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.length_auto"),true);event.setCanceled(true);}
+        if(ADJUSTED.isDown()){lengthSelection=0;MODES.adjusted=true;mc.player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.length_auto"));event.setCanceled(true);}
         else if(mc.hasAltDown()){MODES.cycleAxis(false);event.setCanceled(true);}}
     private static void extract(ExtractLevelRenderStateEvent event){
         PieceRecord p=preview;if(p==null)return;

@@ -58,13 +58,13 @@ public final class NmgRuntime {
     private static void serverTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event){
         long start=System.nanoTime();int done=0;for(var task:List.copyOf(CHUNKS)){
             if(task.level.getServer()!=event.getServer())continue;if(++done>32||System.nanoTime()-start>=2_000_000)break;CHUNKS.remove(task);
-            var chunk=task.level.getChunkSource().getChunkNow(task.position.x,task.position.z);if(chunk==null)continue;
+            var chunk=task.level.getChunkSource().getChunkNow(task.position.x(),task.position.z());if(chunk==null)continue;
             LOADED.computeIfAbsent(task.level,key->new HashMap<>()).put(task.position,chunk);
             if(QUARANTINE.containsKey(task.level))continue;
             try{
                 var service=open(task.level);var cells=service.cellsInChunk(chunk).iterator();
                 REPAIRS.computeIfAbsent(event.getServer(),key->new net.nicomar.nomoregrids.diagnostic.TickWorkQueue<>(4096)).submit(task,units->{
-                    if(QUARANTINE.containsKey(task.level)||task.level.getChunkSource().getChunkNow(task.position.x,task.position.z)!=chunk)return true;
+                    if(QUARANTINE.containsKey(task.level)||task.level.getChunkSource().getChunkNow(task.position.x(),task.position.z())!=chunk)return true;
                     try{for(int i=0;i<units&&cells.hasNext();i++)service.repairLoadedCells(List.of(cells.next()));return !cells.hasNext();}
                     catch(IOException|RuntimeException ex){quarantine(task.level,ex);return true;}
                 });
@@ -117,7 +117,7 @@ public final class NmgRuntime {
                 }
             }
             PacketDistributor.sendToPlayer(player,new ActionResultPayload(packet.operation(),true,result));
-        }catch(IOException|RuntimeException ex){var service=SERVICES.get(player.level());if(service!=null&&service.quarantined())quarantine(player.level(),ex);String reason=reason(ex);PacketDistributor.sendToPlayer(player,new ActionResultPayload(packet.operation(),false,reason));if(packet.action()!=ActionPayload.Action.PROBE)player.displayClientMessage(Component.translatable("message.nomoregrids."+reason.toLowerCase(Locale.ROOT)),true);NoMoreGrids.LOGGER.debug("NMG rejected {}: {}",reason,ex.getMessage());}
+        }catch(IOException|RuntimeException ex){var service=SERVICES.get(player.level());if(service!=null&&service.quarantined())quarantine(player.level(),ex);String reason=reason(ex);PacketDistributor.sendToPlayer(player,new ActionResultPayload(packet.operation(),false,reason));if(packet.action()!=ActionPayload.Action.PROBE)player.sendOverlayMessage(Component.translatable("message.nomoregrids."+reason.toLowerCase(Locale.ROOT)));NoMoreGrids.LOGGER.debug("NMG rejected {}: {}",reason,ex.getMessage());}
     }
     private static String reason(Exception ex){
         if(ex instanceof net.nicomar.nomoregrids.world.IndexException index)return index.code().name();
@@ -128,7 +128,7 @@ public final class NmgRuntime {
     }
     private static void rightClick(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock event){
         if(!(event.getEntity() instanceof ServerPlayer player))return;var level=player.level();
-        if(QUARANTINE.containsKey(level)){event.setCanceled(true);player.displayClientMessage(Component.translatable("message.nomoregrids.recovery_required"),true);return;}
+        if(QUARANTINE.containsKey(level)){event.setCanceled(true);player.sendOverlayMessage(Component.translatable("message.nomoregrids.recovery_required"));return;}
         var service=SERVICES.get(level);if(service==null)return;
         for(var pos:List.of(event.getPos(),event.getPos().relative(event.getHitVec().getDirection())))if(level.isLoaded(pos)&&!service.snapshot().at(new net.nicomar.nomoregrids.core.CellPos(pos.getX(),pos.getY(),pos.getZ())).isEmpty()&&!(level.getBlockEntity(pos) instanceof CompositeCellEntity)){
             event.setCanceled(true);try{service.repairLoadedCells(List.of(pos));}catch(IOException|RuntimeException ex){quarantine(level,ex);}return;
@@ -150,7 +150,7 @@ public final class NmgRuntime {
             var mining=MINING.get(player.getUUID());
             if(!player.isCreative()&&(mining==null||!mining.piece.equals(piece.pieceId())||mining.revision!=piece.revision()||mining.progress<1))throw new IllegalArgumentException("Mining target/time changed");
             require(level).remove(player,piece.pieceId());MINING.remove(player.getUUID());
-        }catch(IOException|RuntimeException ex){var service=SERVICES.get(level);if(service!=null&&service.quarantined())quarantine(level,ex);player.displayClientMessage(Component.translatable("message.nomoregrids."+reason(ex).toLowerCase(Locale.ROOT)),true);}
+        }catch(IOException|RuntimeException ex){var service=SERVICES.get(level);if(service!=null&&service.quarantined())quarantine(level,ex);player.sendOverlayMessage(Component.translatable("message.nomoregrids."+reason(ex).toLowerCase(Locale.ROOT)));}
     }
     private static void logout(PlayerEvent.PlayerLoggedOutEvent event){if(event.getEntity() instanceof ServerPlayer player)NmgNetworking.persist(player);UUID id=event.getEntity().getUUID();LIMITERS.remove(id);MINING.remove(id);REPLACEMENTS.remove(id);NmgNetworking.disconnected(id);}
     private static void leftClick(net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event){
