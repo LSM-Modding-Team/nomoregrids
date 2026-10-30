@@ -9,9 +9,9 @@
 - Gradle 9.2.1; ModDevGradle 2.0.148
 
 ## Estado y alcance
-El usuario pidió un esqueleto; esta entrega no implementa las mecánicas. Las entradas mínimas solo reservan el arranque. Los package-info.java documentan paquetes; no son sistemas terminados. No crear registros ficticios, bloques de ejemplo ni pruebas que simulen funciones ausentes.
+El usuario autorizó implementar F0–F9, quedando pendientes de compilación y ejecución. La falta de compilación no bloquea escribir las fases posteriores. No declarar aceptación, compatibilidad ni rendimiento medido sin evidencia. No crear registros ficticios, bloques de ejemplo ni pruebas que simulen funciones ausentes.
 
-Leer docs/obsidian/NoMoreGrids/00 Inicio/Inicio.md, Reglas fundamentales, Decisiones tecnicas, Guia para el agente y Plan de fases antes de implementar. Una petición posterior de implementación autoriza el trabajo de esa fase. El alcance original de «solo diseño» quedó ampliado aquí únicamente a crear la base del proyecto.
+Leer docs/obsidian/NoMoreGrids/00 Inicio/Inicio.md, Reglas fundamentales, Decisiones tecnicas, Guia para el agente y Plan de fases antes de implementar. Resolver decisiones rutinarias sin preguntar y explicarlas después del commit. Se conserva la restricción de ejecución de abajo.
 
 ## Trabajo futuro
 - Preservar separación cliente/servidor y núcleo geométrico puro.
