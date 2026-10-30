@@ -539,3 +539,18 @@ Decisión: lotes NMG abarcan PB convertidos; PB que sigue nativo conserva su
 herramienta original. Un lote mixto requiere aún un protocolo de captura conjunto,
 por lo que no se declara compatibilidad completa. Parser, recursos y whitespace
 pasan; ninguna compilación, prueba Java, sesión PB ni Minecraft ejecutada.
+
+## Entrega: fuego, explosiones y efectos de suelo por componente
+
+Los hooks exactos IBlockExtension consultados en NeoForge 26.2.0.88 agregan
+combustibilidad de superficies expuestas. onCaughtFire elimina únicamente piezas
+combustibles; el hook de escritura impide que el intento vanilla posterior borre
+las restantes. onExplosionHit selecciona piezas por resistencia, distancia y
+oclusores; remoción, dependientes y loot van por el diario. Los callbacks de suelo
+y caída del material seleccionado se enrutan mediante el contacto real existente.
+
+Decisión: explosión de una pieza con recuperación no integrada conserva el lote
+completo. La propagación de energía emplea un perfil explícito aproximado por
+pieza; no está acreditada equivalencia exacta con todos los rayos vanilla.
+Decoración con BE y efectos avanzados siguen pendientes. Parser, recursos y
+whitespace pasan; compilación, tests Java y Minecraft no ejecutados.

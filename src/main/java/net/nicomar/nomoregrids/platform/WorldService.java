@@ -420,6 +420,15 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(!removed){executeWorld(changes,auxiliary);return;}
         }throw new IllegalArgumentException("COMPLEXITY_LIMIT: external support cascade");
     }
+    public void removeWorld(Collection<UUID> ids,boolean drops)throws IOException{
+        if(ids.isEmpty())return;var changes=new ArrayList<OperationPlan.Change>();var auxiliary=new ArrayList<OperationPlan.Effect>();
+        for(var id:new TreeSet<>(ids)){var old=snapshot().records().get(id);if(old==null||old.flags().contains(PieceRecord.Flag.SUBSTITUTE))continue;adapters.require(old);if(drops)WorldLoot.queue(level,old,auxiliary);changes.add(new OperationPlan.Change(id,Optional.of(old),Optional.empty()));}
+        for(int pass=0;pass<16;pass++){
+            WorldConnections.complete(level,snapshot(),changes,catalog);var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var touched=new HashSet<CellPos>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}boolean removed=false;
+            for(var id:WorldSupport.nearby(proposed,touched)){var p=proposed.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||WorldSupport.supported(level,proposed,touched,p,catalog))continue;var old=snapshot().records().get(id);if(old==null)throw new IllegalArgumentException("NO_SUPPORT");changes.removeIf(c->c.id().equals(id));changes.add(new OperationPlan.Change(id,Optional.of(old),Optional.empty()));WorldLoot.queue(level,old,auxiliary);removed=true;}
+            if(!removed){executeWorld(changes,auxiliary);return;}
+        }throw new IllegalArgumentException("COMPLEXITY_LIMIT: material support cascade");
+    }
     public void claimLoot(ServerPlayer player)throws IOException{
         if(player.isSpectator()||player.level()!=level||quarantined())return;var claimed=new ArrayList<OperationPlan.Effect>();var slots=NativeInventory.copy(player);var before=NativeInventory.encode(player,slots);
         for(var entry:effects.entrySet())if(entry.getKey().startsWith("loot:")&&claimed.size()<8){var value=entry.getValue();var c=value.owner();

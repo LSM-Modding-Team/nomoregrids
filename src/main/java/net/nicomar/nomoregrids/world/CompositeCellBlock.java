@@ -42,6 +42,20 @@ public final class CompositeCellBlock extends BaseEntityBlock {
         if(state.getValue(FLUID)==0)return net.minecraft.world.level.material.Fluids.EMPTY.defaultFluidState();
         var fluid=state.getValue(FLUID)==1?net.minecraft.world.level.material.Fluids.WATER:net.minecraft.world.level.material.Fluids.LAVA;return state.getValue(SOURCE)?fluid.getSource(false):fluid.getFlowing(1,false);
     }
+    @Override public int getFlammability(BlockState state,BlockGetter level,BlockPos pos,net.minecraft.core.Direction face){return level.getBlockEntity(pos) instanceof CompositeCellEntity cell?net.nicomar.nomoregrids.platform.WorldMaterials.fire(cell,level,pos,face,false):0;}
+    @Override public int getFireSpreadSpeed(BlockState state,BlockGetter level,BlockPos pos,net.minecraft.core.Direction face){return level.getBlockEntity(pos) instanceof CompositeCellEntity cell?net.nicomar.nomoregrids.platform.WorldMaterials.fire(cell,level,pos,face,true):0;}
+    @Override public boolean onCaughtFire(BlockState state,Level level,BlockPos pos,net.minecraft.core.Direction face,net.minecraft.world.entity.LivingEntity igniter){return level instanceof net.minecraft.server.level.ServerLevel server&&net.nicomar.nomoregrids.platform.WorldMaterials.burn(server,pos,face,igniter);}
+    @Override public float getExplosionResistance(BlockState state,BlockGetter level,BlockPos pos,Explosion explosion){
+        if(!(level.getBlockEntity(pos) instanceof CompositeCellEntity cell)||!cell.valid())return 3600000;float min=3600000;
+        for(var p:cell.view().replicas())try{if(!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE))min=Math.min(min,net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getExplosionResistance(level,pos,explosion));}catch(RuntimeException ignored){}return min;
+    }
+    @Override protected void onExplosionHit(BlockState state,net.minecraft.server.level.ServerLevel level,BlockPos pos,Explosion explosion,java.util.function.BiConsumer<net.minecraft.world.item.ItemStack,BlockPos> drops){net.nicomar.nomoregrids.platform.WorldMaterials.explode(level,pos,explosion);}
+    @Override public void stepOn(Level level,BlockPos pos,BlockState state,net.minecraft.world.entity.Entity entity){
+        if(level.getBlockEntity(pos) instanceof CompositeCellEntity cell)cell.ground(entity).ifPresent(p->{var nativeState=net.nicomar.nomoregrids.platform.NativeStates.resolve(p);nativeState.getBlock().stepOn(level,pos,nativeState,entity);});
+    }
+    @Override public void fallOn(Level level,BlockState state,BlockPos pos,net.minecraft.world.entity.Entity entity,double distance){
+        if(level.getBlockEntity(pos) instanceof CompositeCellEntity cell){var ground=cell.ground(entity);if(ground.isPresent()){var nativeState=net.nicomar.nomoregrids.platform.NativeStates.resolve(ground.orElseThrow());nativeState.getBlock().fallOn(level,nativeState,pos,entity,distance);return;}}super.fallOn(level,state,pos,entity,distance);
+    }
     @Override protected RenderShape getRenderShape(BlockState state){return RenderShape.MODEL;}
     @Override protected boolean useShapeForLightOcclusion(BlockState state){return true;}
     @Override protected VoxelShape getOcclusionShape(BlockState state){return state.getValue(SEALED)?Shapes.block():Shapes.empty();}
