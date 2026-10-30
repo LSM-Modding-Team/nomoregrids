@@ -56,6 +56,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private final Map<UUID,Map<BlockPos,net.minecraft.world.level.block.state.BlockState>> nativeImages=new HashMap<>();
     public WorldFluids fluids(){return fluids;}
     public PieceAdapter adapter(PieceRecord p){return adapters.require(p);}
+    private static final ThreadLocal<ArrayDeque<WorldService>> WRITE_CONTEXT=ThreadLocal.withInitial(ArrayDeque::new);
+    public static WorldService writingService(ServerLevel level){for(var service:WRITE_CONTEXT.get())if(service.level==level&&service.writing())return service;return null;}
+    private void beginWrite(){if(writing++==0)WRITE_CONTEXT.get().addFirst(this);}
+    private void endWrite(){if(--writing==0){var contexts=WRITE_CONTEXT.get();contexts.removeFirstOccurrence(this);if(contexts.isEmpty())WRITE_CONTEXT.remove();}}
     private int writing;
     public boolean writing(){return writing>0;}
     public Map<String,WorldEffectStore.Value> effects(){return Collections.unmodifiableMap(effects);}
@@ -352,7 +356,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var c:plan.changes())knownIds.add(c.id());
         reconcileResources(plan,sequence);
         applyEffects(plan);
-        writing++;try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")||e.key().startsWith("native:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{writing--;}
+        beginWrite();try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")||e.key().startsWith("native:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{endWrite();}
         Set<SectionPos> effectSections=new HashSet<>();plan.effects().forEach(e->{effectSections.add(e.owner().section());effectSections.add(e.previousOwner().section());});
         for(var section:effectSections)effectStore.write(section,sequence,sectionEffects(section));
         Set<SectionPos> sections=new HashSet<>();for(var c:plan.changes()){c.before().ifPresent(p->sections.add(p.ownerSection()));c.after().ifPresent(p->sections.add(p.ownerSection()));}
@@ -402,10 +406,13 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         }
         executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,completed,BinaryData.EMPTY,BinaryData.EMPTY,auxiliary));
     }
+    public static String nativeCaptureKey(CellPos c){return "nativebe:"+c.x()+":"+c.y()+":"+c.z();}
+    public boolean capturedNative(net.minecraft.world.level.block.entity.BlockEntity be){var cell=new CellPos(be.getBlockPos().getX(),be.getBlockPos().getY(),be.getBlockPos().getZ());var value=effects.get(nativeCaptureKey(cell));if(value==null)return false;try{var stamp=NativeCaptureStamp.decode(value.data());return stamp.block().value().equals(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(be.getBlockState().getBlock()).toString())&&WorldFunctionals.matchesDigest(level,be,stamp.digest());}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: native transfer receipt",ex);}}
+    private void retainNativeCapture(CellPos cell,PieceIndex index)throws IOException{var be=level.getBlockEntity(pos(cell));if(be==null||be instanceof CompositeCellEntity||capturedNative(be))return;for(var id:index.at(cell)){var p=index.records().get(id);if(WorldFunctionals.piece(p)&&functionals.matchesNative(p,pos(cell))){var data=new NativeCaptureStamp(p.sourceBlockId(),p.itemPayload()).encode();var old=effects.get(nativeCaptureKey(cell));executeWorld(List.of(),List.of(new OperationPlan.Effect(nativeCaptureKey(cell),cell,Optional.ofNullable(old).map(WorldEffectStore.Value::data),Optional.of(data))));return;}}}
     public static String nativeKey(CellPos c){return "native:"+c.x()+":"+c.y()+":"+c.z();}
     public Optional<net.minecraft.world.level.block.state.BlockState> nativeGoal(CellPos cell){var value=effects.get(nativeKey(cell));if(value==null)return Optional.empty();try{var image=NativeStateImage.decode(value.data());return Optional.of(NativeStates.resolve(image.block(),image.properties()));}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: native goal",ex);}}
     public OperationPlan.Effect nativeChange(CellPos cell,net.minecraft.world.level.block.state.BlockState after){var old=Optional.ofNullable(effects.get(nativeKey(cell))).map(WorldEffectStore.Value::data);var data=new NativeStateImage(new ResourceId(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(after.getBlock()).toString()),NativeStates.properties(after)).encode();return new OperationPlan.Effect(nativeKey(cell),cell,old,Optional.of(data));}
-    public void releaseNativeGoal(CellPos cell)throws IOException{var old=effects.get(nativeKey(cell));if(old!=null)executeWorld(List.of(),List.of(new OperationPlan.Effect(nativeKey(cell),cell,Optional.of(old.data()),Optional.empty())));}
+    public void releaseNativeGoal(CellPos cell)throws IOException{var old=effects.get(nativeKey(cell));if(old!=null)executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,List.of(),BinaryData.EMPTY,BinaryData.EMPTY,List.of(new OperationPlan.Effect(nativeKey(cell),cell,Optional.of(old.data()),Optional.empty()))));}
     private void syncCell(CellPos cell,PieceIndex index)throws IOException{
         BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IOException("Region unloaded during commit");
         var goal=nativeGoal(cell);if(goal.isPresent()&&(!goal.orElseThrow().isAir()||index.at(cell).isEmpty()&&fluids.at(cell).isEmpty())){
@@ -426,10 +433,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(!available(p))return Optional.empty();return NativeRepresentation.restore(p,cell,level);
     }
     public void releaseNative(CellPos cell)throws IOException{
-        if(nativeProjection(cell).isEmpty())return;var p=snapshot().records().get(snapshot().at(cell).iterator().next());executeWorld(List.of(new OperationPlan.Change(p.pieceId(),Optional.of(p),Optional.empty())),List.of());
+        if(nativeProjection(cell).isEmpty())return;var p=snapshot().records().get(snapshot().at(cell).iterator().next());executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,List.of(new OperationPlan.Change(p.pieceId(),Optional.of(p),Optional.empty())),BinaryData.EMPTY,BinaryData.EMPTY));
     }
     public void repairLoadedCells(Collection<BlockPos> existingCells)throws IOException{
-        writing++;try{repairCells(existingCells);}finally{writing--;}
+        beginWrite();try{repairCells(existingCells);}finally{endWrite();}
     }
     private void repairCells(Collection<BlockPos> existingCells)throws IOException{
         if(quarantined())throw new IOException("Committed operation requires recovery; replicas retained");
@@ -439,6 +446,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&!entity.valid())continue;
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownPiece(p.pieceId())))continue;
             boolean expectedNative=nativeProjection(cell,snapshot()).filter(state::equals).isPresent()||snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
+            retainNativeCapture(cell,snapshot());
             if(nativeGoal(cell).isPresent()||state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative)syncCell(cell,snapshot());
             else if(!snapshot().at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }

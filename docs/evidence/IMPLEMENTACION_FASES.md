@@ -919,3 +919,22 @@ cierra si su pieza cambia de posición. Protocolo de red 9.
 Revisión estática de sintaxis, recursos e imports de Minecraft/NeoForge; las
 firmas PB se contrastaron con sus fuentes. No se ejecutaron compilación, menús,
 transferencias ni procesos de producción en Minecraft.
+
+## Revisión de transferencias nativas y hashes
+
+La revisión del bytecode 26.2 detectó que LevelChunk invoca preRemoveSideEffects
+sobre la BE nativa: convertir un contenedor conservando sus slots en NMG podía
+producir además drops/XP nativos. Se persiste un recibo nativebe del bloque/hash
+original; el hook omite esa llamada solo durante una escritura controlada y para
+la imagen exacta ya transferida. También sirve si el chunk nativo quedó antiguo
+tras un cierre. El contexto de escritura cubre la recuperación del constructor,
+antes de registrar el servicio en NmgRuntime. Capturas antiguas admitidas pueden
+registrar su recibo al reparar. Los originales y estados nuevos siguen separados.
+La captura de slots opera sobre una BE clonada, por lo que abrir una loot table
+no modifica el contenedor original durante la planificación. Los hashes nuevos
+ordenan objetos JSON y aceptan el hash histórico para capturas ya guardadas.
+La cesión de una proyección a una modificación externa aplaza las consecuencias
+de apoyo hasta observar la escritura real; no simula una retirada de su soporte
+mientras el bloque nativo todavía está presente.
+Verificado estáticamente contra firmas/bytecode y parser; no se ejecutó una
+conversión, un cierre forzado ni una prueba de duplicación en el juego.

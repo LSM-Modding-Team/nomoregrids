@@ -19,7 +19,8 @@
     "PaintableMenuMixin",
     "PaintableWorkstationActionMixin",
     "PaintableBucketActionMixin",
-    "PaintableBucketInteractionMixin"
+    "PaintableBucketInteractionMixin",
+    "NativeInventoryRemovalMixin"
   ],
   "injectors": {
     "defaultRequire": 1

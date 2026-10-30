@@ -13,7 +13,7 @@ public final class WorldMutationHooks {
     private static final Map<ServerLevel,Iterator<CellPos>> SCANS=new IdentityHashMap<>();
     private WorldMutationHooks(){}
     public static boolean before(ServerLevel level,BlockPos pos,BlockState state){
-        var service=NmgRuntime.existing(level);if(service==null||service.writing()||level.getBlockState(pos).equals(state))return true;
+        var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing()||level.getBlockState(pos).equals(state))return true;
         var cell=new CellPos(pos.getX(),pos.getY(),pos.getZ());
         if(service.nativeGoal(cell).isPresent())try{service.releaseNativeGoal(cell);}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
         if(level.getBlockState(pos).getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock&&!state.getFluidState().isEmpty()){
@@ -25,7 +25,7 @@ public final class WorldMutationHooks {
         try{service.releaseNative(cell);return true;}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
     }
     public static void changed(ServerLevel level,BlockPos pos){
-        var service=NmgRuntime.existing(level);if(service==null||service.writing())return;
+        var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing())return;
         service.fluids().changed(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
         var dirty=DIRTY.computeIfAbsent(level,k->new LinkedHashSet<>());if(dirty.size()<4096)dirty.add(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
         else SCANS.putIfAbsent(level,service.snapshot().records().values().stream().flatMap(p->p.worldOccupation().cells(8).stream()).distinct().iterator());
