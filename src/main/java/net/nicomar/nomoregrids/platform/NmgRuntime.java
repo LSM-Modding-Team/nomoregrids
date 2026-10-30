@@ -82,7 +82,7 @@ public final class NmgRuntime {
     private static void login(PlayerEvent.PlayerLoggedInEvent event){if(event.getEntity() instanceof ServerPlayer player){NmgNetworking.joined(player);for(var level:List.copyOf(QUARANTINE.keySet())){
         var old=SERVICES.remove(level);if(old!=null)try{old.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close failed NMG service",ex);continue;}
         try{open(level);for(var chunk:LOADED.getOrDefault(level,Map.of()).keySet())CHUNKS.add(new ChunkTask(level,chunk));QUARANTINE.remove(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
-    }}}
+    }WorldFunctionals.closeCursor(player);}}
     public static void action(ServerPlayer player,ActionPayload packet){
         if(!LIMITERS.computeIfAbsent(player.getUUID(),key->new IntentLimiter()).allow(System.nanoTime()))return;
         try{
@@ -171,7 +171,7 @@ public final class NmgRuntime {
     }
     private static void playerTick(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event){
         if(!(event.getEntity() instanceof ServerPlayer player))return;
-        if(player.level().getGameTime()%10==0){var service=SERVICES.get(player.level());if(service!=null)try{service.claimLoot(player);}catch(IOException|RuntimeException ex){if(service.quarantined())quarantine(player.level(),ex);}}
+        if(player.level().getGameTime()%10==0){if(player.containerMenu==player.inventoryMenu&&!player.getPersistentData().getStringOr("nmg_carried","").isEmpty())WorldFunctionals.closeCursor(player);var service=SERVICES.get(player.level());if(service!=null)try{service.claimLoot(player);}catch(IOException|RuntimeException ex){if(service.quarantined())quarantine(player.level(),ex);}}
         try{advanceMining(player,MINING,false);advanceMining(player,REPLACEMENTS,true);}catch(RuntimeException ex){MINING.remove(player.getUUID());REPLACEMENTS.remove(player.getUUID());}
     }
     private static void advanceMining(ServerPlayer player,Map<UUID,Mining> sessions,boolean replacement){

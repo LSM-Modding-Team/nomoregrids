@@ -31,7 +31,9 @@ public final class WorldFunctionals {
     private static final Set<String> IDS=Set.of("minecraft:barrel","minecraft:furnace","minecraft:blast_furnace","minecraft:smoker");
     private record MenuSession(WorldFunctionals owner,UUID piece,FunctionalContainer container){}
     private static final Map<AbstractContainerMenu,MenuSession> MENUS=new WeakHashMap<>();
-    private static final Map<AbstractContainerMenu,Integer> DESTINATIONS=new WeakHashMap<>();
+    private static final ThreadLocal<Stage> STAGE=new ThreadLocal<>();
+    private record Stage(ServerPlayer player,List<ItemStack> drops){}
+    private final Map<UUID,Long> simulated=new HashMap<>();
     public static boolean managed(AbstractContainerMenu menu){return MENUS.containsKey(menu);}
     private final ServerLevel level;private final WorldService service;private int roundRobin;
     public WorldFunctionals(ServerLevel level,WorldService service){this.level=level;this.service=service;}
@@ -79,41 +81,59 @@ public final class WorldFunctionals {
     public List<ItemStack> drops(PieceRecord p,ServerPlayer player){var be=detached(p);var result=new ArrayList<ItemStack>();for(int i=0;i<be.getContainerSize();i++){result.add(be.getItem(i).copy());be.setItem(i,ItemStack.EMPTY);}result.addAll(Block.getDrops(NativeStates.resolve(p),level,be.getBlockPos(),be,player,player==null?ItemStack.EMPTY:player.getMainHandItem()));return result.stream().filter(s->!s.isEmpty()).toList();}
     private OperationPlan.Effect update(PieceRecord p,BaseContainerBlockEntity be){var old=service.effects().get(key(p.pieceId()));var previous=state(p);var next=capture(p,be,Math.incrementExact(previous.revision()));return new OperationPlan.Effect(key(p.pieceId()),old.owner(),Optional.of(old.data()),Optional.of(encode(p,next)));}
     public void tick()throws IOException{
-        var active=service.snapshot().records().values().stream().filter(WorldFunctionals::piece).filter(p->level.isLoaded(WorldService.pos(p.origin16().cell()))).sorted(Comparator.comparing(PieceRecord::pieceId)).toList();if(active.isEmpty())return;
-        int count=Math.min(16,active.size());for(int i=0;i<count;i++){var p=active.get(Math.floorMod(roundRobin++,active.size()));var before=state(p);var be=detached(p,before);if(!(be instanceof AbstractFurnaceBlockEntity furnace))continue;
-            AbstractFurnaceBlockEntity.serverTick(level,be.getBlockPos(),be.getBlockState(),furnace);var after=capture(p,be,before.revision());if(!after.equals(before)){
-                var changes=new ArrayList<OperationPlan.Change>();boolean lit=tag(level,after.machine()).getIntOr("lit_time_remaining",0)>0;var properties=new HashMap<>(p.sourceState());if(properties.containsKey("lit")&&!properties.get("lit").equals(Boolean.toString(lit))){properties.put("lit",Boolean.toString(lit));var next=new PieceRecord(p.pieceId(),Math.incrementExact(p.revision()),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),properties,p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),p.flags());changes.add(new OperationPlan.Change(p.pieceId(),Optional.of(p),Optional.of(next)));}
-                service.executeWorld(changes,List.of(update(p,be)));
-            }
-        }refreshMenus();
+        var active=service.snapshot().records().values().stream().filter(WorldFunctionals::piece).filter(p->level.isLoaded(WorldService.pos(p.origin16().cell()))).sorted(Comparator.comparing(PieceRecord::pieceId)).toList();var loaded=new HashSet<UUID>();for(var p:active){loaded.add(p.pieceId());simulated.putIfAbsent(p.pieceId(),level.getGameTime()-1);}simulated.keySet().retainAll(loaded);if(active.isEmpty())return;
+        long start=System.nanoTime();for(int i=0;i<Math.min(16,active.size())&&System.nanoTime()-start<2_000_000;i++){var p=active.get(Math.floorMod(roundRobin++,active.size()));try{synchronize(p);}catch(IllegalArgumentException pending){if(!Objects.toString(pending.getMessage(),"").contains("backlog"))throw pending;}}refreshMenus();
     }
     private void refreshMenus(){for(var e:List.copyOf(MENUS.entrySet()))if(e.getValue().owner==this){var p=service.snapshot().records().get(e.getValue().piece);if(p!=null)e.getValue().container.replace(detached(p));}}
     public void open(ServerPlayer player,PieceRecord p){
+        try{synchronize(p);}catch(IOException ex){throw new UncheckedIOException(ex);}
         var be=detached(p);if(!be.canOpen(player))throw new IllegalArgumentException("PROTECTED");var container=new FunctionalContainer(this,p.pieceId(),be);var data=new ContainerData(){
             @Override public int get(int index){var nbt=container.be.saveWithoutMetadata(level.registryAccess());return nbt.getIntOr(new String[]{"lit_time_remaining","lit_total_time","cooking_time_spent","cooking_total_time"}[index],0);}
             @Override public void set(int index,int value){}@Override public int getCount(){return 4;}};
         player.openMenu(new SimpleMenuProvider((window,inventory,actor)->{AbstractContainerMenu menu=switch(p.sourceBlockId().value()){
-            case "minecraft:furnace"->new FurnaceMenu(window,inventory,container,data);case "minecraft:smoker"->new SmokerMenu(window,inventory,container,data);case "minecraft:blast_furnace"->new BlastFurnaceMenu(window,inventory,container,data);default->ChestMenu.threeRows(window,inventory,container);};MENUS.put(menu,new MenuSession(this,p.pieceId(),container));return menu;},be.getDisplayName().copy().append(Component.literal(" · derecho: destino; clic: transferir"))));
+            case "minecraft:furnace"->new FurnaceMenu(window,inventory,container,data);case "minecraft:smoker"->new SmokerMenu(window,inventory,container,data);case "minecraft:blast_furnace"->new BlastFurnaceMenu(window,inventory,container,data);default->ChestMenu.threeRows(window,inventory,container);};MENUS.put(menu,new MenuSession(this,p.pieceId(),container));return menu;},be.getDisplayName()));
     }
-    public static boolean click(AbstractContainerMenu menu,int index,int button,ContainerInput input,Player actor){
-        var session=MENUS.get(menu);if(session==null||!(actor instanceof ServerPlayer player))return false;
-        try{session.owner.transfer(menu,index,button,input,player,session);}catch(IOException|RuntimeException ex){if(session.owner.service.quarantined())NmgRuntime.failed(session.owner.level,ex);player.sendOverlayMessage(Component.literal("No se pudo transferir: "+ex.getMessage()));}menu.setCarried(ItemStack.EMPTY);menu.broadcastFullState();return true;
+    public static boolean stage(AbstractContainerMenu menu,ServerPlayer player,Runnable operation){
+        var session=MENUS.get(menu);if(session==null||STAGE.get()!=null)return false;var owner=session.owner;var p=owner.service.snapshot().records().get(session.piece);if(p==null||!session.container.stillValid(player))return true;
+        try{owner.synchronize(p);p=owner.service.snapshot().records().get(session.piece);session.container.replace(owner.detached(p));var before=NativeInventory.encode(player,NativeInventory.copy(player));var original=owner.state(p);var staged=owner.detached(p,original);session.container.replace(staged);var drops=new ArrayList<ItemStack>();BinaryData after;
+            int oldOutput=staged instanceof AbstractFurnaceBlockEntity?staged.getItem(2).getCount():0;
+            STAGE.set(new Stage(player,drops));try{operation.run();after=NativeInventory.encode(player,NativeInventory.copy(player));}finally{STAGE.remove();NativeInventory.restore(player,before);session.container.replace(owner.detached(p,original));}
+            int xp=oldOutput>staged.getItem(staged instanceof AbstractFurnaceBlockEntity?2:0).getCount()&&staged instanceof AbstractFurnaceBlockEntity?owner.claimExperience(staged):0;if(xp>0)after=NativeInventory.experience(after,xp);
+            var effects=new ArrayList<OperationPlan.Effect>();var next=owner.capture(p,staged,original.revision());if(!next.equals(original))effects.add(owner.update(p,staged));
+            if(!drops.isEmpty()){var cell=new CellPos(player.getBlockX(),player.getBlockY(),player.getBlockZ());effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),cell,Optional.empty(),Optional.of(WorldLoot.encode(owner.level,drops))));}
+            if(!effects.isEmpty()||!before.equals(after))owner.service.executePrepared(new OperationPlan(UUID.randomUUID(),player.getUUID(),OperationPlan.Kind.TRANSFER,List.of(),before,after,effects));owner.refreshMenus();
+        }catch(IOException|RuntimeException ex){if(owner.service.quarantined())NmgRuntime.failed(owner.level,ex);player.sendOverlayMessage(Component.literal("NMG: "+ex.getMessage()));}menu.broadcastFullState();return true;
     }
-    private void transfer(AbstractContainerMenu menu,int index,int button,ContainerInput input,ServerPlayer actor,MenuSession session)throws IOException{
-        if(input!=ContainerInput.PICKUP&&input!=ContainerInput.QUICK_MOVE||index<0||index>=menu.slots.size()||!session.container.stillValid(actor))return;var p=service.snapshot().records().get(session.piece);var be=detached(p);var slots=NativeInventory.copy(actor);var before=NativeInventory.encode(actor,slots);var clicked=menu.slots.get(index);
-        if(clicked.container==session.container){int slot=clicked.getContainerSlot();if(button==1){DESTINATIONS.put(menu,slot);return;}var item=be.getItem(slot);if(item.isEmpty())return;int amount=button==1?1:item.getCount();NativeInventory.insert(slots,item.copyWithCount(amount));be.removeItem(slot,amount);}
-        else if(clicked.container==actor.getInventory()){
-            int source=clicked.getContainerSlot();if(source<0||source>=slots.size())return;var item=slots.get(source);if(item.isEmpty())return;int remaining=button==1?1:item.getCount(),moved=0;
-            for(int i=0;i<be.getContainerSize()&&remaining>0;i++){if(DESTINATIONS.containsKey(menu)&&DESTINATIONS.get(menu)!=i||!be.canPlaceItem(i,item))continue;var old=be.getItem(i);if(!old.isEmpty()&&!ItemStack.isSameItemSameComponents(old,item))continue;int n=Math.min(remaining,Math.min(item.getMaxStackSize(),be.getMaxStackSize())-old.getCount());if(n>0){be.setItem(i,item.copyWithCount(old.getCount()+n));remaining-=n;moved+=n;}}
-            if(moved==0)return;item.shrink(moved);
-        }else return;
-        service.executePrepared(new OperationPlan(UUID.randomUUID(),actor.getUUID(),OperationPlan.Kind.TRANSFER,List.of(),before,NativeInventory.encode(actor,slots),List.of(update(p,be))));refreshMenus();
+    public static boolean click(AbstractContainerMenu menu,int index,int button,ContainerInput input,Player actor){return actor instanceof ServerPlayer player&&stage(menu,player,()->menu.clicked(index,button,input,actor));}
+    public static boolean deferDrop(ServerPlayer player,ItemStack stack){var stage=STAGE.get();if(stage==null||stage.player!=player)return false;if(!stack.isEmpty())stage.drops.add(stack.copy());return true;}
+    private int claimExperience(BaseContainerBlockEntity be){
+        var nbt=be.saveWithoutMetadata(level.registryAccess());var used=nbt.getCompoundOrEmpty("RecipesUsed");int points=0;
+        for(String id:used.keySet()){
+            var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.RECIPE,net.minecraft.resources.Identifier.parse(id));var holder=level.recipeAccess().byKey(key);
+            if(holder.isPresent()&&holder.orElseThrow().value() instanceof net.minecraft.world.item.crafting.AbstractCookingRecipe recipe){float exact=used.getIntOr(id,0)*recipe.experience();int n=(int)Math.floor(exact);if(level.getRandom().nextFloat()<exact-n)n++;points=Math.addExact(points,n);}
+        }
+        nbt.put("RecipesUsed",new CompoundTag());be.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),nbt));return points;
+    }
+    public static void closeCursor(ServerPlayer player){
+        var session=MENUS.get(player.containerMenu);var owner=session==null?NmgRuntime.existing(player.level()):session.owner.service;if(owner==null)return;
+        if(player.containerMenu.getCarried().isEmpty())NativeInventory.restoreCursor(player);if(player.containerMenu.getCarried().isEmpty())return;
+        if(session==null&&player.getPersistentData().getStringOr("nmg_carried","").isEmpty())return;
+        var slots=NativeInventory.copy(player);var before=NativeInventory.encode(player,slots);var carried=player.containerMenu.getCarried().copy();var effects=new ArrayList<OperationPlan.Effect>();
+        try{var attempt=slots.stream().map(ItemStack::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));NativeInventory.insert(attempt,carried);slots=attempt;}catch(IllegalArgumentException full){var c=new CellPos(player.getBlockX(),player.getBlockY(),player.getBlockZ());effects.add(new OperationPlan.Effect("loot:"+UUID.randomUUID(),c,Optional.empty(),Optional.of(WorldLoot.encode(player.level(),List.of(carried)))));}
+        var after=NativeInventory.withCarried(player,NativeInventory.encode(player,slots),ItemStack.EMPTY);try{owner.executePrepared(new OperationPlan(UUID.randomUUID(),player.getUUID(),OperationPlan.Kind.TRANSFER,List.of(),before,after,effects));}catch(IOException|RuntimeException ex){NmgRuntime.failed(player.level(),ex);throw new IllegalStateException("NMG cursor receipt requires recovery",ex);}
+    }
+    public void synchronize(PieceRecord p)throws IOException{
+        if(!piece(p)||!level.isLoaded(WorldService.pos(p.origin16().cell())))return;long now=level.getGameTime();long previous=simulated.getOrDefault(p.pieceId(),now-1);if(previous>now)previous=now-1;long due=now-previous;if(due==0)return;
+        var original=state(p);var be=detached(p,original);if(!(be instanceof AbstractFurnaceBlockEntity furnace)){simulated.put(p.pieceId(),now);return;}
+        int steps=(int)Math.min(128,due);for(int i=0;i<steps;i++)AbstractFurnaceBlockEntity.serverTick(level,be.getBlockPos(),be.getBlockState(),furnace);var after=capture(p,be,original.revision());
+        if(!after.equals(original)){var changes=new ArrayList<OperationPlan.Change>();boolean lit=tag(level,after.machine()).getIntOr("lit_time_remaining",0)>0;var values=new HashMap<>(p.sourceState());if(!Objects.equals(values.get("lit"),Boolean.toString(lit))){values.put("lit",Boolean.toString(lit));var next=new PieceRecord(p.pieceId(),Math.incrementExact(p.revision()),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),values,p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),p.flags());changes.add(new OperationPlan.Change(p.pieceId(),Optional.of(p),Optional.of(next)));}service.executeWorld(changes,List.of(update(p,be)));}
+        simulated.put(p.pieceId(),previous+steps);if(due>steps)throw new IllegalArgumentException("PENDING_MINING: functional tick backlog");
     }
     private static final class FunctionalContainer implements Container {
         final WorldFunctionals owner;final UUID piece;BaseContainerBlockEntity be;
         FunctionalContainer(WorldFunctionals owner,UUID piece,BaseContainerBlockEntity be){this.owner=owner;this.piece=piece;this.be=be;}void replace(BaseContainerBlockEntity value){be=value;}
-        @Override public int getContainerSize(){return be.getContainerSize();}@Override public boolean isEmpty(){return be.isEmpty();}@Override public ItemStack getItem(int slot){return be.getItem(slot).copy();}
-        @Override public ItemStack removeItem(int slot,int amount){throw new UnsupportedOperationException("Use transactional transfer");}@Override public ItemStack removeItemNoUpdate(int slot){throw new UnsupportedOperationException("Use transactional transfer");}@Override public void setItem(int slot,ItemStack stack){throw new UnsupportedOperationException("Use transactional transfer");}@Override public void setChanged(){}@Override public void clearContent(){throw new UnsupportedOperationException("Use transactional transfer");}
+        @Override public int getContainerSize(){return be.getContainerSize();}@Override public boolean isEmpty(){return be.isEmpty();}@Override public ItemStack getItem(int slot){return STAGE.get()!=null?be.getItem(slot):be.getItem(slot).copy();}
+        @Override public ItemStack removeItem(int slot,int amount){if(STAGE.get()==null)throw new IllegalStateException("Functional write requires a staged menu");return be.removeItem(slot,amount);}@Override public ItemStack removeItemNoUpdate(int slot){if(STAGE.get()==null)throw new IllegalStateException("Functional write requires a staged menu");return be.removeItemNoUpdate(slot);}@Override public void setItem(int slot,ItemStack stack){if(STAGE.get()==null)throw new IllegalStateException("Functional write requires a staged menu");be.setItem(slot,stack);}@Override public void setChanged(){}@Override public void clearContent(){if(STAGE.get()==null)throw new IllegalStateException("Functional write requires a staged menu");be.clearContent();}
         @Override public boolean stillValid(Player player){var p=owner.service.snapshot().records().get(piece);if(p==null||player.level()!=owner.level||owner.service.quarantined())return false;var c=p.origin16().cell();return owner.level.isLoaded(WorldService.pos(c))&&player.distanceToSqr(c.x()+0.5,c.y()+0.5,c.z()+0.5)<=64;}
         @Override public boolean canPlaceItem(int slot,ItemStack stack){return be.canPlaceItem(slot,stack);}
     }

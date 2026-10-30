@@ -245,7 +245,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(compactionFault)throw new IllegalStateException("Recovery required after checkpoint publication");
         validateEffects(plan);
         if(plan.actor().equals(OperationPlan.WORLD_ACTOR)){validateSystem(plan,before,after);return;}
-        ServerPlayer player=level.getServer().getPlayerList().getPlayer(plan.actor());if(player==null||player.level()!=level||player.isSpectator())throw new IllegalArgumentException("Invalid actor");
+        ServerPlayer player=level.getServer().getPlayerList().getPlayer(plan.actor());if(player==null||player.level()!=level||player.isSpectator()&&!(plan.kind()==OperationPlan.Kind.TRANSFER&&plan.changes().isEmpty()))throw new IllegalArgumentException("Invalid actor");
         if(!NativeInventory.matches(player,plan.resourcesBefore()))throw new IllegalArgumentException("STALE_REVISION");
         if(player.getPersistentData().getLongOr(receiptKey,0)>baseSequence+sequences.size())throw new IllegalArgumentException("INVALID_DATA: receipt is ahead of journal");
         double reach=player.blockInteractionRange();var eye=player.getEyePosition();
@@ -268,7 +268,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         }
         for(var cell:plan.affectedCells()){
             BlockPos at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION or world boundary");
-            if(!level.mayInteract(player,at)||!player.getAbilities().mayBuild)throw new IllegalArgumentException("PROTECTED");
+            if((!level.mayInteract(player,at)||!player.getAbilities().mayBuild)&&plan.kind()!=OperationPlan.Kind.TRANSFER)throw new IllegalArgumentException("PROTECTED");
             if(!plan.pieceCells().contains(cell))continue;
             if(!level.getFluidState(at).isEmpty())WorldFluids.kind(level.getFluidState(at));
             var state=level.getBlockState(at);

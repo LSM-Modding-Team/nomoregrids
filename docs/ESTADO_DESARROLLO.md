@@ -14,7 +14,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | F4 | Materiales/luz, parches exactos, cadenas estables, dependientes en operaciones NMG, contactos por área, fricción/rebote/sonidos, escalada, pérdida de soporte externo journalizada, fuego y explosión por componente | Decoración con datos, efectos de contacto avanzado y fidelidad de propagación de explosiones |
 | F5 | Cavidades 16³ conectadas a diario, réplicas, cubos, redistribución, flujo/reacciones, máscara convexa, cadencias y malla de caras fusionadas | Ampliar planificación de regiones activas grandes; validar puente vanilla, contactos/corrientes, cadencias y reacciones en el juego |
 | F6 | API versionada, captura/colocación PB, convexos/render, apoyo nativo, pincel por áreas, herramientas simples, volumen/pendientes con selección por revisiones, costes por copia y loot nativo | Lotes que mezclen PB nativos y convertidos; pruebas del ciclo completo en dedicado |
-| F7 | Autoridad única, captura nativa, codec/checkpoints privados, barriles y hornos nativos con recetas, ticking y menús conectados | Capacidades transaccionales entre mods, XP y autofill de menús, cadencia con más de 16 hornos, grupos y migración de dueño al mover |
+| F7 | Autoridad única, captura nativa, codec/checkpoints privados, barriles y hornos nativos con recetas, ticking y menús conectados | Capacidades transaccionales entre mods y grupos; validar cursor, XP, autofill, reloj acumulado y migración de dueño |
 | F8 | Planificador de barrido, primer hook de pistones con base/cabezal journalizados, red lógica con retardos y continuidad de raíles | Empujes mixtos con bloques nativos, grupos, PB, continuidad nativa de raíles y circuitos/redstone conectados |
 | F9 | Presupuestos previos, caché de formas por celda, reparación diferida/coalescida por tick, LRU global de geometría por peso, tiempos de operaciones y compactación por generaciones con índices de deduplicación en disco | Compactación incremental/automática, cachés adicionales y escenas/certificación medidas |
 
@@ -85,8 +85,8 @@ nativos usados para planificar o mostrar el menú son copias temporales. Los
 menús transfieren sin propiedad de ítems en el cursor: clic derecho en máquina
 selecciona destino, clic en inventario transfiere y clic en máquina recupera.
 Faltan cursor/drag y autofill transaccionales, XP, capacidades de automatización,
-y gestión de grupos. Se procesan hasta 16 funcionales por tick, aún sin compensar
-cadencia para cantidades mayores. F7 continúa parcial.
+y gestión de grupos. El trabajo se distribuye con reloj lógico acumulado y no descarta ticks con
+cantidades mayores a 16; quedan pendientes pruebas de ejecución.
 
 F8 conecta el evento nativo de pistón cuando su cara encuentra directamente
 componentes NMG: barrido, entidades y límite 12; extensión/retracción de base y

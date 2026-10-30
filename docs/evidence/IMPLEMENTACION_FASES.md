@@ -681,3 +681,22 @@ que vanilla no puede representar conservan el contenedor.
 Decisión: falta de adaptador es estado de consulta, no migración destructiva.
 Prueba escrita de codec/migración entre secciones; no ejecutada. Parser, recursos
 y whitespace revisados; no compilación, Gradle, Java tests ni Minecraft.
+
+## Menús nativos completos y tiempo funcional
+
+Se ejecutan clics/drag/shift/hotbar y autofill nativos sobre una BE temporal y
+una imagen reversible del jugador. Se restauran las imágenes antes de validar
+el plan; drops se difieren a loot durable. Se confirman juntos slots, cursor, XP
+y estado de máquina. El cursor queda en datos persistentes del jugador junto
+al recibo, se reconcilia al cargar y se vacía transaccionalmente al cerrar menú
+(o pasa a loot pendiente si no cabe). No se restaura a una segunda autoridad
+cuando el servicio está esperando recuperación. Los archivos legacy de recibo
+con solo slots siguen leyéndose. XP usa recetas reales, curva y fracción vanilla;
+RecipesUsed se limpia en la misma operación que concede XP al retirar resultado.
+
+El reloj de cada funcional acumula ticks pendientes, con reanudación antes de
+interacciones y pasos acotados por turno; más de 16 hornos no descarta tiempo
+lógico. Al descargar se pausa, como ticking nativo. No se usa un mundo ficticio.
+Decisión: reaprovechar operación nativa en staging y conservar cursor/XP en el
+recibo; los efectos de drops se publican tras commit. Parser/imports, recursos y
+whitespace revisados; pruebas Java escritas no ejecutadas. Sin Gradle ni juego.

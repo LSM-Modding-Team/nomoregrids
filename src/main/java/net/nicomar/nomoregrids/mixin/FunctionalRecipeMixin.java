@@ -14,6 +14,6 @@ public abstract class FunctionalRecipeMixin {
     @Shadow public ServerPlayer player;
     @Inject(method="handlePlaceRecipe",at=@At("HEAD"),cancellable=true)
     private void nmgRecipe(ServerboundPlaceRecipePacket packet,CallbackInfo callback){
-        if(WorldFunctionals.managed(player.containerMenu)){player.sendOverlayMessage(net.minecraft.network.chat.Component.literal("Selecciona el destino con clic derecho y transfiere los ingredientes desde tu inventario."));callback.cancel();}
+        if(WorldFunctionals.stage(player.containerMenu,player,()->((ServerGamePacketListenerImpl)(Object)this).handlePlaceRecipe(packet)))callback.cancel();
     }
 }

@@ -9,7 +9,9 @@
     "FunctionalRecipeMixin",
     "FluidTrackerAccess",
     "CavityEntityFluidMixin",
-    "CavityFluidEffectMixin"
+    "CavityFluidEffectMixin",
+    "FunctionalPlayerMixin",
+    "FunctionalDropMixin"
   ],
   "injectors": {
     "defaultRequire": 1
