@@ -372,3 +372,19 @@ el esquema de piezas sigue en 1.
 Decisión: rechazar un clic obsoleto en vez de aplicarlo a una pieza que cambió
 mientras llegaba la acción. Revisión estructural, parser de 145 fuentes e
 imports explícitos aprobados; sin compilar, ejecutar Java ni Minecraft.
+
+
+## Pulsos diferidos entre ticks
+
+Corregido un caso de F8 en que un input nuevo sustituía un pulso de un tick
+anterior que aún no se había procesado por presupuesto. Las fuentes conservan
+una línea temporal por tick; solo se coalescen entradas del mismo tick. Los nodos
+internos mantienen un evento pendiente. La cola tiene límite global con reserva
+para propagación; al llenarse rechaza el nuevo input antes de modificar la fuente,
+para que el host lo difiera conservando su tick. No se conecta una arista de
+circuito hacia un nodo definido como fuente externa.
+
+El checkpoint de simulación pasa a esquema 2 y lee también 1. Conserva la línea
+temporal al restaurar. Caso de regresión escrito: pulso antiguo pendiente, nueva
+entrada contraria, reapertura y dos retardos distintos. Revisión estructural,
+parser de 145 fuentes y whitespace aprobados; pruebas Java no ejecutadas.

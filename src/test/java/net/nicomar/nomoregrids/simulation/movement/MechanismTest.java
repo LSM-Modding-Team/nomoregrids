@@ -42,4 +42,10 @@ class MechanismTest {
         circuit.advance(10,1);assertEquals(0,circuit.value(repeater));
         circuit.advance(10,1);assertEquals(15,circuit.value(repeater));assertEquals(0,circuit.pending());
     }
+    @Test void aNewInputCannotEraseAnEarlierUnprocessedPulse(){
+        UUID background=new UUID(0,1),source=new UUID(0,2),repeater=new UUID(0,3);
+        var network=new SignalNetwork(List.of(new SignalNetwork.Node(background,SignalNetwork.Kind.SOURCE,0,false),new SignalNetwork.Node(source,SignalNetwork.Kind.SOURCE,0,false),new SignalNetwork.Node(repeater,SignalNetwork.Kind.REPEATER,2,false)),List.of(new SignalNetwork.Edge(source,repeater,SignalNetwork.Input.REAR,0)));
+        network.source(background,15);network.source(source,15);network.advance(10,1);network.source(source,0);
+        var restored=SignalNetwork.restored(network.snapshot());restored.advance(10,100);assertEquals(15,restored.value(repeater));restored.advance(12,100);assertEquals(0,restored.value(repeater));
+    }
 }

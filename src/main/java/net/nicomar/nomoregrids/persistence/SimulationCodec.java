@@ -14,7 +14,7 @@ public final class SimulationCodec {
     public static final int MAX_BYTES=2*1024*1024;
     private SimulationCodec(){}
     public static byte[] encode(SimulationSnapshot state)throws IOException{
-        var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(new Limited(bytes));out.writeInt(1);out.writeLong(state.section().x());out.writeLong(state.section().y());out.writeLong(state.section().z());out.writeLong(state.checkpoint());
+        var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(new Limited(bytes));out.writeInt(2);out.writeLong(state.section().x());out.writeLong(state.section().y());out.writeLong(state.section().z());out.writeLong(state.checkpoint());
         out.writeInt(state.cavities().size());for(var pos:state.cavities().keySet().stream().sorted().toList()){
             out.writeLong(pos.x());out.writeLong(pos.y());out.writeLong(pos.z());var cell=state.cavities().get(pos);out.writeByte(CavityCell.code(cell.source()));
             long[] mask=cell.blocked().toLongArray();for(int i=0;i<64;i++)out.writeLong(i<mask.length?mask[i]:0);
@@ -35,7 +35,7 @@ public final class SimulationCodec {
     public static SimulationSnapshot decode(byte[] bytes)throws IOException{
         if(bytes.length<56||bytes.length>MAX_BYTES)throw new IOException("Simulation checkpoint size");CRC32C crc=new CRC32C();crc.update(bytes,0,bytes.length-4);if((int)crc.getValue()!=ByteBuffer.wrap(bytes).getInt(bytes.length-4))throw new IOException("Simulation checksum; original retained");
         var in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-4));try{
-            if(in.readInt()!=1)throw new IOException("Future simulation schema; original retained");var section=new SectionPos(in.readLong(),in.readLong(),in.readLong());long checkpoint=in.readLong();
+            int version=in.readInt();if(version!=1&&version!=2)throw new IOException("Future simulation schema; original retained");var section=new SectionPos(in.readLong(),in.readLong(),in.readLong());long checkpoint=in.readLong();
             var cavities=new HashMap<CellPos,CavityCell>();int count=count(in,256);for(int i=0;i<count;i++){
                 var pos=new CellPos(in.readLong(),in.readLong(),in.readLong());var source=CavityCell.kind(in.readByte());long[] mask=new long[64];for(int j=0;j<64;j++)mask[j]=in.readLong();byte[] fluids=new byte[4096];for(int j=0;j<4096;j+=4){int packed=in.readUnsignedByte();for(int k=0;k<4;k++)fluids[j+k]=(byte)((packed>>>(2*k))&3);}
                 if(cavities.putIfAbsent(pos,new CavityCell(BitSet.valueOf(mask),fluids,source))!=null)throw new IOException("Duplicate cavity authority");
@@ -58,7 +58,7 @@ public final class SimulationCodec {
     private static SignalNetwork.Snapshot circuit(DataInputStream in)throws IOException{
         long tick=in.readLong();int count=count(in,65536);var nodes=new ArrayList<SignalNetwork.Node>();for(int i=0;i<count;i++)nodes.add(new SignalNetwork.Node(OperationCodec.uuid(in),SignalNetwork.Kind.valueOf(in.readUTF()),in.readUnsignedByte(),flag(in)));
         count=count(in,262144);var edges=new ArrayList<SignalNetwork.Edge>();for(int i=0;i<count;i++)edges.add(new SignalNetwork.Edge(OperationCodec.uuid(in),OperationCodec.uuid(in),SignalNetwork.Input.valueOf(in.readUTF()),in.readInt()));
-        var values=levels(in);var sources=levels(in);count=count(in,65536);var pending=new ArrayList<SignalNetwork.Pending>();for(int i=0;i<count;i++)pending.add(new SignalNetwork.Pending(in.readLong(),OperationCodec.uuid(in),in.readUnsignedByte()));
+        var values=levels(in);var sources=levels(in);count=count(in,SignalNetwork.MAX_PENDING);var pending=new ArrayList<SignalNetwork.Pending>();for(int i=0;i<count;i++)pending.add(new SignalNetwork.Pending(in.readLong(),OperationCodec.uuid(in),in.readUnsignedByte()));
         return new SignalNetwork.Snapshot(tick,nodes,edges,values,sources,pending);
     }
     private static boolean flag(DataInputStream in)throws IOException{int value=in.readUnsignedByte();if(value>1)throw new IOException("Invalid simulation flag");return value==1;}

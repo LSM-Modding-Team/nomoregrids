@@ -4,6 +4,7 @@ import java.util.*;
 
 /** Server-tick circuit, explicit port links only. Never infers an edge from a shared cell. */
 public final class SignalNetwork {
+    public static final int MAX_PENDING=262144;
     public enum Kind { SOURCE,DUST,REPEATER,COMPARATOR }
     public enum Input { REAR,SIDE }
     public record Node(UUID id,Kind kind,int delayTicks,boolean subtract){
@@ -21,16 +22,25 @@ public final class SignalNetwork {
     private final Map<UUID,List<Edge>> incoming=new HashMap<>(),outgoing=new HashMap<>();
     private final Map<UUID,Integer> values=new HashMap<>(),sources=new HashMap<>();
     private final Map<UUID,Scheduled> pending=new HashMap<>();
+    private final Map<UUID,NavigableMap<Long,Scheduled>> sourcePending=new HashMap<>();
+    private int sourceEvents;
     private final NavigableSet<Scheduled> queue=new TreeSet<>(Comparator.comparingLong(Scheduled::tick).thenComparing(Scheduled::id));
     private long now;
     public SignalNetwork(Collection<Node> nodes,Collection<Edge> edges){
         if(nodes.size()>65536||edges.size()>262144)throw new IllegalArgumentException("Circuit budget");
         var map=new HashMap<UUID,Node>();for(var n:nodes)if(map.putIfAbsent(n.id,n)!=null)throw new IllegalArgumentException("Duplicate circuit node");
         this.nodes=Map.copyOf(map);this.edges=List.copyOf(edges);
-        for(var e:edges){if(!map.containsKey(e.from)||!map.containsKey(e.to))throw new IllegalArgumentException("Missing port node");incoming.computeIfAbsent(e.to,key->new ArrayList<>()).add(e);outgoing.computeIfAbsent(e.from,key->new ArrayList<>()).add(e);}
+        for(var e:edges){if(!map.containsKey(e.from)||!map.containsKey(e.to)||map.get(e.to).kind==Kind.SOURCE)throw new IllegalArgumentException("Invalid circuit edge or source input");incoming.computeIfAbsent(e.to,key->new ArrayList<>()).add(e);outgoing.computeIfAbsent(e.from,key->new ArrayList<>()).add(e);}
     }
     public int value(UUID id){return values.getOrDefault(id,0);}
-    public void source(UUID id,int value){if(value<0||value>15||nodes.get(id)==null||nodes.get(id).kind!=Kind.SOURCE)throw new IllegalArgumentException("Signal source");sources.put(id,value);schedule(id,now);}
+    public void source(UUID id,int value){
+        if(value<0||value>15||nodes.get(id)==null||nodes.get(id).kind!=Kind.SOURCE)throw new IllegalArgumentException("Signal source");
+        var timeline=sourcePending.get(id);Scheduled atTick=timeline==null?null:timeline.get(now);var before=timeline==null?null:timeline.lowerEntry(now);int baseline=before==null?value(id):before.getValue().value;
+        int delta=(value==baseline?0:1)-(atTick==null?0:1);if(sourceEvents+delta>MAX_PENDING-nodes.size())throw new IllegalStateException("Circuit input backlog; defer the input without dropping its logical tick");
+        if(atTick!=null){queue.remove(atTick);timeline.remove(now);sourceEvents--;}
+        sources.put(id,value);if(value!=baseline){var event=new Scheduled(now,id,value);sourcePending.computeIfAbsent(id,key->new TreeMap<>()).put(now,event);queue.add(event);sourceEvents++;}
+        if(timeline!=null&&timeline.isEmpty())sourcePending.remove(id);
+    }
     private void schedule(UUID id,long logicalTick){
         Node n=nodes.get(id);int rear=0,side=0;
         for(var e:incoming.getOrDefault(id,List.of())){
@@ -46,18 +56,26 @@ public final class SignalNetwork {
     public int advance(long tick,int budget){
         if(tick<now||budget<1)throw new IllegalArgumentException("Circuit clock/budget");now=tick;int processed=0;
         while(processed<budget&&!queue.isEmpty()&&queue.first().tick<=tick){
-            Scheduled s=queue.pollFirst();pending.remove(s.id);processed++;values.put(s.id,s.value);
+            Scheduled s=queue.pollFirst();if(nodes.get(s.id).kind==Kind.SOURCE){var timeline=sourcePending.get(s.id);timeline.remove(s.tick);sourceEvents--;if(timeline.isEmpty())sourcePending.remove(s.id);}else pending.remove(s.id);processed++;values.put(s.id,s.value);
             // A deferred due event propagates from its logical time, not the later frame that drains the queue.
             for(var e:outgoing.getOrDefault(s.id,List.of()))schedule(e.to,s.tick);
         }return processed;
     }
-    public int pending(){return pending.size();}
+    public int pending(){return queue.size();}
     public Snapshot snapshot(){return new Snapshot(now,nodes.values().stream().sorted(Comparator.comparing(Node::id)).toList(),edges,values,sources,queue.stream().map(s->new Pending(s.tick,s.id,s.value)).toList());}
     public static SignalNetwork restored(Snapshot snapshot){
         var result=new SignalNetwork(snapshot.nodes,snapshot.edges);result.now=snapshot.tick;
         for(var e:snapshot.values.entrySet()){if(!result.nodes.containsKey(e.getKey())||e.getValue()<0||e.getValue()>15)throw new IllegalArgumentException("Invalid circuit value");result.values.put(e.getKey(),e.getValue());}
         for(var e:snapshot.sources.entrySet()){var node=result.nodes.get(e.getKey());if(node==null||node.kind!=Kind.SOURCE||e.getValue()<0||e.getValue()>15)throw new IllegalArgumentException("Invalid source value");result.sources.put(e.getKey(),e.getValue());}
-        for(var event:snapshot.pending){if(!result.nodes.containsKey(event.id)||event.tick>snapshot.tick&&event.tick-snapshot.tick>8)throw new IllegalArgumentException("Invalid scheduled signal");var s=new Scheduled(event.tick,event.id,event.value);if(result.pending.putIfAbsent(event.id,s)!=null)throw new IllegalArgumentException("Duplicate pending signal");result.queue.add(s);}
+        if(snapshot.pending.size()>MAX_PENDING)throw new IllegalArgumentException("Circuit pending budget");
+        for(var event:snapshot.pending){
+            if(!result.nodes.containsKey(event.id)||event.tick>snapshot.tick&&event.tick-snapshot.tick>8)throw new IllegalArgumentException("Invalid scheduled signal");var scheduled=new Scheduled(event.tick,event.id,event.value);
+            if(result.nodes.get(event.id).kind==Kind.SOURCE){if(event.tick>snapshot.tick)throw new IllegalArgumentException("Future source input");if(result.sourcePending.computeIfAbsent(event.id,key->new TreeMap<>()).putIfAbsent(event.tick,scheduled)!=null)throw new IllegalArgumentException("Duplicate source input tick");result.sourceEvents++;}
+            else if(result.pending.putIfAbsent(event.id,scheduled)!=null)throw new IllegalArgumentException("Duplicate pending signal");
+            result.queue.add(scheduled);
+        }
+        if(result.sourceEvents>MAX_PENDING-result.nodes.size())throw new IllegalArgumentException("Circuit input backlog budget");
+        result.sourcePending.forEach((id,timeline)->{if(timeline.lastEntry().getValue().value!=result.sources.getOrDefault(id,0))throw new IllegalArgumentException("Source input receipt conflicts with pending timeline");});
         return result;
     }
 }
