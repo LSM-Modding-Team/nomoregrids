@@ -37,8 +37,8 @@ public final class NmgDiagnostics {
             for(var cell:p.worldOccupation().cells(8)){
                 if(!index.at(cell).contains(p.pieceId())||!index.referencedBy(cell.section()).contains(p.pieceId())||!index.ownedBy(p.ownerSection()).contains(p.pieceId()))throw new IllegalArgumentException("Reference conflict");
                 BlockPos pos=WorldService.pos(cell);if(!source.getLevel().isLoaded(pos)){unloaded++;continue;}
-                if(!(source.getLevel().getBlockEntity(pos) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("Missing/invalid replica");
-                var expected=CellView.from(cell,index);if(!expected.equals(entity.view()))throw new IllegalArgumentException("Replica revision conflict");
+                if(service.nativeProjection(cell).filter(source.getLevel().getBlockState(pos)::equals).isPresent())continue;if(!(source.getLevel().getBlockEntity(pos) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("Missing/invalid replica");
+                if(service.nativeProjection(cell).filter(source.getLevel().getBlockState(pos)::equals).isPresent())continue;var expected=service.cellView(cell,index);if(!expected.equals(entity.view()))throw new IllegalArgumentException("Replica revision conflict");
             }
             NativeStates.resolve(p);NativeStates.original(p);
         }catch(RuntimeException ex){invalid++;}}
@@ -48,7 +48,7 @@ public final class NmgDiagnostics {
     public static int report(CommandSourceStack source,WorldService service,boolean quarantined)throws IOException{
         var json=header(source,"report");json.addProperty("quarantined",quarantined);json.addProperty("pieces",service==null?0:service.snapshot().records().size());
         var counts=new TreeMap<String,Integer>();if(service!=null)service.snapshot().records().values().forEach(p->counts.merge(p.adapterId().value(),1,Integer::sum));var adapters=new JsonObject();counts.forEach(adapters::addProperty);json.add("adapterPieceCounts",adapters);
-        var limits=PieceIndex.Limits.DEFAULT;json.addProperty("perCell",limits.perCell());json.addProperty("ownersPerSection",limits.ownedPerSection());json.addProperty("referencesPerSection",limits.referencesPerSection());json.addProperty("journalCompaction",false);json.addProperty("javaValidated",false);
+        var limits=PieceIndex.Limits.DEFAULT;json.addProperty("perCell",limits.perCell());json.addProperty("ownersPerSection",limits.ownedPerSection());json.addProperty("referencesPerSection",limits.referencesPerSection());json.addProperty("journalCompaction",true);if(service!=null){json.addProperty("journalBytes",service.journalBytes());var status=service.compactionStatus();var checkpoint=new JsonObject();checkpoint.addProperty("running",status.running());checkpoint.addProperty("copiedSequence",status.copied());checkpoint.addProperty("failures",status.failures());checkpoint.addProperty("lastFailure",status.lastFailure());json.add("checkpoint",checkpoint);json.add("timings",service.metrics());var cache=net.nicomar.nomoregrids.diagnostic.GeometryCache.stats();json.addProperty("geometryCacheBytes",cache.bytes());json.addProperty("geometryCacheHits",cache.hits());json.addProperty("paintableCacheBytes",net.nicomar.nomoregrids.compat.paintableblocks.PaintableAdapter.cacheStats().bytes());json.addProperty("circuitCacheBytes",service.circuits().cacheStats().bytes());}json.addProperty("javaValidated",false);
         return write(source,"report",json);
     }
     public static int recoveryProposal(CommandSourceStack source,WorldService service,boolean quarantined)throws IOException{

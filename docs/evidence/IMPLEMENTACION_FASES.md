@@ -821,7 +821,7 @@ SignalNetwork gobierna retardos, inversión de antorchas y bloqueo lateral de
 repetidores. Se guardan valores, eventos pendientes y burnout de antorchas junto
 con las operaciones; división/unión conserva estados por identidad. Componentes
 con regiones descargadas aplazan la simulación sin borrar checkpoints. Cada red
-admite 4096 componentes; redes independientes y controles avanzan con rotación.
+admite 256 componentes; redes independientes y controles avanzan con rotación.
 Redes estables no escriben un checkpoint nuevo por el mero avance del reloj.
 Botones/platos y cambios de modo usan autoridad y recibos. Un botón nativo que
 se captura pulsado recibe un plazo completo de liberación (20/30 ticks), porque
@@ -850,3 +850,26 @@ curvas, pendientes, choques e interpolación necesitan validación real: no se
 certifica equivalencia física exacta con el motor vanilla sin ejecución.
 Pruebas puras de giros, altura, tangentes y separación escritas, no ejecutadas.
 Revisión sintáctica/imports/recursos; sin compilación ni Minecraft.
+
+## Compactación automática, cachés y observaciones de ejecución
+
+El mantenimiento inicia una generación tras 256 operaciones o 8 MiB de diario.
+Toma una imagen inmutable y valida recibos; un worker prepara/verifica estado y
+ledgers y copia la cola en lotes de 64. Las operaciones siguen usando el diario
+anterior hasta que la cola alcanza la secuencia viva. La publicación del manifiesto
+ocurre en el hilo del servidor y conserva la generación anterior; solo entonces
+se libera la historia del prefijo. Fallos al preparar conservan el diario activo;
+una publicación incierta pone el servicio en cuarentena. El límite existente de
+64 MiB por checkpoint se conserva y se informa si impide compactar.
+Cachés por peso: ocupación PB exacta empaquetada/recortada, redes por topología y
+checkpoints decodificados; BinaryData precalcula su hash inmutable. Nunca se
+sustituye una pendiente por su caja envolvente. El presupuesto de checkpoint
+privado limita cada circuito conectado a 256 componentes, validado antes de
+consumo. Redes independientes se siguen planificando por separado.
+Cada subsistema tiene su propia captura de aplazamientos y muestras acotadas de
+tiempo. /nmg report expone muestras/p50/p95/p99 y tamaños/estado del diario y
+cachés; los valores solo existen tras observación real, sin benchmarks ficticios.
+Se corrige /nmg validate para cavidades, proyecciones nativas y sustitutos públicos.
+Prueba de checkpoint sellado con cola incremental escrita, no ejecutada. Revisión
+estática de sintaxis/imports/recursos/whitespace; no se ha ejecutado el worker en
+un mundo, ni compilado o arrancado Minecraft.

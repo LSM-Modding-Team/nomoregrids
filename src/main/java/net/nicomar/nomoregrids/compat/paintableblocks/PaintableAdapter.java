@@ -13,6 +13,8 @@ import net.nicomar.nomoregrids.geometry.*;
 /** Optional bridge for the inspected PB BlockDesign v2 API. No PB classes in static linkage. */
 public final class PaintableAdapter implements PieceAdapter {
     public static final String REFERENCE_COMMIT="e93bc03f350dfb03b4031f1e479f4a37f28b556e";
+    private static final net.nicomar.nomoregrids.diagnostic.WeightedLru<BinaryData,List<ConvexVolume>> OCCUPATION=new net.nicomar.nomoregrids.diagnostic.WeightedLru<>(16*1024*1024);
+    public static net.nicomar.nomoregrids.diagnostic.WeightedLru.Stats cacheStats(){return OCCUPATION.stats();}
     private final Class<?> designClass;
     private final Codec<Object> codec;
     private final Method physical,resolution,occupied,slope,paints;
@@ -55,7 +57,7 @@ public final class PaintableAdapter implements PieceAdapter {
             if(result.isEmpty()||result.size()>16384)throw new IllegalArgumentException("PB geometry budget");return List.copyOf(result);
         }catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB API mismatch; original payload retained",ex);}
     }
-    @Override public List<ConvexVolume> occupation(PieceRecord piece){return primitives(piece.geometryPayload()).stream().map(Primitive::geometry).toList();}
+    @Override public List<ConvexVolume> occupation(PieceRecord piece){var key=piece.geometryPayload();var cached=OCCUPATION.get(key);if(cached.isPresent())return cached.orElseThrow();try{Object design=physical.invoke(restore(key));int n=(int)resolution.invoke(design);if(n<1||n>16||16%n!=0)throw new IllegalArgumentException("Unsupported PB resolution");int scale=16/n;var mask=new BitSet(4096);for(int i=0;i<n*n*n;i++)if((boolean)occupied.invoke(design,i)){int x=i%n*scale,y=i/n%n*scale,z=i/(n*n)*scale;for(int a=x;a<x+scale;a++)for(int b=y;b<y+scale;b++)for(int c=z;c<z+scale;c++)mask.set(a+16*(b+16*c));}Object slopeData=slope.invoke(design);ConvexVolume.Plane plane=null;if(slopeData!=null){var type=slopeData.getClass();plane=new ConvexVolume.Plane(new ConvexVolume.Vec((int)type.getMethod("a").invoke(slopeData),(int)type.getMethod("b").invoke(slopeData),(int)type.getMethod("c").invoke(slopeData)),16.0*(int)type.getMethod("offset").invoke(slopeData));}var volumes=new ArrayList<ConvexVolume>();for(var b:net.nicomar.nomoregrids.geometry.MicroBoxes.pack(mask).boxes()){var v=ConvexVolume.box(b.min().x(),b.min().y(),b.min().z(),b.max().x(),b.max().y(),b.max().z());if(plane!=null)v=v.clipped(plane);if(v.hasVolume())volumes.add(v);}if(volumes.isEmpty())throw new IllegalArgumentException("Empty PB design");var result=List.copyOf(volumes);long weight=128L+key.size();for(var v:result)weight+=128+v.planes().size()*64L+v.vertices().size()*48L;OCCUPATION.put(key,result,weight);return result;}catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB API mismatch",ex);}}
     /** Both painting and geometry edits are candidates; no native costs or setters run during validation. */
     public BinaryData prepareEdit(PieceRecord old,Object candidate,java.util.function.Predicate<List<ConvexVolume>> validate){
         if(old.flags().contains(PieceRecord.Flag.SUBSTITUTE))throw new IllegalArgumentException("Uneditable substitute");

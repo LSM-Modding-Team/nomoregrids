@@ -18,6 +18,12 @@ class JournalArchiveTest {
         UUID next=UUID.randomUUID();var second=JournalArchive.prepare(root,new JournalArchive.State(2,Map.of(),Map.of(),Map.of(actor,2L)),opened,Map.of(next,stamp(next,actor,2)),Set.of());second.publish();
         var current=JournalArchive.open(root).orElseThrow();assertEquals(2,current.state().sequence());assertTrue(current.operation(operation).isPresent());assertTrue(current.operation(next).isPresent());assertTrue(current.knownPiece(piece));assertTrue(Files.exists(root.resolve("active.previous.json")));
     }
+    @Test void sealedCheckpointCanReceiveAnIncrementalTailBeforePublication()throws Exception{
+        var prepared=JournalArchive.prepare(root,new JournalArchive.State(10,Map.of(),Map.of(),Map.of()),null,Map.of(),Set.of());prepared.seal();
+        var cell=new net.nicomar.nomoregrids.core.CellPos(0,0,0);var data=new net.nicomar.nomoregrids.core.BinaryData(new byte[]{7});var plan=new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,List.of(),net.nicomar.nomoregrids.core.BinaryData.EMPTY,net.nicomar.nomoregrids.core.BinaryData.EMPTY,List.of(new OperationPlan.Effect("loot:"+UUID.randomUUID(),cell,Optional.empty(),Optional.of(data))));
+        try(var tail=new DurableJournal(prepared.activeLog())){tail.commit(plan);prepared.publish();assertEquals(10,JournalArchive.open(root).orElseThrow().state().sequence());assertTrue(tail.contains(plan.id()));}
+        try(var reopened=new DurableJournal(JournalArchive.open(root).orElseThrow().activeLog())){assertEquals(List.of(plan),reopened.committed());}
+    }
     @Test void aDamagedPreparedCheckpointCannotReplaceTheManifest()throws Exception{
         var first=JournalArchive.prepare(root,new JournalArchive.State(0,Map.of(),Map.of(),Map.of()),null,Map.of(),Set.of());first.publish();byte[] pointer=Files.readAllBytes(root.resolve("active.json"));
         var next=JournalArchive.prepare(root,new JournalArchive.State(0,Map.of(),Map.of(),Map.of()),first,Map.of(),Set.of());var file=next.activeLog().getParent().resolve("state.bin");byte[] damaged=Files.readAllBytes(file);damaged[damaged.length-1]^=1;Files.write(file,damaged);

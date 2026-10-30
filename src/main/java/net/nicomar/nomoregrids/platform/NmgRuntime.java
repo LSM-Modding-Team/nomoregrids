@@ -75,9 +75,10 @@ public final class NmgRuntime {
                 });
             }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
         }
-        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);try{SERVICES.get(level).fluids().tick();SERVICES.get(level).functionals().tick();SERVICES.get(level).circuits().tick();WorldRails.tick(SERVICES.get(level));}catch(IOException|RuntimeException ex){if(SERVICES.get(level).quarantined())quarantine(level,ex);else NoMoreGrids.LOGGER.debug("NMG fluid update deferred: {}",ex.toString());}}
+        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);var service=SERVICES.get(level);advance(service,"fluid",()->service.fluids().tick());advance(service,"functional",()->service.functionals().tick());advance(service,"circuit",()->service.circuits().tick());advance(service,"rail",()->WorldRails.tick(service));advance(service,"checkpoint",service::maintenance);}
         var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
     }
+    private static void advance(WorldService service,String phase,WorldService.TickAction action){if(service.quarantined())return;try{service.measured(phase,action);}catch(IOException|RuntimeException ex){if(service.quarantined())quarantine(service.level(),ex);else NoMoreGrids.LOGGER.debug("NMG {} update deferred: {}",phase,ex.toString());}}
     private static void chunkUnload(net.neoforged.neoforge.event.level.ChunkEvent.Unload event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
         var task=new ChunkTask(level,event.getChunk().getPos());CHUNKS.remove(task);var repairs=REPAIRS.get(level.getServer());if(repairs!=null)repairs.cancel(task);var chunks=LOADED.get(level);if(chunks!=null)chunks.remove(event.getChunk().getPos());
     });}

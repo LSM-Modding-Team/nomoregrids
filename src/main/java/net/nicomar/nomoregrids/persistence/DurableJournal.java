@@ -86,5 +86,6 @@ public final class DurableJournal implements AutoCloseable {
         return List.copyOf(result);
     }
     public synchronized boolean contains(UUID id){return committed.contains(id);}
+    public synchronized long bytes()throws IOException{return channel.size();}
     @Override public synchronized void close() throws IOException {try{lock.release();}finally{channel.close();}}
 }

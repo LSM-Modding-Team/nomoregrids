@@ -19,6 +19,7 @@ public final class JournalArchive {
     public record Stamp(UUID id,UUID actor,OperationPlan.Kind kind,long sequence,byte[] digest){public Stamp{digest=digest.clone();}@Override public byte[] digest(){return digest.clone();}}
     public record State(long sequence,Map<UUID,PieceRecord> records,Map<String,WorldEffectStore.Value> effects,Map<UUID,Long> receipts){public State{if(sequence<0)throw new IllegalArgumentException("Checkpoint sequence");records=Map.copyOf(records);effects=Map.copyOf(effects);receipts=Map.copyOf(receipts);}}
     private String obsolete;private boolean hadPrevious;
+    private JsonObject sealedManifest;
     private final Path root,directory;private final String generation;private final State state;
     private final WeightedLru<UUID,Optional<Stamp>> cache=new WeightedLru<>(4*1024*1024);
     private JournalArchive(Path root,String generation,State state){this.root=root;this.generation=generation;this.directory=root.resolve("generations").resolve(generation);this.state=state;}
@@ -89,9 +90,14 @@ public final class JournalArchive {
         }
         if(hadPrevious)Files.deleteIfExists(root.resolve("operations.log"));DurableDirectories.force(root);
     }
-    public void publish()throws IOException{
+    /** Expensive immutable-file verification can run before publication on an I/O worker. */
+    public void seal()throws IOException{
         if(!decode(Files.readAllBytes(bounded(directory.resolve("state.bin"),MAX_STATE))).equals(state))throw new IOException("Prepared archive state mismatch");verifyLedger("operations.idx",STAMP);verifyLedger("pieces.idx",PIECE);
         var manifest=new JsonObject();manifest.addProperty("schema",1);manifest.addProperty("generation",generation);for(String file:List.of("state.bin","operations.idx","pieces.idx"))manifest.addProperty(file,hash(directory.resolve(file)));
+        sealedManifest=manifest;
+    }
+    public void publish()throws IOException{
+        if(sealedManifest==null)seal();var manifest=sealedManifest;
         Path previous=root.resolve("active.previous.json");if(Files.exists(previous))try{var json=JsonParser.parseString(Files.readString(bounded(previous,4096))).getAsJsonObject();if(json.get("schema").getAsInt()==1)obsolete=UUID.fromString(json.get("generation").getAsString()).toString();}catch(RuntimeException ex){obsolete=null;}
         Path pointer=root.resolve("active.json");hadPrevious=Files.exists(pointer);if(hadPrevious)SectionStore.atomic(root.resolve("active.previous.json"),Files.readAllBytes(bounded(pointer,4096)));
         SectionStore.atomic(pointer,manifest.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));

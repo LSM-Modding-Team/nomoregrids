@@ -8,11 +8,12 @@ public final class BinaryData {
     public static final int MAX_BYTES = 256 * 1024;
     public static final BinaryData EMPTY = new BinaryData(new byte[0]);
     private final byte[] bytes;
+    private final int hash;
 
     public BinaryData(byte[] bytes) {
         Objects.requireNonNull(bytes);
         if (bytes.length > MAX_BYTES) throw new IllegalArgumentException("Adapter payload too large");
-        this.bytes = bytes.clone();
+        this.bytes = bytes.clone();this.hash=Arrays.hashCode(this.bytes);
     }
 
     public int size() { return bytes.length; }
@@ -22,5 +23,5 @@ public final class BinaryData {
     public boolean equals(Object other) { return other instanceof BinaryData data && Arrays.equals(bytes, data.bytes); }
 
     @Override
-    public int hashCode() { return Arrays.hashCode(bytes); }
+    public int hashCode() { return hash; }
 }

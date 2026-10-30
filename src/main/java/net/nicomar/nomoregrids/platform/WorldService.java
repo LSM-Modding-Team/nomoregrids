@@ -35,6 +35,14 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private JournalArchive archive;
     private long baseSequence;
     private boolean compactionFault;
+    private final WorldCompaction compaction=new WorldCompaction();
+    private long nextCompaction;
+    private final Map<String,net.nicomar.nomoregrids.diagnostic.TimingSamples> measurements=new TreeMap<>();
+    @FunctionalInterface public interface TickAction{void run()throws IOException;}
+    public void measured(String phase,TickAction action)throws IOException{long start=System.nanoTime();try{action.run();}finally{measurements.computeIfAbsent(phase,k->new net.nicomar.nomoregrids.diagnostic.TimingSamples(1024)).add(System.nanoTime()-start);}}
+    public com.google.gson.JsonObject metrics(){var json=new com.google.gson.JsonObject();var samples=new TreeMap<>(measurements);samples.put("operation",engine.timings());for(var entry:samples.entrySet()){var row=new com.google.gson.JsonObject();var sample=entry.getValue();row.addProperty("samples",sample.count());if(sample.count()>0){row.addProperty("p50Nanos",sample.percentile(0.5));row.addProperty("p95Nanos",sample.percentile(0.95));row.addProperty("p99Nanos",sample.percentile(0.99));}json.add(entry.getKey(),row);}return json;}
+    public WorldCompaction.Status compactionStatus(){return compaction.status();}
+    public long journalBytes(){try{return journal.bytes();}catch(IOException ex){return -1;}}
     private final WorldCircuits circuits;
     public WorldCircuits circuits(){return circuits;}
     private final SectionStore store;
@@ -483,8 +491,25 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(!claimed.isEmpty())executePrepared(new OperationPlan(UUID.randomUUID(),player.getUUID(),OperationPlan.Kind.CLAIM,List.of(),before,NativeInventory.encode(player,slots),claimed));
     }
     private boolean knownPiece(UUID id){if(knownIds.contains(id))return true;if(archive==null)return false;try{return archive.knownPiece(id);}catch(IOException ex){throw new UncheckedIOException(ex);}}
+    public void maintenance(){
+        assertServerThread();if(engine.busy()||quarantined())return;long now=level.getGameTime();
+        try{
+            if(!compaction.running()){
+                if(now<nextCompaction||history.size()<256&&journal.bytes()<8L*1024*1024)return;nextCompaction=now+200;
+                long sequence=baseSequence+sequences.size();var receipts=new HashMap<UUID,Long>();if(archive!=null)receipts.putAll(archive.state().receipts());for(var plan:history.values())if(!plan.actor().equals(OperationPlan.WORLD_ACTOR))receipts.merge(plan.actor(),sequences.get(plan.id()),Math::max);
+                for(var receipt:receipts.entrySet())if(watermark(receipt.getKey())!=receipt.getValue())throw new IOException("Checkpoint awaits an exact durable player receipt");
+                compaction.start(new WorldCompaction.Input(root,new JournalArchive.State(sequence,snapshot().records(),effects,receipts),archive,Map.copyOf(history),Map.copyOf(sequences),Set.copyOf(knownIds)));return;
+            }
+            var available=compaction.poll();if(available.isEmpty())return;var prepared=available.orElseThrow();long sequence=baseSequence+sequences.size();
+            if(prepared.copied()<sequence){var tail=history.values().stream().filter(p->sequences.get(p.id())>prepared.copied()).sorted(Comparator.comparingLong(p->sequences.get(p.id()))).limit(64).toList();if(tail.isEmpty())throw new IOException("Checkpoint tail sequence gap");compaction.copy(tail);return;}
+            if(prepared.copied()!=sequence)throw new IOException("Checkpoint tail ahead of live authority");
+            try{prepared.archive().publish();}catch(IOException|RuntimeException ex){compactionFault=true;NmgRuntime.failed(level,ex);throw ex;}
+            var oldJournal=journal;var current=snapshot();long prefix=prepared.archive().state().sequence();var archived=sequences.entrySet().stream().filter(e->e.getValue()<=prefix).map(Map.Entry::getKey).toList();journal=prepared.journal();archive=prepared.archive();baseSequence=prefix;for(var id:archived){sequences.remove(id);history.remove(id);}knownIds.clear();knownIds.addAll(current.records().keySet());history.values().forEach(plan->plan.changes().forEach(c->knownIds.add(c.id())));engine=new OperationEngine(current,journal,this,PieceIndex.Limits.DEFAULT);compaction.adopted();
+            try{oldJournal.close();}catch(IOException ex){net.nicomar.nomoregrids.NoMoreGrids.LOGGER.warn("Checkpoint is durable; old log close failed",ex);}compaction.prune(archive);
+        }catch(IOException|RuntimeException ex){nextCompaction=now+1200;if(!quarantined())net.nicomar.nomoregrids.NoMoreGrids.LOGGER.warn("NMG automatic checkpoint deferred; original journal retained: {}",ex.toString());}
+    }
     public long compact()throws IOException{
-        assertServerThread();if(engine.busy())throw new IOException("Operation in progress; compaction deferred");if(quarantined())throw new IOException("Recovery required before compaction");long sequence=baseSequence+sequences.size();if(sequence==baseSequence)return sequence;
+        assertServerThread();if(compaction.running())throw new IOException("Automatic checkpoint is preparing/copying its tail; publication will finish during maintenance");if(engine.busy())throw new IOException("Operation in progress; compaction deferred");if(quarantined())throw new IOException("Recovery required before compaction");long sequence=baseSequence+sequences.size();if(sequence==baseSequence)return sequence;
         var receipts=new HashMap<UUID,Long>();if(archive!=null)receipts.putAll(archive.state().receipts());var stamps=new HashMap<UUID,JournalArchive.Stamp>();
         for(var plan:history.values()){
             long n=sequences.get(plan.id());if(!plan.actor().equals(OperationPlan.WORLD_ACTOR))receipts.merge(plan.actor(),n,Math::max);
@@ -503,5 +528,5 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;for(var e:plan.effects())if(effectStore.checkpoint(e.owner().section())<sequence||effectStore.checkpoint(e.previousOwner().section())<sequence)return false;return true;
     }
     @Override public void afterCommit(OperationPlan plan){for(var cell:plan.affectedCells())WorldMutationHooks.changed(level,pos(cell));NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
-    @Override public void close()throws IOException{journal.close();}
+    @Override public void close()throws IOException{try{compaction.close();}finally{journal.close();}}
 }
