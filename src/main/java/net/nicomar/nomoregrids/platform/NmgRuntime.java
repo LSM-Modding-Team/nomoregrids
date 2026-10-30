@@ -41,7 +41,7 @@ public final class NmgRuntime {
     public static void register(){NeoForge.EVENT_BUS.addListener(NmgRuntime::load);NeoForge.EVENT_BUS.addListener(NmgRuntime::unload);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkLoad);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkUnload);NeoForge.EVENT_BUS.addListener(NmgRuntime::login);NeoForge.EVENT_BUS.addListener(NmgRuntime::logout);NeoForge.EVENT_BUS.addListener(NmgRuntime::commands);NeoForge.EVENT_BUS.addListener(NmgRuntime::breaking);NeoForge.EVENT_BUS.addListener(NmgRuntime::rightClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::leftClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::playerTick);NeoForge.EVENT_BUS.addListener(NmgRuntime::serverTick);}
     public static WorldService require(ServerLevel level)throws IOException{
         if(!ENABLED.contains(level)&&!Boolean.getBoolean("nomoregrids.experimental"))throw new IOException("Experimental world editing is disabled");
-        if(QUARANTINE.containsKey(level))throw new IOException(QUARANTINE.get(level));return open(level);
+        if(QUARANTINE.containsKey(level))throw new IOException("Recovery required: "+QUARANTINE.get(level));return open(level);
     }
     private static WorldService open(ServerLevel level)throws IOException{
         WorldService existing=SERVICES.get(level);if(existing!=null)return existing;
@@ -53,7 +53,7 @@ public final class NmgRuntime {
     private static void load(LevelEvent.Load event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
         try{open(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
     });}
-    private static void quarantine(ServerLevel level,Exception ex){QUARANTINE.put(level,Objects.toString(ex.getMessage(),"NMG recovery conflict"));NoMoreGrids.LOGGER.error("NMG recovery blocked; original data retained",ex);}
+    private static void quarantine(ServerLevel level,Exception ex){QUARANTINE.put(level,ex.toString());NoMoreGrids.LOGGER.error("NMG recovery blocked; original data retained",ex);}
     private static void chunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event){if(event.getLevel() instanceof ServerLevel level)CHUNKS.add(new ChunkTask(level,event.getChunk().getPos()));}
     private static void serverTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event){
         long start=System.nanoTime();int done=0;for(var task:List.copyOf(CHUNKS)){
@@ -177,13 +177,24 @@ public final class NmgRuntime {
     private static void unload(LevelEvent.Unload event){if(event.getLevel() instanceof ServerLevel level){CHUNKS.removeIf(task->task.level==level);var repairs=REPAIRS.get(level.getServer());if(repairs!=null){repairs.cancelIf(task->task.level==level);if(repairs.pending()==0)REPAIRS.remove(level.getServer());}ENABLED.remove(level);QUARANTINE.remove(level);LOADED.remove(level);var service=SERVICES.remove(level);if(service!=null)try{service.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close NMG journal",ex);}}}
     private static void commands(RegisterCommandsEvent event){
         event.getDispatcher().register(Commands.literal("nmg")
-            .then(Commands.literal("status").executes(ctx->{var service=SERVICES.get(ctx.getSource().getLevel());ctx.getSource().sendSuccess(()->Component.literal("No More Grids: experimental, unverified; "+(service==null?"not opened":service.snapshot().records().size()+" pieces")),false);return 1;}))
-            .then(Commands.literal("enable").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_OWNER)).executes(ctx->{ENABLED.add(ctx.getSource().getLevel());ctx.getSource().sendSuccess(()->Component.literal("NMG experimental editing enabled for this session; not certified"),true);return 1;}))
+            .then(Commands.literal("status").executes(ctx->{var service=SERVICES.get(ctx.getSource().getLevel());ctx.getSource().sendSuccess(()->Component.literal("No More Grids: experimental, unverified; "+(service==null?"not opened":service.snapshot().records().size()+" pieces")+"; editing="+ENABLED.contains(ctx.getSource().getLevel())+"; quarantined="+QUARANTINE.containsKey(ctx.getSource().getLevel())),false);return 1;}))
+            .then(Commands.literal("enable").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_OWNER)).executes(ctx->enable(ctx.getSource())))
             .then(Commands.literal("inspect").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"inspect")))
             .then(Commands.literal("validate").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"validate")))
             .then(Commands.literal("report").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"report")))
             .then(Commands.literal("recover").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"recover")))
             .then(Commands.literal("export").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"export"))));
+    }
+    private static int enable(net.minecraft.commands.CommandSourceStack source){
+        var level=source.getLevel();try{
+            if(QUARANTINE.containsKey(level)){
+                var previous=SERVICES.get(level);if(previous!=null){previous.close();SERVICES.remove(level);}
+                open(level);for(var chunk:LOADED.getOrDefault(level,Map.of()).keySet())CHUNKS.add(new ChunkTask(level,chunk));QUARANTINE.remove(level);
+            }else open(level);
+            ENABLED.add(level);source.sendSuccess(()->Component.literal("NMG experimental editing enabled for this session; not certified"),true);return 1;
+        }catch(IOException|RuntimeException ex){
+            ENABLED.remove(level);quarantine(level,ex);source.sendFailure(Component.literal("NMG no pudo habilitar la edición: "+ex+". Consulta latest.log para la causa completa; los datos originales se conservan."));return 0;
+        }
     }
     private static int diagnostic(net.minecraft.commands.CommandSourceStack source,String action){
         try{var service=SERVICES.get(source.getLevel());return switch(action){

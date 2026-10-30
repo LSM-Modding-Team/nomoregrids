@@ -417,3 +417,14 @@ rotación de bloques vanilla.
 Comprobación estructural y git diff --check aprobados. El parser no pudo
  ejecutarse porque este entorno no conserva las dependencias Tree-sitter.
 No se ejecutaron Gradle, compileJava ni Minecraft; no se acredita compilación.
+
+## Activación con recuperación comprobada
+
+/nmg enable ya no anuncia éxito con una dimensión en cuarentena. Reintenta
+abrir el diario y recuperar recibos usando la misma autoridad; solo habilita
+edición si la apertura funciona y encola reparación de réplicas cargadas.
+Si falla, conserva la cuarentena y muestra la clase/mensaje del error al
+administrador. /nmg status distingue edición habilitada y cuarentena.
+No se borran diarios ni se omiten comprobaciones de durabilidad. La causa del
+bloqueo concreto requiere el error de la partida del usuario. Revisión
+estructural y whitespace aprobados; sin compilación ni Minecraft ejecutados.
