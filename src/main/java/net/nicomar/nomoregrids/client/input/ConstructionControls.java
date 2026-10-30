@@ -58,6 +58,9 @@ public final class ConstructionControls {
         boolean slab=mc.hitResult instanceof BlockHitResult hit&&mc.level.getBlockState(hit.getBlockPos()).getBlock() instanceof net.minecraft.world.level.block.SlabBlock&&mc.player.getItemInHand(event.getHand()).getItem() instanceof net.minecraft.world.item.BlockItem item&&item.getBlock() instanceof net.minecraft.world.level.block.SlabBlock;
         var held=mc.player.getItemInHand(event.getHand());boolean fragment=held.getItem() instanceof net.nicomar.nomoregrids.material.FragmentItem;
         boolean cuttable=fragment||held.getItem() instanceof net.minecraft.world.item.BlockItem item&&net.nicomar.nomoregrids.material.FragmentItem.cuttable(item.getBlock());
+        if(event.isUseItem()&&cell&&!mc.player.isShiftKeyDown()&&mc.hitResult instanceof BlockHitResult functionalHit&&mc.level.getBlockEntity(functionalHit.getBlockPos()) instanceof net.nicomar.nomoregrids.world.CompositeCellEntity functionalCell&&net.nicomar.nomoregrids.platform.ComponentSelection.select(mc.player,functionalCell.view(),MODES.candidate()).filter(net.nicomar.nomoregrids.platform.WorldFunctionals::piece).isPresent()){
+            send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.INTERACT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;
+        }
         if(event.isUseItem()&&cell&&held.getItem() instanceof net.minecraft.world.item.BucketItem){send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.BUCKET,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;}
         if(event.isUseItem()&&cell&&net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.editingItem(held)).isPresent()){
             send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.EDIT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;

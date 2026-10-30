@@ -554,3 +554,26 @@ completo. La propagación de energía emplea un perfil explícito aproximado por
 pieza; no está acreditada equivalencia exacta con todos los rayos vanilla.
 Decoración con BE y efectos avanzados siguen pendientes. Parser, recursos y
 whitespace pasan; compilación, tests Java y Minecraft no ejecutados.
+
+## Entrega: perfil de barril y hornos conectado
+
+FunctionalAdapter y WorldFunctionals capturan forma, propiedades, inventario y
+NBT de barril/horno/alto horno/ahumador. Antes de convertir se verifica el hash
+original completo de la BE. El inventario se persiste solo en FunctionalStore.State
+mediante SimulationCodec y efectos del diario; las réplicas públicas no incluyen
+slots ni datos de máquina. Objetos nativos temporales aportan recetas y ticking
+exactos del registro, conservando tiempos y recetas usadas. No se instalan BEs
+nativas temporales ni se crea un mundo virtual. El estado lit se publica por pieza.
+
+Menús nativos muestran datos de máquina con contenedor de lectura. Un hook de
+clicked traduce transferencias a copias before/after del jugador y máquina,
+confirmadas con el recibo existente. Decisión: interacción sin cursor persistente
+(clic derecho selecciona destino; clic transfiere), evitando ítems en una propiedad
+que Minecraft no guarda junto al inventario mientras el menú está abierto. El
+autofill se intercepta para no escribir por una ruta sin diario. No se afirma
+paridad de UX, XP, automatización ni grupos: estos puntos siguen pendientes.
+Movimiento funcional entre secciones se rechaza antes del commit.
+
+64 imports explícitos consultados en jars/fuentes exactos; parser, recursos y
+whitespace pasan. Firmas revisadas con javap. Compilación, pruebas Java y juego
+no ejecutados. F7 sigue siendo una integración parcial.

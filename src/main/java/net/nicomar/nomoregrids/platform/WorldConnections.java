@@ -78,7 +78,7 @@ public final class WorldConnections {
             if(!draft.at(cell).isEmpty()||touched.contains(cell)){
                 for(UUID id:draft.at(cell))if(!id.equals(piece.pieceId())&&seen.add(id)){
                     var other=draft.records().get(id);for(var peer:FamilyPorts.ports(other))if(FamilyPorts.match(port,peer))return true;
-                    if(FamilyPorts.family(other)==Family.NONE&&other.adapterId().value().equals("nomoregrids:box")&&!other.flags().contains(PieceRecord.Flag.SUBSTITUTE))surfaces.addAll(SupportPatches.surfaces(other.worldOccupation()));
+                    if(FamilyPorts.family(other)==Family.NONE&&(other.adapterId().value().equals("nomoregrids:box")||WorldFunctionals.piece(other))&&!other.flags().contains(PieceRecord.Flag.SUBSTITUTE))surfaces.addAll(SupportPatches.surfaces(other.worldOccupation()));
                 }
             }else{var state=level.getBlockState(at);if(catalog.eligible(state)){var other=NativeStates.capture(state,level,at,UUID.randomUUID());if(FamilyPorts.family(other)==Family.NONE)surfaces.addAll(SupportPatches.surfaces(other.worldOccupation()));}}
         }return SupportResolver.covered(port.area(),surfaces);
@@ -92,7 +92,7 @@ public final class WorldConnections {
         List<SupportResolver.Patch> surfaces=new ArrayList<>();Set<UUID> seen=new HashSet<>();for(var cell:SupportPatches.contactCells(patch).cells(8)){
             var at=WorldService.pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION: wall cap");
             if(touched.contains(cell)||!draft.at(cell).isEmpty())for(UUID id:draft.at(cell)){
-                if(!id.equals(piece.pieceId())&&seen.add(id)){var p=draft.records().get(id);if(p.adapterId().value().equals("nomoregrids:box")&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))surfaces.addAll(SupportPatches.surfaces(p.worldOccupation()));}
+                if(!id.equals(piece.pieceId())&&seen.add(id)){var p=draft.records().get(id);if((p.adapterId().value().equals("nomoregrids:box")||WorldFunctionals.piece(p))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))surfaces.addAll(SupportPatches.surfaces(p.worldOccupation()));}
             }else{var state=level.getBlockState(at);if(catalog.eligible(state))surfaces.addAll(SupportPatches.surfaces(NativeStates.capture(state,level,at,UUID.randomUUID()).worldOccupation()));}
         }return SupportResolver.covered(patch,surfaces);
     }

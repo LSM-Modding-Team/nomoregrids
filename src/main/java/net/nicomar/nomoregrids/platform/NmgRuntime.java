@@ -47,7 +47,7 @@ public final class NmgRuntime {
     public static void failed(ServerLevel level,Exception ex){quarantine(level,ex);}
     private static WorldService open(ServerLevel level)throws IOException{
         WorldService existing=SERVICES.get(level);if(existing!=null)return existing;
-        var adapters=new AdapterRegistry();adapters.register(new BoxAdapter());
+        var adapters=new AdapterRegistry();adapters.register(new BoxAdapter());adapters.register(new net.nicomar.nomoregrids.compat.vanilla.FunctionalAdapter());
         if(ModList.get().isLoaded("paintableblocks"))try{adapters.register(new PaintableAdapter(NmgRuntime.class.getClassLoader()));}
         catch(ReflectiveOperationException|RuntimeException|LinkageError ex){NoMoreGrids.LOGGER.warn("PB adapter unavailable; data will be retained",ex);}
         adapters.freeze();var service=new WorldService(level,adapters);SERVICES.put(level,service);return service;
@@ -73,7 +73,7 @@ public final class NmgRuntime {
                 });
             }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
         }
-        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);try{SERVICES.get(level).fluids().tick();}catch(IOException|RuntimeException ex){if(SERVICES.get(level).quarantined())quarantine(level,ex);else NoMoreGrids.LOGGER.debug("NMG fluid update deferred: {}",ex.toString());}}
+        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);try{SERVICES.get(level).fluids().tick();SERVICES.get(level).functionals().tick();}catch(IOException|RuntimeException ex){if(SERVICES.get(level).quarantined())quarantine(level,ex);else NoMoreGrids.LOGGER.debug("NMG fluid update deferred: {}",ex.toString());}}
         var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
     }
     private static void chunkUnload(net.neoforged.neoforge.event.level.ChunkEvent.Unload event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
@@ -110,6 +110,9 @@ public final class NmgRuntime {
                     if(!player.isCreative())throw new IllegalArgumentException("Survival removal uses native mining progress");
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
                     var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.remove(player,piece.pieceId(),packet.operation());
+                }
+                case INTERACT->{
+                    if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No functional component");var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(!WorldFunctionals.piece(piece)||!player.level().mayInteract(player,block.getBlockPos()))throw new IllegalArgumentException("PROTECTED");service.functionals().open(player,service.snapshot().records().get(piece.pieceId()));
                 }
                 case BUCKET->{service.fluids().bucket(player,hand,new net.nicomar.nomoregrids.core.CellPos(block.getBlockPos().getX(),block.getBlockPos().getY(),block.getBlockPos().getZ()),packet.operation());}
                 case EDIT->{

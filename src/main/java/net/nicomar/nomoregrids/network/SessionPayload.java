@@ -30,7 +30,7 @@ public record SessionPayload(int schema,String profileHash,ProtocolRules rules,b
         }catch(java.io.IOException ex){throw new IllegalStateException("Cannot hash physical profiles",ex);}
     }
     public static ProtocolRules localRules(){
-        java.util.Map<String,Integer> versions=new java.util.HashMap<>();versions.put("nomoregrids:box",1);
+        java.util.Map<String,Integer> versions=new java.util.HashMap<>();versions.put("nomoregrids:box",1);versions.put("nomoregrids:functional",1);
         if(net.neoforged.fml.ModList.get().isLoaded("paintableblocks"))try{var adapter=new net.nicomar.nomoregrids.compat.paintableblocks.PaintableAdapter(SessionPayload.class.getClassLoader());versions.put(adapter.id().value(),adapter.dataVersion());}catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){}
         return ProtocolRules.defaults(versions);
     }

@@ -4,7 +4,9 @@
   "package": "net.nicomar.nomoregrids.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "LevelMutationMixin"
+    "LevelMutationMixin",
+    "FunctionalMenuMixin",
+    "FunctionalRecipeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

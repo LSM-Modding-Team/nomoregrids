@@ -34,6 +34,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private final SectionStore store;
     private final WorldEffectStore effectStore;
     private final Map<String,WorldEffectStore.Value> effects=new TreeMap<>();
+    private final WorldFunctionals functionals;
+    public WorldFunctionals functionals(){return functionals;}
     private final WorldFluids fluids;
     private final Map<UUID,Map<BlockPos,net.minecraft.world.level.block.state.BlockState>> nativeImages=new HashMap<>();
     public WorldFluids fluids(){return fluids;}
@@ -52,7 +54,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private boolean recovering;
 
     public WorldService(ServerLevel level,AdapterRegistry adapters)throws IOException{
-        this.level=level;this.adapters=adapters;fluids=new WorldFluids(level,this);
+        this.level=level;this.adapters=adapters;fluids=new WorldFluids(level,this);functionals=new WorldFunctionals(level,this);
         String dimension=level.dimension().identifier().toString();
         String hash=java.util.HexFormat.of().formatHex(SnapshotAssembler.sha256(dimension.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         receiptKey="nmg_applied_"+hash;Path root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
@@ -122,7 +124,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var plan=fluids.prepare(placementPlan(player,hand,hit,mode,UUID.randomUUID(),true));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
     }
     public void executePrepared(OperationPlan original)throws IOException{
-        var plan=fluids.prepare(original);var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
+        var plan=fluids.prepare(functionals.prepare(original));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}
     }
     public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index).replicas(),fluids.at(c));}
@@ -148,8 +150,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(state.getBlock() instanceof LiquidBlock)continue;
             if(!state.isAir()&&state.getBlock()!=NmgContent.CELL.get()){
                 var paintable=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.nativeBlock(state));
-                if(paintable.isEmpty()&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
-                PieceRecord nativePiece=paintable.isPresent()?paintable.orElseThrow().captureNative(level,at,UUID.randomUUID()):NativeStates.capture(state,level,at,UUID.randomUUID());
+                if(paintable.isEmpty()&&!WorldFunctionals.eligible(state)&&!catalog.eligible(state))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
+                PieceRecord nativePiece=WorldFunctionals.eligible(state)?WorldFunctionals.capture(state,level,at,UUID.randomUUID()):paintable.isPresent()?paintable.orElseThrow().captureNative(level,at,UUID.randomUUID()):NativeStates.capture(state,level,at,UUID.randomUUID());
                 changes.add(new OperationPlan.Change(nativePiece.pieceId(),Optional.empty(),Optional.of(nativePiece)));
             }
         }
@@ -171,7 +173,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void remove(ServerPlayer player,UUID id,UUID operation)throws IOException{
         if(repeated(operation,player,OperationPlan.Kind.REMOVE))return;
         PieceRecord target=snapshot().records().get(id);if(target==null)throw new IllegalArgumentException("STALE_REVISION");adapters.require(target);
-        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks").contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
+        if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks",WorldFunctionals.ADAPTER).contains(target.adapterId().value()))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
         if(!player.isCreative())recoverLoot(player,target,slots);
         var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(target),Optional.empty())));completeSupport(player,changes,slots);
@@ -181,10 +183,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         recoverLoot(player,target,slots,true);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots,boolean damageTool){
-        boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
+        boolean functional=WorldFunctionals.piece(target);boolean paintable=target.adapterId().value().equals("nomoregrids:paintableblocks");if(!functional&&!paintable&&!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
         var state=NativeStates.resolve(target);var at=pos(target.origin16().cell());
-        int length=paintable?16:net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
-        var loot=paintable?net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB recovery")).drops(player,target):player.hasCorrectToolForDrops(state)?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):List.<ItemStack>of();
+        int length=paintable||functional?16:net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
+        var loot=functional?functionals.drops(target,player):paintable?net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB recovery")).drops(player,target):player.hasCorrectToolForDrops(state)?Block.getDrops(state,level,at,null,player,player.getMainHandItem()):List.<ItemStack>of();
         for(var item:loot){
             if(length<16&&item.getItem()==state.getBlock().asItem())item=net.nicomar.nomoregrids.material.FragmentItem.create(state.getBlock(),length).copyWithCount(item.getCount());NativeInventory.insert(slots,item);
         }
@@ -316,6 +318,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     private boolean matchesOriginalWorld(PieceRecord p,BlockPos at,net.minecraft.world.level.block.state.BlockState state){
         if(!NativeStates.original(p).equals(state))return false;
+        if(WorldFunctionals.piece(p))return functionals.matchesNative(p,at);
         return !p.adapterId().value().equals("nomoregrids:paintableblocks")||net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.matchesOriginal(p,level,at)).isPresent();
     }
     @Override public void install(OperationPlan plan,PieceIndex after)throws IOException{

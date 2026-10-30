@@ -20,7 +20,7 @@ public final class WorldSupport {
                     for(UUID id:index.at(cell))if(!id.equals(dependent.pieceId())&&seen.add(id)){
                         var p=index.records().get(id);if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||!SupportPatches.required(p).isEmpty())continue;
                         net.nicomar.nomoregrids.geometry.BoxUnion support;
-                        if(p.adapterId().value().equals("nomoregrids:box"))support=p.geometry().occupation();
+                        if((p.adapterId().value().equals("nomoregrids:box")||WorldFunctionals.piece(p)))support=p.geometry().occupation();
                         else if(p.adapterId().value().equals("nomoregrids:paintableblocks"))support=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow(()->new IllegalArgumentException("UNSUPPORTED_ADAPTER: PB support")).support(p.geometryPayload());
                         else continue;
                         surfaces.addAll(SupportPatches.surfaces(support.transform(net.nicomar.nomoregrids.geometry.Rotation.of(p.orientation()),p.pivot16(),p.origin16())));
