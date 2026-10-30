@@ -17,6 +17,14 @@
 | docs/evidence | Reserva para evidencia ejecutada |
 | tools | Reserva para herramientas futuras |
 
-No se incluyen clases PieceRecord, adaptadores, contenedores ni registros simulados. Sus responsabilidades están en la bóveda; se crearán cuando se implemente cada fase. Los archivos .gitkeep conservan carpetas en Git y se excluyen del JAR de recursos.
+Ahora existen PieceRecord, geometría de cajas e índices puros de región, más tests escritos. No hay adaptadores, contenedores de Minecraft ni registros de contenido. Ver docs/evidence para el avance parcial de F1. Los archivos .gitkeep conservan carpetas en Git y se excluyen del JAR de recursos.
 
 El repositorio usa Git. No se incluyen binarios compilados del mod, carpetas run/build ni credenciales. El único JAR suministrado es el wrapper oficial de Gradle, no un mod de Minecraft.
+
+## Núcleo parcial de F1
+
+- `core`: coordenadas, ResourceId, BinaryData, BoxGeometrySnapshot y PieceRecord.
+- `geometry`: rotaciones, cajas, cuantización, formas canónicas y selección por rayo.
+- `world`: PieceIndex inmutable, cambios por lote y rechazos tipados; sin acceso a Minecraft.
+- `src/test/java`: pruebas JUnit escritas, no ejecutadas.
+- `tools/check_repository.py`: comprobación estructural sin compilación ni juego.

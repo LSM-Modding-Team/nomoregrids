@@ -28,3 +28,5 @@ Estado en la edición documental 1.0: solo diseño. En la edición 1.1 se añade
 - Restaurado wrapper 9.2.1 y corregidos metadatos de licencia conforme a LICENSE.
 - Añadidos núcleo geométrico puro y pruebas JUnit escritas.
 - Sin compilación, tests Java ni arranque; F0 y F1 abiertas. Evidencia en `docs/evidence`.
+
+- Añadidos registros de pieza inmutables, geometrías de consulta separadas e índices de región con cambios validados por lote. Sin puente al juego, persistencia ni red.

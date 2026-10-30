@@ -12,7 +12,7 @@ Esqueleto de desarrollo para Minecraft Java **26.2**, NeoForge **26.2.0.88** y J
 
 ## Estado
 
-Incluye configuración Gradle, wrapper completo, entradas común/cliente, recursos iniciales y documentación de Obsidian. Se inició F1 con coordenadas, rotaciones, uniones de cajas y trazado de selección independientes de Minecraft, más pruebas Java escritas. No hay mecánicas activas de colocación, composición, fluidos ni compatibilidad Paintable Blocks.
+Incluye configuración Gradle, wrapper completo, entradas común/cliente, recursos iniciales y documentación de Obsidian. Se inició F1 con coordenadas, rotaciones, uniones de cajas, selección, registros de piezas e índices inmutables independientes de Minecraft, más pruebas Java escritas. No hay mecánicas activas de colocación, composición, fluidos ni compatibilidad Paintable Blocks.
 
 Validación realizada: estructura del proyecto, sintaxis de recursos JSON/TOML, coherencia de nombres y versiones, enlaces de documentación, integridad del ZIP y checksum oficial del wrapper. **No se ejecutó Gradle, no se compiló y no se inició Minecraft.**
 

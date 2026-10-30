@@ -4,7 +4,7 @@ Identidades confirmadas: paquete net.nicomar.nomoregrids, mod ID nomoregrids, cl
 
 La raíz del proyecto contiene Gradle 9.2.1, ModDevGradle 2.0.148, configuración de Java 25 y NeoForge 26.2.0.88. Incluye wrapper completo, entradas mínima común y cliente, paquetes documentados y traducciones reservadas.
 
-Los metadatos se generan desde src/main/templates/META-INF/neoforge.mods.toml. No hay bloques/ítems de ejemplo, mixins, access transformers, máquinas, protocolo ni controles implementados. Paintable Blocks no es una dependencia de la base.
+Los metadatos se generan desde src/main/templates/META-INF/neoforge.mods.toml. No hay bloques/ítems de ejemplo, mixins, access transformers, máquinas, protocolo ni controles implementados. Existen registros e índices puros de piezas; no están conectados al mundo. Paintable Blocks no es una dependencia de la base.
 
 Los package-info.java conservan las carpetas sin fingir clases implementadas. La carpeta test contiene pruebas del núcleo escritas; gametest sigue reservada, sin source set conectado. No hay pruebas de mecánicas ejecutadas.
 
@@ -21,3 +21,7 @@ Ver `docs/evidence/F0-revision-estatica.md`: wrapper restaurado en Git y metadat
 ## Inicio de F1
 
 Implementados en fuente coordenadas, rotaciones, cajas, cuantización y selección geométrica, sin puente al juego. JUnit está conectado y hay casos escritos, NO EJECUTADOS. Ver `docs/evidence/F1-nucleo-geometrico.md`. F0 y F1 siguen abiertas.
+
+## Identidad e índices de F1
+
+`PieceRecord`, datos opacos inmutables, geometrías de consulta separadas y `PieceIndex` con cambios por lote ya están escritos. No hay transacciones de mundo/inventario. Ver `docs/evidence/F1-identidad-indices.md`; pruebas Java NO EJECUTADAS.
