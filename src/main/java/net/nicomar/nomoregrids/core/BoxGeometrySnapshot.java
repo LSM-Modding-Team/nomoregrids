@@ -7,15 +7,20 @@ import net.nicomar.nomoregrids.geometry.BoxUnion;
 /** Integral box-family snapshot. Distinct physical/query shapes; not an external geometry codec. */
 public record BoxGeometrySnapshot(BoxUnion occupation, BoxUnion collision, BoxUnion selection) {
     public BoxGeometrySnapshot {
-        for (BoxUnion shape : List.of(occupation, collision, selection)) {
+        if(occupation.boxes().isEmpty()||selection.boxes().isEmpty())throw new IllegalArgumentException("Missing occupation/selection");
+        var shapes=List.of(occupation, collision, selection);
+        for (int index=0;index<shapes.size();index++) {
+            BoxUnion shape=shapes.get(index);
+            if(shape.boxes().isEmpty())continue;
             Box16 b = shape.bounds();
-            if (b.min().x() < 0 || b.min().y() < 0 || b.min().z() < 0
-                || b.max().x() > 16 || b.max().y() > 16 || b.max().z() > 16) {
+            long lower=index==1?-16:0,upper=index==1?32:16;
+            if (b.min().x() < lower || b.min().y() < lower || b.min().z() < lower
+                || b.max().x() > upper || b.max().y() > upper || b.max().z() > upper) {
                 throw new IllegalArgumentException("Atomic local geometry outside [0,16]");
             }
             // Occupation must conservatively reserve all physical/query geometry.
             // Per-box containment is sufficient for the supported canonical box families.
-            if (shape != occupation) for (Box16 box : shape.boxes()) {
+            if (index==2) for (Box16 box : shape.boxes()) {
                 if (occupation.boxes().stream().noneMatch(o -> contains(o, box))) {
                     throw new IllegalArgumentException("Query box outside reserved occupation");
                 }

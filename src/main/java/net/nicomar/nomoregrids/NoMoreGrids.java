@@ -14,6 +14,7 @@ public final class NoMoreGrids {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public NoMoreGrids(IEventBus modEventBus) {
-        LOGGER.info("No More Grids: base de desarrollo cargada; mecánicas no implementadas.");
+        net.nicomar.nomoregrids.registry.NmgContent.register(modEventBus);
+        LOGGER.info("No More Grids: contenedor experimental registrado; implementación pendiente de validación.");
     }
 }

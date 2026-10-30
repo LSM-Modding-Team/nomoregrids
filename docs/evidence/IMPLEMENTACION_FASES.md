@@ -120,3 +120,29 @@ mediciones siguen pendientes, aunque exista código de los sistemas.
 Pruebas escritas: pieza desplazada que cruza casillas, barrido obstruido,
 trece componentes, retardo de repetidor, nodo sin enlace, LRU y trabajo diferido.
 No ejecutadas. Continúa integración de estos módulos con la plataforma.
+
+## Puente real de contenedor y render (F1–F4, F6)
+
+Registrado el bloque técnico sin ítem, entidad con réplicas públicas persistidas
+y sincronización nativa de block entities. Consulta selección/colisión desde
+réplicas, incluso sin sección propietaria. Payloads desconocidos se conservan y
+bloquean de forma conservadora. Proyección pública excluye datos de ítem y
+material privados; adaptadores desconocidos necesitan proyección explícita.
+
+Modelo dinámico de sección 26.2 mediante RegisterBlockStateModels, con claves
+por revisión/generación, materiales nativos, clipping por casilla y UV a escala
+original. Diseños PB reconstruyen polígonos recortados y materiales de pintura,
+con transformación externa única. Se consultaron firmas de jars oficiales con
+javap, sin compilar ni ejecutar Minecraft. Manifest vanilla explícito: 310 IDs,
+además de verificaciones de entidades, random tick, fluidos y geometría integral.
+
+Decisión: ocupación local mantiene el bloque atómico; las consultas de colisión
+pueden estar vacías o extenderse hasta una casilla adicional, preservando casos
+nativos como vallas sin convertir todo su volumen visual en sólido. El codec
+experimental de cajas admite la forma vacía de colisión. No se ha publicado
+ningún formato ni existe evidencia de mundos NMG creados con la versión previa.
+
+SectionStore guarda solo autoridades por sección, con checkpoint, CRC y reemplazo
+atómico durable; no degrada una versión futura ni borra originales corruptos.
+Todavía se requiere integrar operaciones/recibos/carga y herramientas en el host
+servidor; disponer de bloque y renderer no acredita esas rutas del juego.

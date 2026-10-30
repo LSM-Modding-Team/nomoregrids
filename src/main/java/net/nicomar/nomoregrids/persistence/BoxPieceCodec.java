@@ -159,7 +159,7 @@ public final class BoxPieceCodec {
 
     private static BoxUnion readShape(DataInputStream in) throws IOException {
         int count = in.readInt();
-        if (count < 1 || count > BoxUnion.MAX_BOXES || count > in.available()/48) throw new IOException("Invalid box count");
+        if (count < 0 || count > BoxUnion.MAX_BOXES || count > in.available()/48) throw new IOException("Invalid box count");
         var boxes = new ArrayList<Box16>(count);
         for (int i = 0; i < count; i++) boxes.add(new Box16(readPoint(in),readPoint(in)));
         return new BoxUnion(boxes);

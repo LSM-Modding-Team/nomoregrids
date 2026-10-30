@@ -11,6 +11,9 @@ import net.nicomar.nomoregrids.NoMoreGrids;
 @Mod(value = NoMoreGrids.MOD_ID, dist = Dist.CLIENT)
 public final class NoMoreGridsClient {
     public NoMoreGridsClient(IEventBus modEventBus) {
-        // Los listeners se añadirán cuando se implemente la fase correspondiente.
+        modEventBus.addListener(NoMoreGridsClient::models);
+    }
+    private static void models(net.neoforged.neoforge.client.event.RegisterBlockStateModels event){
+        event.registerModel(net.minecraft.resources.Identifier.fromNamespaceAndPath("nomoregrids","cell"),net.nicomar.nomoregrids.client.render.CellModel.Unbaked.CODEC);
     }
 }

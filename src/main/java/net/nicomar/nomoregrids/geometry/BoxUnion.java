@@ -12,11 +12,12 @@ public record BoxUnion(List<Box16> boxes) {
     public static final int MAX_BOXES = 16384;
 
     public BoxUnion {
-        if (boxes.isEmpty() || boxes.size() > MAX_BOXES) throw new IllegalArgumentException("Invalid box count");
+        if (boxes.size() > MAX_BOXES) throw new IllegalArgumentException("Invalid box count");
         boxes = List.copyOf(boxes);
     }
 
     public Box16 bounds() {
+        if(boxes.isEmpty())throw new IllegalStateException("Empty query shape has no bounds");
         long x0 = Long.MAX_VALUE, y0 = Long.MAX_VALUE, z0 = Long.MAX_VALUE;
         long x1 = Long.MIN_VALUE, y1 = Long.MIN_VALUE, z1 = Long.MIN_VALUE;
         for (Box16 b : boxes) {
@@ -27,6 +28,7 @@ public record BoxUnion(List<Box16> boxes) {
     }
 
     public boolean overlaps(BoxUnion other) {
+        if(boxes.isEmpty()||other.boxes.isEmpty())return false;
         if (!bounds().overlaps(other.bounds())) return false;
         for (Box16 a : boxes) for (Box16 b : other.boxes) if (a.overlaps(b)) return true;
         return false;

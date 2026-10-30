@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "": {
+      "type": "nomoregrids:cell",
+      "base_model": "minecraft:block/stone"
+    }
+  }
+}
