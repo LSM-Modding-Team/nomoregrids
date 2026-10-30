@@ -738,3 +738,23 @@ disperso de contenedores cargados en lugar de usar una proyección gruesa de
 fluido; cuerpo, ojos y efectos siguen empleando cavidades reales.
 Prueba de frontera y drenaje de un corredor escrita, no ejecutada. Revisión
 estática de parser, recursos e imports; sin compilación, Gradle ni juego.
+
+## Paintable Blocks nativo/convertido y creación volumétrica
+
+Las selecciones consultan conjuntamente piezas NMG y BEs PB nativas; fijan sus
+imágenes/revisiones y al confirmar capturan y editan en el mismo plan. No hay
+una conversión intermedia que pueda cobrar o perder datos. Remoción completa
+de un diseño nativo usa imagen AIR durable, y sus permisos/hash se vuelven a
+comprobar tras callbacks. La pantalla del formador configura dirección, lado,
+resolución y creación creativa, con preview del servidor y confirmación de sesión.
+La creación conserva identidad PB y pasa permisos de colocación además de PB.
+Se aplica el presupuesto existente de 128 componentes por operación, con rechazo
+previo de volúmenes mayores. No se autoriza consumo parcial por lote.
+
+MicroBoxes empaqueta sin pérdidas las cajas públicas integrales para que un
+diseño PB lleno de resolución 16 no produzca miles de cajas idénticas al cubo.
+Los convexos y pinturas nativos permanecen intactos. Se negocia edición activa
+por dimensión para conservar herramientas PB nativas cuando NMG está desactivado;
+el listener de herramientas tiene prioridad para evitar doble despacho. Protocolo 8.
+Prueba pura de empaquetado escrita, no ejecutada; parser, recursos y whitespace
+revisados. Sin compilación, Gradle, CI ni Minecraft.

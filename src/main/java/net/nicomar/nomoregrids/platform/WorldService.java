@@ -118,6 +118,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var saved=level.getServer().getPlayerList().loadPlayerData(actor.nameAndId());
         if(saved.isEmpty()||saved.orElseThrow().getCompoundOrEmpty("NeoForgeData").getLongOr(receiptKey,0)<sequence)throw new IOException("Receipt not persisted with player inventory");
     }
+    public ServerLevel level(){return level;}
     public PieceIndex snapshot(){return engine.snapshot();}
     public boolean quarantined(){return compactionFault||engine.quarantined();}
     public net.nicomar.nomoregrids.diagnostic.TimingSamples timings(){return engine.timings();}
@@ -210,11 +211,14 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(repeated(operation,player,OperationPlan.Kind.EDIT))return;var old=snapshot().records().get(id);if(old==null||!old.adapterId().value().equals("nomoregrids:paintableblocks"))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");
         PaintableSelections.use(this,player,hand,old,hit,operation,control);
     }
-    public void commitPaintable(ServerPlayer player,InteractionHand hand,Map<UUID,net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.Edit> edits,List<ItemStack> slots,UUID operation)throws IOException{
-        var before=NativeInventory.encode(player,NativeInventory.copy(player));var changes=new ArrayList<OperationPlan.Change>();var originals=new HashMap<UUID,PieceRecord>();
-        for(var e:edits.entrySet()){var old=snapshot().records().get(e.getKey());if(old==null)throw new IllegalArgumentException("STALE_REVISION");originals.put(e.getKey(),old);changes.add(new OperationPlan.Change(e.getKey(),Optional.of(old),e.getValue().after()));}
-        completeSupport(player,changes,slots);var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,changes,before,NativeInventory.encode(player,slots));var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow();
-        permissionHooks.put(operation,()->{for(var e:edits.entrySet())bridge.permission(player,hand,originals.get(e.getKey()),pos(originals.get(e.getKey()).origin16().cell()),e.getValue().nativePlan());});
+    public void commitPaintable(ServerPlayer player,InteractionHand hand,Map<UUID,net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.Edit> edits,List<ItemStack> slots,UUID operation)throws IOException{commitPaintable(player,hand,edits,Map.of(),slots,operation);}
+    public void commitPaintable(ServerPlayer player,InteractionHand hand,Map<UUID,net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.Edit> edits,Map<UUID,PieceRecord> captured,List<ItemStack> slots,UUID operation)throws IOException{
+        var before=NativeInventory.encode(player,NativeInventory.copy(player));var changes=new ArrayList<OperationPlan.Change>();var originals=new HashMap<UUID,PieceRecord>();var effects=new ArrayList<OperationPlan.Effect>();
+        for(var e:edits.entrySet()){var old=snapshot().records().get(e.getKey());boolean nativePiece=old==null;if(nativePiece)old=captured.get(e.getKey());if(old==null)throw new IllegalArgumentException("STALE_REVISION");originals.put(e.getKey(),old);var after=e.getValue().after();
+            if(nativePiece){if(after.isEmpty()){effects.add(nativeChange(old.origin16().cell(),Blocks.AIR.defaultBlockState()));continue;}after=after.map(p->net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.revision(p,0));}changes.add(new OperationPlan.Change(e.getKey(),nativePiece?Optional.empty():Optional.of(old),after));}
+        completeSupport(player,changes,slots);var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,changes,before,NativeInventory.encode(player,slots),effects);var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow();
+        Runnable verify=()->{for(var p:captured.values()){var at=pos(p.origin16().cell());if(p.itemPayload().size()>0&&level.getBlockEntity(at)!=null){if(!bridge.matchesOriginal(p,level,at))throw new IllegalArgumentException("STALE_REVISION: native PB capture");}else if(!level.getBlockState(at).isAir())throw new IllegalArgumentException("STALE_REVISION: PB creation target");}};
+        permissionHooks.put(operation,()->{verify.run();for(var e:edits.entrySet()){var p=originals.get(e.getKey());if(captured.containsKey(e.getKey())&&level.getBlockState(pos(p.origin16().cell())).isAir()&&e.getValue().after().isPresent()){var intended=NativeStates.resolve(e.getValue().after().orElseThrow());var at=pos(p.origin16().cell());var snapshot=net.neoforged.neoforge.common.util.BlockSnapshot.create(level.dimension(),level,at);var placing=new net.neoforged.neoforge.event.level.BlockEvent.EntityPlaceEvent(snapshot,level.getBlockState(at.below()),player){@Override public net.minecraft.world.level.block.state.BlockState getPlacedBlock(){return intended;}@Override public net.minecraft.world.level.block.state.BlockState getState(){return intended;}};NeoForge.EVENT_BUS.post(placing);if(placing.isCanceled())throw new IllegalArgumentException("PROTECTED");}bridge.permission(player,hand,p,pos(p.origin16().cell()),e.getValue().nativePlan());}verify.run();});
         try{executePrepared(plan);}finally{permissionHooks.remove(operation);}
     }
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){completeSupport(player,changes,slots,false);}
@@ -255,7 +259,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         double reach=player.blockInteractionRange();var eye=player.getEyePosition();
         boolean inReach=plan.changes().stream().flatMap(c->java.util.stream.Stream.concat(c.before().stream(),c.after().stream())).anyMatch(p->{
             var b=p.worldOccupation().bounds();double x=Math.max(b.min().x()/16.0,Math.min(b.max().x()/16.0,eye.x)),y=Math.max(b.min().y()/16.0,Math.min(b.max().y()/16.0,eye.y)),z=Math.max(b.min().z()/16.0,Math.min(b.max().z()/16.0,eye.z));return eye.distanceToSqr(new Vec3(x,y,z))<=reach*reach;});
-        if(plan.kind()==OperationPlan.Kind.CLAIM||plan.kind()==OperationPlan.Kind.TRANSFER)inReach=plan.affectedCells().stream().allMatch(c->eye.distanceToSqr(new Vec3(c.x()+0.5,c.y()+0.5,c.z()+0.5))<=16);
+        if(plan.kind()==OperationPlan.Kind.CLAIM||plan.kind()==OperationPlan.Kind.TRANSFER||plan.kind()==OperationPlan.Kind.EDIT&&plan.changes().isEmpty())inReach=plan.affectedCells().stream().allMatch(c->eye.distanceToSqr(new Vec3(c.x()+0.5,c.y()+0.5,c.z()+0.5))<=16);
         if(!inReach)throw new IllegalArgumentException("Interaction out of reach");
         if(plan.kind()==OperationPlan.Kind.PLACE){
             var p=plan.changes().reversed().stream().flatMap(c->c.after().stream()).findFirst().orElseThrow();var b=p.worldOccupation().bounds();

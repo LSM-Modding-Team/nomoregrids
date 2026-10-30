@@ -38,7 +38,7 @@ public final class NmgRuntime {
         Mining(net.nicomar.nomoregrids.core.PieceRecord p,ServerPlayer actor,float initial){piece=p.pieceId();revision=p.revision();main=actor.getMainHandItem().copy();offhand=actor.getOffhandItem().copy();progress=initial;}
     }
     private NmgRuntime(){}
-    public static void register(){WorldPistons.register();NeoForge.EVENT_BUS.addListener(NmgRuntime::load);NeoForge.EVENT_BUS.addListener(NmgRuntime::unload);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkLoad);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkUnload);NeoForge.EVENT_BUS.addListener(NmgRuntime::login);NeoForge.EVENT_BUS.addListener(NmgRuntime::logout);NeoForge.EVENT_BUS.addListener(NmgRuntime::commands);NeoForge.EVENT_BUS.addListener(NmgRuntime::breaking);NeoForge.EVENT_BUS.addListener(NmgRuntime::rightClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::leftClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::playerTick);NeoForge.EVENT_BUS.addListener(NmgRuntime::serverTick);}
+    public static void register(){WorldPistons.register();NeoForge.EVENT_BUS.addListener(NmgRuntime::changedDimension);NeoForge.EVENT_BUS.addListener(NmgRuntime::load);NeoForge.EVENT_BUS.addListener(NmgRuntime::unload);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkLoad);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkUnload);NeoForge.EVENT_BUS.addListener(NmgRuntime::login);NeoForge.EVENT_BUS.addListener(NmgRuntime::logout);NeoForge.EVENT_BUS.addListener(NmgRuntime::commands);NeoForge.EVENT_BUS.addListener(NmgRuntime::breaking);NeoForge.EVENT_BUS.addListener(NmgRuntime::rightClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::leftClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::playerTick);NeoForge.EVENT_BUS.addListener(NmgRuntime::serverTick);}
     public static WorldService require(ServerLevel level)throws IOException{
         if(!ENABLED.contains(level)&&!Boolean.getBoolean("nomoregrids.experimental"))throw new IOException("Experimental world editing is disabled");
         if(QUARANTINE.containsKey(level))throw new IOException("Recovery required: "+QUARANTINE.get(level));return open(level);
@@ -55,7 +55,9 @@ public final class NmgRuntime {
     private static void load(LevelEvent.Load event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
         try{open(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
     });}
-    private static void quarantine(ServerLevel level,Exception ex){QUARANTINE.put(level,ex.toString());NoMoreGrids.LOGGER.error("NMG recovery blocked; original data retained",ex);}
+    private static void quarantine(ServerLevel level,Exception ex){QUARANTINE.put(level,ex.toString());editingState(level);NoMoreGrids.LOGGER.error("NMG recovery blocked; original data retained",ex);}
+    private static void editingState(ServerLevel level){PacketDistributor.sendToPlayersInDimension(level,new EditingStatePayload(level.dimension().identifier().toString(),!QUARANTINE.containsKey(level)&&(ENABLED.contains(level)||Boolean.getBoolean("nomoregrids.experimental"))));}
+    private static void changedDimension(PlayerEvent.PlayerChangedDimensionEvent event){if(event.getEntity() instanceof ServerPlayer player)editingState(player.level());}
     private static void chunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event){if(event.getLevel() instanceof ServerLevel level)CHUNKS.add(new ChunkTask(level,event.getChunk().getPos()));}
     private static void serverTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event){
         long start=System.nanoTime();int done=0;for(var task:List.copyOf(CHUNKS)){
@@ -82,7 +84,7 @@ public final class NmgRuntime {
     private static void login(PlayerEvent.PlayerLoggedInEvent event){if(event.getEntity() instanceof ServerPlayer player){NmgNetworking.joined(player);for(var level:List.copyOf(QUARANTINE.keySet())){
         var old=SERVICES.remove(level);if(old!=null)try{old.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close failed NMG service",ex);continue;}
         try{open(level);for(var chunk:LOADED.getOrDefault(level,Map.of()).keySet())CHUNKS.add(new ChunkTask(level,chunk));QUARANTINE.remove(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
-    }WorldFunctionals.closeCursor(player);}}
+    }WorldFunctionals.closeCursor(player);editingState(player.level());}}
     public static void action(ServerPlayer player,ActionPayload packet){
         if(!LIMITERS.computeIfAbsent(player.getUUID(),key->new IntentLimiter()).allow(System.nanoTime()))return;
         try{
@@ -116,8 +118,8 @@ public final class NmgRuntime {
                 }
                 case BUCKET->{service.fluids().bucket(player,hand,new net.nicomar.nomoregrids.core.CellPos(block.getBlockPos().getX(),block.getBlockPos().getY(),block.getBlockPos().getZ()),packet.operation());}
                 case EDIT->{
-                    if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
-                    var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation(),packet.control());
+                    if(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation(),packet.control());}
+                    else{var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow();if(!bridge.nativeBlock(player.level().getBlockState(block.getBlockPos())))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");PaintableSelections.use(service,player,hand,bridge.nativeSelection(player.level(),block.getBlockPos()),block,packet.operation(),packet.control());}
                 }
                 case LOCK->{
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
@@ -202,7 +204,7 @@ public final class NmgRuntime {
                 var previous=SERVICES.get(level);if(previous!=null){previous.close();SERVICES.remove(level);}
                 open(level);for(var chunk:LOADED.getOrDefault(level,Map.of()).keySet())CHUNKS.add(new ChunkTask(level,chunk));QUARANTINE.remove(level);
             }else open(level);
-            ENABLED.add(level);source.sendSuccess(()->Component.literal("NMG experimental editing enabled for this session; not certified"),true);return 1;
+            ENABLED.add(level);editingState(level);source.sendSuccess(()->Component.literal("NMG experimental editing enabled for this session; not certified"),true);return 1;
         }catch(IOException|RuntimeException ex){
             ENABLED.remove(level);quarantine(level,ex);source.sendFailure(Component.literal("NMG no pudo habilitar la edición: "+ex+". Consulta latest.log para la causa completa; los datos originales se conservan."));return 0;
         }

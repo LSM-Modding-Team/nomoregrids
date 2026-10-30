@@ -27,6 +27,7 @@ public final class ConstructionControls {
     private static final PlayerModes MODES=new PlayerModes();
     private static final VanillaCatalog CATALOG=new VanillaCatalog();
     private static ModePayload lastSent;
+    private static final Map<String,Boolean> ENABLED=new HashMap<>();
     private static Object lastDimension;
     private static PieceRecord preview;
     private static net.nicomar.nomoregrids.network.PaintableSelectionPayload paintableSelection;
@@ -39,9 +40,10 @@ public final class ConstructionControls {
     private static int lengthSelection;
     private static Map<String,String> alignmentProperties=Map.of();
     private ConstructionControls(){}
-    public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::outline);NeoForge.EVENT_BUS.addListener(ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
+    public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::outline);NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.HIGHEST,ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
     private static void payloads(net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event){
-        event.register(net.nicomar.nomoregrids.network.PaintableSelectionPayload.TYPE,(packet,context)->context.enqueueWork(()->paintableSelection=packet.phase()==0?null:packet));
+        event.register(net.nicomar.nomoregrids.network.EditingStatePayload.TYPE,(packet,context)->context.enqueueWork(()->ENABLED.put(packet.dimension(),packet.enabled())));
+        event.register(net.nicomar.nomoregrids.network.PaintableSelectionPayload.TYPE,(packet,context)->context.enqueueWork(()->{paintableSelection=packet.phase()==0?null:packet;net.nicomar.nomoregrids.client.screen.PaintableVolumeScreen.offer(packet);}));
         event.register(net.nicomar.nomoregrids.network.CellFragmentPayload.TYPE,(packet,context)->context.enqueueWork(()->net.nicomar.nomoregrids.client.selection.ClientCellReplication.accept(packet)));
         event.register(net.nicomar.nomoregrids.network.SessionPayload.TYPE,(packet,context)->context.enqueueWork(()->{
             if(!packet.profileHash().equals(net.nicomar.nomoregrids.network.SessionPayload.localHash())||!packet.rules().equals(net.nicomar.nomoregrids.network.SessionPayload.localRules())){context.disconnect(net.minecraft.network.chat.Component.translatable("message.nomoregrids.profile_mismatch"));return;}
@@ -62,7 +64,7 @@ public final class ConstructionControls {
             send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.INTERACT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;
         }
         if(event.isUseItem()&&cell&&held.getItem() instanceof net.minecraft.world.item.BucketItem){send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.BUCKET,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;}
-        if(event.isUseItem()&&cell&&net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.editingItem(held)).isPresent()){
+        if(event.isUseItem()&&(cell||ENABLED.getOrDefault(mc.level.dimension().identifier().toString(),false)&&mc.hitResult instanceof BlockHitResult pbHit&&net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.nativeBlock(mc.level.getBlockState(pbHit.getBlockPos()))).isPresent())&&net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.editingItem(held)).isPresent()){
             send(new ActionPayload(UUID.randomUUID(),ActionPayload.Action.EDIT,event.getHand()==InteractionHand.OFF_HAND));event.setCanceled(true);event.setSwingHand(false);return;
         }
         if(event.isUseItem()&&(MODES.precise||MODES.expanded||LATERAL.isDown()||cell||slab||fragment||MODES.adjusted&&cuttable||MODES.alignment().isPresent())&&(held.getItem() instanceof net.minecraft.world.item.BlockItem||fragment)){
@@ -81,7 +83,7 @@ public final class ConstructionControls {
     private static void keys(RegisterKeyMappingsEvent event){event.registerCategory(CATEGORY);for(var key:List.of(PRECISE,EXPANDED,ADJUSTED,ALIGN,LATERAL,REPLACE,LOCK))event.register(key);}
     private static ModePayload packet(){return new ModePayload(MODES.precise,MODES.expanded,MODES.adjusted,LATERAL.isDown(),REPLACE.isDown(),MODES.axis(),MODES.offset(),Math.floorMod(MODES.candidate(),64),MODES.alignment().isPresent(),alignmentAxis,alignmentSign,alignmentPlane,alignmentRotation,lengthSelection,MODES.alignment().isPresent()?alignmentProperties:Map.of());}
     private static void tick(ClientTickEvent.Post event){
-        var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;paintableSelection=null;lastSent=null;lastDimension=null;net.nicomar.nomoregrids.client.selection.ClientCellReplication.reset();return;}
+        var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;paintableSelection=null;ENABLED.clear();lastSent=null;lastDimension=null;net.nicomar.nomoregrids.client.selection.ClientCellReplication.reset();return;}
         if(!mc.level.dimension().equals(lastDimension)){MODES.changedDimension();lengthSelection=0;lastDimension=mc.level.dimension();}
         if(mc.gui.screen()!=null){preview=null;var p=packet();var inactive=new ModePayload(p.precise(),p.expanded(),p.adjusted(),false,false,p.axis(),p.offset(),p.candidate(),p.aligned(),p.alignmentAxis(),p.alignmentSign(),p.alignmentPlane(),p.alignmentRotation(),p.length(),p.alignmentProperties());if(!inactive.equals(lastSent)){ClientPacketDistributor.sendToServer(inactive);lastSent=inactive;}return;}
         while(PRECISE.consumeClick())MODES.precise=!MODES.precise;while(EXPANDED.consumeClick())MODES.expanded=!MODES.expanded;while(ADJUSTED.consumeClick())MODES.adjusted=!MODES.adjusted;

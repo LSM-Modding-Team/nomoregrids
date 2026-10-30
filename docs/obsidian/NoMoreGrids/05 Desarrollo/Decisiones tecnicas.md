@@ -34,7 +34,7 @@ Todas son decisiones vigentes. Las comprobaciones pendientes son validación de 
 | D28 | Compatibilidad por capacidad y versión | Certificación granular |
 | D29 | Paintable Blocks mediante adaptador específico | Geometría/datos del origen preservados |
 | D30 | Presupuestos concretos de complejidad | Rechazo previo, nunca borrado |
-| D31 | Protocolo experimental 7; esquema/API de piezas 1 | Handshake de manifest, versiones y límites; migraciones explícitas |
+| D31 | Protocolo experimental 8; esquema/API de piezas 1 | Handshake de manifest, versiones y límites; migraciones explícitas |
 | D32 | Bóveda Markdown sin plugins comunitarios | Navegable y portable |
 | D33 | Bóveda integrada en docs/obsidian/NoMoreGrids | Esqueleto mínimo autorizado en edición 1.1 |
 | D34 | Idioma inicial es_es y en_us | Traducciones, códigos de error estables |

@@ -71,6 +71,13 @@ public final class PaintableBridge {
             var stateImage=new JsonObject();NativeStates.properties(level.getBlockState(pos)).forEach(stateImage::addProperty);nativeImage.add("state",stateImage);envelope.add("native",nativeImage);return withItem(captured,new BinaryData(envelope.toString().getBytes(StandardCharsets.UTF_8)));}
         catch(ReflectiveOperationException ex){throw mismatch(ex);}
     }
+    public PieceRecord nativeSelection(ServerLevel level,BlockPos pos){
+        try{Object be=level.getBlockEntity(pos);UUID identity=(UUID)entity.getMethod("editIdentity").invoke(be);UUID id=UUID.nameUUIDFromBytes((level.dimension().identifier()+"|"+pos+"|"+identity).getBytes(StandardCharsets.UTF_8));var p=captureNative(level,pos,id);return revision(p,(long)entity.getMethod("revision").invoke(be));}catch(ReflectiveOperationException ex){throw mismatch(ex);}
+    }
+    public PieceRecord create(ServerLevel level,BlockPos position,int resolution){
+        try{Object full=design.getMethod("full",int.class).invoke(null,resolution);Class<?> content=Class.forName("net.nicomar.paintableblocks.registry.ModContent");var nativeBlock=(net.minecraft.world.level.block.Block)content.getMethod("block",int.class).invoke(null,resolution);return capture(nativeBlock.defaultBlockState(),full,nativeBlock.asItem().getDefaultInstance(),level.registryAccess(),position,UUID.randomUUID());}catch(ReflectiveOperationException ex){throw mismatch(ex);}
+    }
+    public static PieceRecord revision(PieceRecord p,long revision){return new PieceRecord(p.pieceId(),revision,p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),p.flags());}
     private PieceRecord capture(BlockState state,Object d,ItemStack original,HolderLookup.Provider lookup,BlockPos pos,UUID id)throws ReflectiveOperationException{
         if(!block.isInstance(state.getBlock())||(int)block.getMethod("resolution").invoke(state.getBlock())!=(int)design.getMethod("resolution").invoke(d))throw new IllegalArgumentException("PB resolution mismatch");
         BinaryData data=adapter.capture(d);var properties=new HashMap<>(NativeStates.properties(state));properties.put("cut",Boolean.toString(!(boolean)design.getMethod("complete").invoke(d)));
@@ -85,7 +92,7 @@ public final class PaintableBridge {
                 if(x0< -ConvexVolume.EPS||y0< -ConvexVolume.EPS||z0< -ConvexVolume.EPS||x1>16+ConvexVolume.EPS||y1>16+ConvexVolume.EPS||z1>16+ConvexVolume.EPS)throw new IllegalArgumentException("PB atomic geometry outside its frame");
                 conservative.add(Box16.of(Math.max(0,(long)Math.floor(x0)),Math.max(0,(long)Math.floor(y0)),Math.max(0,(long)Math.floor(z0)),Math.min(16,(long)Math.ceil(x1)),Math.min(16,(long)Math.ceil(y1)),Math.min(16,(long)Math.ceil(z1))));
             }
-            var occupation=new BoxUnion(conservative);return new BoxGeometrySnapshot(occupation,collision,occupation);
+            var mask=net.nicomar.nomoregrids.simulation.fluid.CavityCell.blocked(new BoxUnion(conservative));var occupation=MicroBoxes.pack(mask);return new BoxGeometrySnapshot(occupation,collision,occupation);
         }catch(ReflectiveOperationException ex){throw mismatch(ex);}
     }
     public BoxUnion support(BinaryData payload){try{return NativeStates.boxes((VoxelShape)geometry.getMethod("supportShape",design).invoke(null,adapter.restore(payload)));}catch(ReflectiveOperationException ex){throw mismatch(ex);}}
