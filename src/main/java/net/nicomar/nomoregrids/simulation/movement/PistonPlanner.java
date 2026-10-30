@@ -21,8 +21,12 @@ public final class PistonPlanner {
                 PieceRecord p=index.records().get(id);if(p==null||!movable.test(id)||p.flags().contains(PieceRecord.Flag.SUBSTITUTE))throw new IllegalArgumentException("Immovable component");
                 for(var box:p.worldOccupation().boxes()){
                     Box16 sweep=sweep(box,delta);
-                    for(var cell:sweep.cells(32)){
+                    Set<CellPos> swept=sweep.cells(32);Set<CellPos> candidates=new HashSet<>(swept);
+                    for(var cell:swept){
                         if(!loaded.test(cell))throw new IllegalArgumentException("UNLOADED_REGION");
+                        for(var side:Direction6.values())candidates.add(new CellPos(Math.addExact(cell.x(),side.x),Math.addExact(cell.y(),side.y),Math.addExact(cell.z(),side.z)));
+                    }
+                    for(var cell:candidates){
                         for(UUID other:index.at(cell))if(!closure.contains(other)){
                             PieceRecord neighbor=index.records().get(other);
                             boolean blocks=neighbor.worldOccupation().boxes().stream().anyMatch(sweep::overlaps);

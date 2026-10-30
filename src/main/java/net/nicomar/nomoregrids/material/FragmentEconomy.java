@@ -6,7 +6,7 @@ import net.nicomar.nomoregrids.core.*;
 /** Material-conserving cut/join planner; never mutates caller inventory or invents drops. */
 public final class FragmentEconomy {
     public record Key(ResourceId material,ResourceId section,int textureOrientation,BinaryData data) {
-        public Key{Objects.requireNonNull(material);Objects.requireNonNull(section);Objects.requireNonNull(data);}
+        public Key{Objects.requireNonNull(material);Objects.requireNonNull(section);Objects.requireNonNull(data);if(textureOrientation<0||textureOrientation>=24)throw new IllegalArgumentException("Texture orientation");}
     }
     public record Stack(Key key,int length,int count){
         public Stack{Objects.requireNonNull(key);if(length<1||length>16||count<1||count>64)throw new IllegalArgumentException("Invalid fragment stack");}

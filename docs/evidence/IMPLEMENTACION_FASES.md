@@ -194,3 +194,18 @@ Pruebas nuevas escritas: rechazo sin commit/consumo, repetición sin doble cobro
 fallo tras recibo y recuperación, réplica pública sin datos privados, secciones
 con checksum/corrupción conservada y formas de colisión vacías. No ejecutadas.
 La revisión estructural y parser no comprueban tipos ni ejecutan Java.
+
+## Revisión de invariantes de simulación y durabilidad
+
+La cola lógica de señales conserva un solo evento pendiente por nodo, indexa
+aristas y propaga los eventos demorados desde su tick lógico, incluso al agotar
+presupuesto. Se evita crecimiento por eventos obsoletos. El planificador de
+pistón consulta también la franja contigua al barrido para encontrar adhesión
+lateral en una casilla vecina. Solo las casillas realmente barridas exigen carga;
+los miembros añadidos se comprueban en la siguiente pasada.
+
+El horno recuerda la receta del progreso y lo reinicia si cambia; no admite
+experiencia NaN/infinita. Grupos y orientación de fragmentos validan sus claves
+antes de modificar estado. Crear/reabrir el diario fuerza también el directorio.
+Pruebas de regresión escritas para estos casos, sin ejecución Java. Revisión
+estructural, parser de 123 fuentes y whitespace aprobados; no comprueban tipos.

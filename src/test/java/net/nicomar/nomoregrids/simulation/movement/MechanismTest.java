@@ -28,4 +28,18 @@ class MechanismTest {
         network.source(source,15);network.advance(0,100);assertEquals(0,network.value(repeater));network.advance(1,100);assertEquals(0,network.value(repeater));
         network.advance(2,100);assertEquals(15,network.value(repeater));assertEquals(0,network.value(unlinked));
     }
+    @Test void sideAdhesionFindsPieceOutsideSweptCells(){
+        var a=TestPieces.of(UUID.randomUUID(),ConstructionShapes.CUBE,GridPoint.ZERO);
+        var b=TestPieces.of(UUID.randomUUID(),ConstructionShapes.CUBE,new GridPoint(-16,0,0));
+        var changes=PistonPlanner.plan(PieceIndex.restored(List.of(a,b)),Set.of(a.pieceId()),Direction6.EAST,false,new GroupRegistry(),id->true,c->true,s->false,(x,y)->true);
+        assertEquals(Set.of(a.pieceId(),b.pieceId()),changes.stream().map(PieceChange::pieceId).collect(java.util.stream.Collectors.toSet()));
+    }
+    @Test void deferredCircuitPreservesLogicalDelayAndCoalescesRequests(){
+        UUID source=UUID.randomUUID(),repeater=UUID.randomUUID();
+        var circuit=new SignalNetwork(List.of(new SignalNetwork.Node(source,SignalNetwork.Kind.SOURCE,0,false),new SignalNetwork.Node(repeater,SignalNetwork.Kind.REPEATER,2,false)),List.of(new SignalNetwork.Edge(source,repeater,SignalNetwork.Input.REAR,0)));
+        for(int i=0;i<10000;i++)circuit.source(source,i%16);
+        assertEquals(1,circuit.pending());circuit.source(source,15);
+        circuit.advance(10,1);assertEquals(0,circuit.value(repeater));
+        circuit.advance(10,1);assertEquals(15,circuit.value(repeater));assertEquals(0,circuit.pending());
+    }
 }

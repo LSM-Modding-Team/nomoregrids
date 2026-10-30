@@ -8,14 +8,15 @@ public final class FurnaceLogic {
     public record Stack(ResourceId item,int count){public Stack{if(count<1||count>64)throw new IllegalArgumentException("Stack count");}}
     public record Recipe(ResourceId input,Stack result,int ticks,float experience){public Recipe{if(ticks<1||!Float.isFinite(experience)||experience<0)throw new IllegalArgumentException("Recipe");}}
     public record Fuel(int ticks,Optional<Stack> remainder){public Fuel{if(ticks<1)throw new IllegalArgumentException("Fuel");}}
-    public record State(Optional<Stack> input,Optional<Stack> fuel,Optional<Stack> output,int burning,int progress,float experience){
-        public State{if(burning<0||progress<0||experience<0)throw new IllegalArgumentException("Furnace state");}
+    public record State(Optional<Stack> input,Optional<Stack> fuel,Optional<Stack> output,int burning,int progress,float experience,Optional<Recipe> activeRecipe){
+        public State{Objects.requireNonNull(input);Objects.requireNonNull(fuel);Objects.requireNonNull(output);Objects.requireNonNull(activeRecipe);if(burning<0||progress<0||!Float.isFinite(experience)||experience<0)throw new IllegalArgumentException("Furnace state");}
+        public State(Optional<Stack> input,Optional<Stack> fuel,Optional<Stack> output,int burning,int progress,float experience){this(input,fuel,output,burning,progress,experience,Optional.empty());}
     }
     public record Tick(State state,Optional<Stack> fuelRemainder){}
     private FurnaceLogic(){}
     private static Optional<Stack> take(Optional<Stack> slot){var s=slot.orElseThrow();return s.count==1?Optional.empty():Optional.of(new Stack(s.item,s.count-1));}
     public static Tick tick(State old,Optional<Recipe> recipe,java.util.function.Function<ResourceId,Optional<Fuel>> fuels){
-        int burning=Math.max(0,old.burning-1),progress=old.progress;float experience=old.experience;
+        int burning=Math.max(0,old.burning-1),progress=old.activeRecipe.equals(recipe)?old.progress:0;float experience=old.experience;
         Optional<Stack> input=old.input,fuel=old.fuel,output=old.output,remainder=Optional.empty();
         boolean can=recipe.isPresent()&&input.isPresent()&&input.orElseThrow().item.equals(recipe.orElseThrow().input)
             &&(output.isEmpty()||output.orElseThrow().item.equals(recipe.orElseThrow().result.item))
@@ -32,6 +33,6 @@ public final class FurnaceLogic {
             Recipe r=recipe.orElseThrow();progress++;
             if(progress>=r.ticks){input=take(input);output=Optional.of(new Stack(r.result.item,output.map(Stack::count).orElse(0)+r.result.count));progress=0;experience+=r.experience;}
         }else progress=Math.max(0,progress-2);
-        return new Tick(new State(input,fuel,output,burning,progress,experience),remainder);
+        return new Tick(new State(input,fuel,output,burning,progress,experience,progress>0?recipe:Optional.empty()),remainder);
     }
 }

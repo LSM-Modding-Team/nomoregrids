@@ -29,4 +29,13 @@ class FunctionalStoreTest {
         var blocked=new FurnaceLogic.State(initial.input(),initial.fuel(),Optional.of(new FurnaceLogic.Stack(ingot,64)),0,0,0);
         assertEquals(blocked,FurnaceLogic.tick(blocked,Optional.of(recipe),id->Optional.of(new FurnaceLogic.Fuel(100,Optional.empty()))).state());
     }
+    @Test void changingRecipeResetsProgressAndNonFiniteExperienceIsRejected(){
+        var ore=new ResourceId("minecraft:iron_ore");var ingot=new ResourceId("minecraft:iron_ingot");
+        var first=new FurnaceLogic.Recipe(ore,new FurnaceLogic.Stack(ingot,1),4,0.7f);
+        var changed=new FurnaceLogic.Recipe(ore,new FurnaceLogic.Stack(ingot,2),4,0.7f);
+        var old=new FurnaceLogic.State(Optional.of(new FurnaceLogic.Stack(ore,1)),Optional.empty(),Optional.empty(),10,3,0,Optional.of(first));
+        var next=FurnaceLogic.tick(old,Optional.of(changed),id->Optional.empty()).state();
+        assertEquals(1,next.progress());assertTrue(next.output().isEmpty());
+        assertThrows(IllegalArgumentException.class,()->new FurnaceLogic.State(Optional.empty(),Optional.empty(),Optional.empty(),0,0,Float.POSITIVE_INFINITY));
+    }
 }

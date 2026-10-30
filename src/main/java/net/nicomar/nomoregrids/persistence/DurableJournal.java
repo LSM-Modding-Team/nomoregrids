@@ -25,7 +25,10 @@ public final class DurableJournal implements AutoCloseable {
         try { acquired=channel.tryLock(); } catch (RuntimeException | IOException ex) { channel.close();throw ex; }
         if(acquired==null){channel.close();throw new IOException("Journal already locked");}
         lock=acquired;
-        try { scan();channel.position(channel.size()); }
+        try {
+            scan();channel.position(channel.size());channel.force(true);
+            try(var directory=FileChannel.open(path.toAbsolutePath().getParent(),StandardOpenOption.READ)){directory.force(true);}
+        }
         catch(IOException | RuntimeException ex){lock.release();channel.close();throw ex;}
     }
     private void scan() throws IOException {
