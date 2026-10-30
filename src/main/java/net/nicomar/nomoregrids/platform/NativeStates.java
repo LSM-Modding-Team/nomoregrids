@@ -15,6 +15,11 @@ import net.nicomar.nomoregrids.geometry.*;
 public final class NativeStates {
     private NativeStates(){}
     public static BlockState resolve(PieceRecord piece){return resolve(piece.sourceBlockId(),piece.sourceState());}
+    public static BlockState original(PieceRecord piece){
+        if(!piece.adapterId().value().equals("nomoregrids:box")||piece.geometryPayload().size()==0)return resolve(piece);
+        try{var image=net.nicomar.nomoregrids.persistence.NativeStateImage.decode(piece.geometryPayload());return resolve(image.block(),image.properties());}
+        catch(java.io.IOException ex){throw new IllegalArgumentException("INVALID_DATA: native capture image",ex);}
+    }
     public static BlockState resolve(ResourceId id,Map<String,String> values){
         BlockState state=BuiltInRegistries.BLOCK.getOptional(Identifier.parse(id.value())).orElseThrow(()->new IllegalArgumentException("Missing block: "+id)).defaultBlockState();
         if(state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)throw new IllegalArgumentException("Nested NMG container is forbidden");
@@ -36,6 +41,6 @@ public final class NativeStates {
         if(selection.boxes().isEmpty())throw new IllegalArgumentException("No solid occupation");
         return new PieceRecord(id,0,new ResourceId("nomoregrids:box"),1,new ResourceId(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),properties(state),
             new GridPoint(pos.getX()*16L,pos.getY()*16L,pos.getZ()*16L),0,GridPoint.BLOCK_CENTER,new BoxGeometrySnapshot(selection,collision,selection),
-            BinaryData.EMPTY,BinaryData.EMPTY,BinaryData.EMPTY,Optional.empty(),Set.of());
+            new net.nicomar.nomoregrids.persistence.NativeStateImage(new ResourceId(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()),properties(state)).encode(),BinaryData.EMPTY,BinaryData.EMPTY,Optional.empty(),Set.of());
     }
 }

@@ -234,3 +234,30 @@ activa. La nieve y el cobre no encerado continúan excluidos de captura genéric
 por sus transformaciones. Pruebas de parches cruzando casillas y las 24
 rotaciones escritas. Parser de 126 fuentes y comprobaciones estructurales
 aprobados; sin compilación, ejecución ni acreditación de fidelidad visual.
+
+
+## Conexiones y escaleras 3D integradas (F2–F3)
+
+Puertos de paneles/barrotes, vallas y muros transformados con la pieza: coinciden
+plano, base, normal, eje vertical, sección y tipo. No se conectan por compartir
+casilla ni con un salto de 1/16. La cobertura de una cara sólida puede conectar
+un extremo. Vallas de madera y nether conservan tipos separados. Muros resuelven
+brazos bajos/altos y poste según contacto superior. Escaleras resuelven esquinas
+interiores/exteriores en el marco propio, incluyendo orientaciones laterales.
+
+Las conexiones se planifican antes de validar ocupación final, con máximo 16
+pasadas. Las instantáneas intermedias solo existen dentro del planificador;
+nunca se instalan si invaden otras piezas. Las preferencias bloqueadas conservan
+los extremos decorativos, sujetas a la validación final de invasión.
+
+Decisión: capturar el cierre de vecinos nativos conectados, bajo el límite de
+128 cambios, para que la mitad nativa no pierda su conexión al ver un contenedor.
+Se rechaza una región que supere presupuesto o carga. NativeStateImage conserva
+el estado previo a conversión para contrastar el mundo y reparar una réplica
+antigua aunque el nuevo estado tenga conexiones distintas; no es otra autoridad.
+El manifest explícito contiene 363 IDs y sigue verificando tickers/BE/fluidos.
+
+La reacción a modificaciones nativas externas posteriores requiere aún el puente
+de vecindario. Se escribieron casos de puertos desplazados y las 24 rotaciones.
+Comprobaciones estructurales y parser de 130 fuentes aprobados, sin tipos, Java,
+Minecraft ni certificación multijugador ejecutados.

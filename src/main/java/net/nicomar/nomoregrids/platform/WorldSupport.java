@@ -23,6 +23,7 @@ public final class WorldSupport {
                     }
                 }else{
                     var state=level.getBlockState(pos);if(state.isAir()||state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)continue;
+                    if(catalog.eligible(state)&&!SupportPatches.required(NativeStates.capture(state,level,pos,UUID.randomUUID())).isEmpty())continue;
                     Direction face=Direction.valueOf(requirement.normal().opposite().name());
                     if(!catalog.eligible(state)&&!state.isFaceSturdy(level,pos,face))continue;
                     try{surfaces.addAll(SupportPatches.surfaces(NativeStates.boxes(state.getCollisionShape(level,pos)).transform(net.nicomar.nomoregrids.geometry.Rotation.of(0),GridPoint.ZERO,new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))));}

@@ -2,6 +2,7 @@ package net.nicomar.nomoregrids.core;
 
 /** Exact coordinates in units of 1/16 block. Arithmetic never wraps silently. */
 public record GridPoint(long x, long y, long z) {
+    public GridPoint multiply(long factor){return new GridPoint(Math.multiplyExact(x,factor),Math.multiplyExact(y,factor),Math.multiplyExact(z,factor));}
     public static final GridPoint ZERO = new GridPoint(0, 0, 0);
     public static final GridPoint BLOCK_CENTER = new GridPoint(8, 8, 8);
 

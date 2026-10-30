@@ -63,7 +63,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(UUID actor:history.values().stream().map(OperationPlan::actor).collect(java.util.stream.Collectors.toSet())){
             long marker=watermark(actor);if(marker!=0&&!actor.equals(owners.get(marker)))throw new IOException("Player receipt does not belong to this journal history; data retained");
         }
-        for(var p:List.copyOf(records.values()))try{adapters.require(p).occupation(p);NativeStates.resolve(p);}catch(RuntimeException ex){
+        for(var p:List.copyOf(records.values()))try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);}catch(RuntimeException ex){
             var flags=new HashSet<>(p.flags());flags.add(PieceRecord.Flag.SUBSTITUTE);records.put(p.pieceId(),new PieceRecord(p.pieceId(),p.revision(),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),flags));
         }
         var index=PieceIndex.retained(records.values(),adapters::overlap);
@@ -173,6 +173,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){
         for(int pass=0;pass<16;pass++){
+            WorldConnections.complete(level,snapshot(),changes,catalog);
             var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
             Set<CellPos> touched=new HashSet<>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
             boolean removed=false;
@@ -190,7 +191,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(repeated(operation,player,OperationPlan.Kind.EDIT))return;var p=snapshot().records().get(id);if(p==null)throw new IllegalArgumentException("STALE_REVISION");
         var flags=new HashSet<>(p.flags());if(!flags.remove(PieceRecord.Flag.CONNECTIONS_LOCKED))flags.add(PieceRecord.Flag.CONNECTIONS_LOCKED);
         var next=new PieceRecord(p.pieceId(),Math.incrementExact(p.revision()),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),flags);
-        var inventory=NativeInventory.encode(player,NativeInventory.copy(player));engine.execute(new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,List.of(new OperationPlan.Change(id,Optional.of(p),Optional.of(next))),inventory,inventory));
+        var slots=NativeInventory.copy(player);var inventory=NativeInventory.encode(player,slots);var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(p),Optional.of(next))));completeSupport(player,changes,slots);
+        engine.execute(new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.EDIT,changes,inventory,NativeInventory.encode(player,slots)));
     }
     @Override public void assertServerThread(){if(!level.getServer().isSameThread())throw new IllegalStateException("Server thread required");}
     @Override public void validate(OperationPlan plan,PieceIndex before,PieceIndex after){
@@ -222,7 +224,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(state.getBlock()==NmgContent.CELL.get()){
                 if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("INVALID_DATA");
             }else if(!state.isAir()){
-                boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&NativeStates.resolve(c.after().orElseThrow()).equals(state));
+                boolean captured=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&NativeStates.original(c.after().orElseThrow()).equals(state));
                 if(!captured)throw new IllegalArgumentException("World changed before conversion");
             }
             try{if(CellView.from(cell,after).encode().length>SnapshotAssembler.CHUNK)throw new IllegalArgumentException("COMPLEXITY_LIMIT: public cell update exceeds 64 KiB");}
@@ -276,7 +278,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             var state=level.getBlockState(pos(cell));
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&!entity.valid())continue;
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownIds.contains(p.pieceId())))continue;
-            boolean expectedNative=snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&NativeStates.resolve(p).equals(state));
+            boolean expectedNative=snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&NativeStates.original(p).equals(state));
             if(state.isAir()||state.getBlock()==NmgContent.CELL.get()||expectedNative)syncCell(cell,snapshot());
             else if(!snapshot().at(cell).isEmpty())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }
