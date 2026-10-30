@@ -15,6 +15,7 @@ public final class NoMoreGrids {
 
     public NoMoreGrids(IEventBus modEventBus) {
         net.nicomar.nomoregrids.registry.NmgContent.register(modEventBus);
+        modEventBus.addListener(net.nicomar.nomoregrids.platform.FunctionalTransfers::register);
         net.nicomar.nomoregrids.network.NmgNetworking.register(modEventBus);
         net.nicomar.nomoregrids.platform.NmgRuntime.register();
         LOGGER.info("No More Grids: contenedor experimental registrado; implementación pendiente de validación.");

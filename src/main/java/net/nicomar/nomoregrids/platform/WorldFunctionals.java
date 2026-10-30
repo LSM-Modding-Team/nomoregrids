@@ -53,14 +53,14 @@ public final class WorldFunctionals {
     private BaseContainerBlockEntity fresh(PieceRecord p){
         var state=NativeStates.resolve(p);if(!eligible(state)||!(state.getBlock() instanceof EntityBlock factory))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: native functional class");var be=factory.newBlockEntity(WorldService.pos(p.origin16().cell()),state);if(!(be instanceof BaseContainerBlockEntity container))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: native container");container.setLevel(level);return container;
     }
-    private FunctionalStore.State capture(PieceRecord p,BaseContainerBlockEntity be,long revision){
+    FunctionalStore.State capture(PieceRecord p,BaseContainerBlockEntity be,long revision){
         var slots=new ArrayList<BinaryData>();var ops=level.registryAccess().createSerializationContext(JsonOps.INSTANCE);for(int i=0;i<be.getContainerSize();i++)slots.add(new BinaryData(ItemStack.OPTIONAL_CODEC.encodeStart(ops,be.getItem(i)).getOrThrow().toString().getBytes(StandardCharsets.UTF_8)));
         var nbt=be.saveWithoutMetadata(level.registryAccess());nbt.remove("Items");nbt.remove("items");return new FunctionalStore.State(p.pieceId(),revision,slots,0,tag(level,nbt));
     }
-    private BinaryData encode(PieceRecord p,FunctionalStore.State state){try{return new BinaryData(SimulationCodec.encode(new SimulationSnapshot(p.ownerSection(),0,Map.of(),Map.of(p.pieceId(),state),Map.of(),Map.of())));}catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: functional checkpoint",ex);}}
-    private FunctionalStore.State state(PieceRecord p){var value=service.effects().get(key(p.pieceId()));if(value==null)throw new IllegalArgumentException("INVALID_DATA: missing functional authority");try{return SimulationCodec.decode(value.data().copy()).functionals().get(p.pieceId());}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: functional checkpoint",ex);}}
+    BinaryData encode(PieceRecord p,FunctionalStore.State state){try{return new BinaryData(SimulationCodec.encode(new SimulationSnapshot(p.ownerSection(),0,Map.of(),Map.of(p.pieceId(),state),Map.of(),Map.of())));}catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: functional checkpoint",ex);}}
+    FunctionalStore.State state(PieceRecord p){var value=service.effects().get(key(p.pieceId()));if(value==null)throw new IllegalArgumentException("INVALID_DATA: missing functional authority");try{return SimulationCodec.decode(value.data().copy()).functionals().get(p.pieceId());}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: functional checkpoint",ex);}}
     public BaseContainerBlockEntity detached(PieceRecord p){return detached(p,state(p));}
-    private BaseContainerBlockEntity detached(PieceRecord p,FunctionalStore.State state){
+    BaseContainerBlockEntity detached(PieceRecord p,FunctionalStore.State state){
         var be=fresh(p);be.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),tag(level,state.machine())));if(be.getContainerSize()!=state.slots().size())throw new IllegalArgumentException("INVALID_DATA: functional layout");var ops=level.registryAccess().createSerializationContext(JsonOps.INSTANCE);
         for(int i=0;i<state.slots().size();i++)be.setItem(i,ItemStack.OPTIONAL_CODEC.parse(ops,JsonParser.parseString(new String(state.slots().get(i).copy(),StandardCharsets.UTF_8))).getOrThrow());
         var combined=be.saveWithoutMetadata(level.registryAccess());combined.merge(tag(level,state.machine()));be.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING,level.registryAccess(),combined));return be;

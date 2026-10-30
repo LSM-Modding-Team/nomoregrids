@@ -700,3 +700,23 @@ lógico. Al descargar se pausa, como ticking nativo. No se usa un mundo ficticio
 Decisión: reaprovechar operación nativa en staging y conservar cursor/XP en el
 recibo; los efectos de drops se publican tras commit. Parser/imports, recursos y
 whitespace revisados; pruebas Java escritas no ejecutadas. Sin Gradle ni juego.
+
+## Puertos de transferencia NeoForge
+
+Capabilities.Item.BLOCK usa ResourceHandler<ItemResource> real de 26.2, con slots
+y permisos WorldlyContainer transformados a la cara local. Cada consulta exige
+un puerto geométrico único; compartir celda no junta inventarios. Todos los
+handlers NMG de la dimensión comparten SnapshotJournal: rollback anidado restaura
+los estados y un root commit confirma sus efectos juntos. Se incluye un perfil
+explícito de energía registrable; los hornos/barriles no inventan capacidad energética.
+
+Antes de aceptar una mutación se guarda un intent privado durable. Abortarlo
+restaura/elimina ese intent; root commit usa su UUID y al terminar lo retira.
+Si hay corte entre la transacción NeoForge y el commit persistente, se conserva
+el intent y se exige reconciliar el recibo del peer: nunca se repite una entrega
+a ciegas. Entre varios componentes NMG el estado completo está en el mismo plan.
+Decisión: no atribuir atomicidad de disco a APIs de otro mod que solo prometen
+rollback en memoria; el conflicto intermod queda preservado y bloqueado.
+Firmas ResourceHandler, SnapshotJournal, EnergyHandler y RegisterCapabilitiesEvent
+leídas en fuentes exactas. Parser/imports y recursos revisados sin ejecutar tests,
+compiladores, Gradle o Minecraft.

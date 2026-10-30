@@ -38,6 +38,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private final SectionStore store;
     private final WorldEffectStore effectStore;
     private final Map<String,WorldEffectStore.Value> effects=new TreeMap<>();
+    private final FunctionalTransfers transfers;
+    public FunctionalTransfers transfers(){return transfers;}
     private final WorldFunctionals functionals;
     public WorldFunctionals functionals(){return functionals;}
     private final WorldFluids fluids;
@@ -58,13 +60,13 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private boolean recovering;
 
     public WorldService(ServerLevel level,AdapterRegistry adapters)throws IOException{
-        this.level=level;this.adapters=adapters;fluids=new WorldFluids(level,this);functionals=new WorldFunctionals(level,this);
+        this.level=level;this.adapters=adapters;fluids=new WorldFluids(level,this);functionals=new WorldFunctionals(level,this);transfers=new FunctionalTransfers(level,this);
         String dimension=level.dimension().identifier().toString();
         String hash=java.util.HexFormat.of().formatHex(SnapshotAssembler.sha256(dimension.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         receiptKey="nmg_applied_"+hash;root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
         Map<String,Integer> versions=new HashMap<>();adapters.versions().forEach((id,version)->versions.put(id.value(),version));WorldRules.verifyOrCreate(root.resolve("rules.json"),SessionPayload.localHash(),ProtocolRules.defaults(versions));
         store=new SectionStore(root.resolve("sections"));effectStore=new WorldEffectStore(root.resolve("effects"));archive=JournalArchive.open(root).orElse(null);baseSequence=archive==null?0:archive.state().sequence();journal=new DurableJournal(archive==null?root.resolve("operations.log"):archive.activeLog());
-        try{restore();}catch(IOException|RuntimeException ex){journal.close();throw ex;}
+        try{restore();if(Files.exists(root.resolve("transfer.pending"))){var bytes=Files.readAllBytes(root.resolve("transfer.pending"));var transfer=OperationCodec.decode(bytes);if(!journal.contains(transfer.id())&&(archive==null||archive.operation(transfer.id()).isEmpty()))throw new IOException("RECOVERY_REQUIRED: external transfer intent retained; peer receipt must be reconciled");clearTransferIntent();}}catch(IOException|RuntimeException ex){journal.close();throw ex;}
     }
     private void restore()throws IOException{
         recovering=true;var records=new HashMap<UUID,PieceRecord>();if(archive!=null){records.putAll(archive.state().records());effects.putAll(archive.state().effects());knownIds.addAll(records.keySet());}long sequence=baseSequence;
@@ -85,6 +87,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var index=PieceIndex.retained(records.values(),adapters::overlap);
         engine=new OperationEngine(index,journal,this,PieceIndex.Limits.DEFAULT);recovering=false;
     }
+    public void stageTransferIntent(OperationPlan plan)throws IOException{assertServerThread();if(quarantined())throw new IOException("Recovery required");SectionStore.atomic(root.resolve("transfer.pending"),OperationCodec.encode(plan));}
+    public void clearTransferIntent()throws IOException{if(Files.deleteIfExists(root.resolve("transfer.pending")))DurableDirectories.force(root);}
     private boolean receipt(OperationPlan plan,long sequence)throws IOException{
         if(plan.actor().equals(OperationPlan.WORLD_ACTOR))return true;return watermark(plan.actor())>=sequence;
     }
