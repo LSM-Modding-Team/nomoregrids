@@ -41,12 +41,13 @@ public final class ConstructionControls {
     public static void register(IEventBus modBus){modBus.addListener(ConstructionControls::keys);modBus.addListener(ConstructionControls::payloads);NeoForge.EVENT_BUS.addListener(ConstructionControls::tick);NeoForge.EVENT_BUS.addListener(ConstructionControls::scroll);NeoForge.EVENT_BUS.addListener(ConstructionControls::extract);NeoForge.EVENT_BUS.addListener(ConstructionControls::interact);NeoForge.EVENT_BUS.addListener(ConstructionControls::middle);}
     private static void payloads(net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent event){
         event.register(net.nicomar.nomoregrids.network.SessionPayload.TYPE,(packet,context)->context.enqueueWork(()->{
-            if(!packet.profileHash().equals(net.nicomar.nomoregrids.network.SessionPayload.localHash())){context.disconnect(net.minecraft.network.chat.Component.translatable("message.nomoregrids.profile_mismatch"));return;}
+            if(!packet.profileHash().equals(net.nicomar.nomoregrids.network.SessionPayload.localHash())||!packet.rules().equals(net.nicomar.nomoregrids.network.SessionPayload.localRules())){context.disconnect(net.minecraft.network.chat.Component.translatable("message.nomoregrids.profile_mismatch"));return;}
+            ClientPacketDistributor.sendToServer(new net.nicomar.nomoregrids.network.SessionAckPayload(net.nicomar.nomoregrids.network.SessionPayload.fingerprint()));
             MODES.precise=packet.precise();MODES.expanded=packet.expanded();MODES.adjusted=packet.adjusted();MODES.changedDimension();lengthSelection=0;lastSent=null;
             if(Minecraft.getInstance().player!=null)Minecraft.getInstance().player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.nomoregrids.session"),true);
         }));
         event.register(ActionResultPayload.TYPE,(packet,context)->context.enqueueWork(()->{
-        if(packet.operation().equals(probe)){if(Objects.equals(preview,probedPreview))previewColor=packet.accepted()?0xff44cc55:0xffff3333;}
+        if(packet.operation().equals(probe)){if(Objects.equals(preview,probedPreview))previewColor=packet.accepted()?(packet.reason().equals("PENDING_LOOT")?0xffffbf00:0xff44cc55):0xffff3333;}
     }));}
     private static void interact(InputEvent.InteractionKeyMappingTriggered event){
         var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null||mc.gui.screen()!=null)return;

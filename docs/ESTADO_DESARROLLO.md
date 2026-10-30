@@ -8,7 +8,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | Fase | Código disponible | Trabajo de implementación restante |
 |---|---|---|
 | F0 | Versiones fijadas, wrapper oficial y metadatos MIT; registros técnicos; consulta de firmas exactas de Minecraft/NeoForge | Resolver cualquier incompatibilidad de tipos al compilar |
-| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos y payloads de acciones | Restauración nativa exacta cuando vuelva a ser representable; snapshots/deltas generales y transporte fragmentado conectados; endurecer recuperación intermod y compactación |
+| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos y payloads de acciones | Restauración nativa exacta cuando vuelva a ser representable; deltas generales y transporte fragmentado conectados; endurecer recuperación intermod y compactación |
 | F2 | Colocación compartida cliente/servidor, 24 rotaciones, losas/escaleras/cubos, selección, minería, reemplazo, controles y preview con validación del servidor | Contorno fino por componente, matriz completa y fidelidad de modelos/tints ejecutada |
 | F3 | Paneles/barrotes recortables, fragmentos/recetas, vallas/muros, puertos geométricos, resolución estable de conexiones y esquinas de escaleras 3D en el host | Reaccionar a cambios nativos externos; verificar extremos, tapas y recursos visuales |
 | F4 | Materiales/luz, parches exactos de carpetas/antorchas/faroles/escaleras, cadenas estables; retirada de dependientes en operaciones NMG | Reaccionar a pérdida de soporte nativo externo; decoración con datos, contactos, efectos, fuego y explosiones por componente |
@@ -16,7 +16,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | F6 | API por versión/capacidad; adaptador PB opcional de diseño, convexos, selección y render; conservación de codec nativo | Captura/colocación BE de PB, búsqueda de herramientas, edición/cobro/recuperación nativos y ciclo completo en dedicado |
 | F7 | Autoridad única de inventario/energía, puertos sin ambigüedad, grupos y lógica de horno | Persistencia de estado funcional, captura nativa, menús, recetas, capacidades y ticking conectados |
 | F8 | Planificador de pistones con barrido y grupos, red lógica con retardos y continuidad de raíles | Hooks nativos de pistones/redstone/raíles, guardado lógico y movimiento transaccional del mundo; el contenedor bloquea empuje vanilla |
-| F9 | Presupuestos previos, LRU por peso, trabajos coalescidos y muestras de tiempos | Conectar todas las cachés/colas; compactación segura del diario; escenas y certificación medidas |
+| F9 | Presupuestos previos, caché de formas por celda, reparación diferida/coalescida por tick, LRU por peso, muestras y comandos de diagnóstico/exportación | Conectar cachés globales y mediciones; compactación segura del diario; escenas y certificación medidas |
 
 ## Verificación realizada
 

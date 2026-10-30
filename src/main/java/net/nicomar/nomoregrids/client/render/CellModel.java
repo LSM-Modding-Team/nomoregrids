@@ -51,7 +51,7 @@ public final class CellModel implements DynamicBlockStateModel {
             var nativeParts=new ArrayList<BlockStateModelPart>();nativeModel.collectParts(RandomSource.create(0),nativeParts);
             var samples=new ArrayList<BakedQuad>();
             for(var part:nativeParts){samples.addAll(part.getQuads(null));for(var face:Direction.values())samples.addAll(part.getQuads(face));}
-            int cut=net.nicomar.nomoregrids.material.FragmentItem.length(p.itemPayload());
+            int cut=net.nicomar.nomoregrids.material.FragmentItem.cuttable(source.getBlock())?Math.toIntExact(p.geometry().occupation().bounds().max().y()):16;
             for(var sample:samples)emitNative(p,pos,tint(sample,source,world,pos),cut,output);
             if(cut<16)for(var face:BoxMesh.extract(p.geometry().occupation(),131072))if(face.normal()==Direction6.UP&&face.plane()==cut){
                 for(var sample:samples)if(sample.direction()==Direction.UP)emitCap(p,pos,face,tint(sample,source,world,pos),output);

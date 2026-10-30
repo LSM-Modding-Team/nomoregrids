@@ -13,7 +13,7 @@ public final class SectionStore {
     private static final int MAX=2*1024*1024;
     private final Path root;
     public record Section(long checkpoint,List<PieceRecord> pieces){public Section{pieces=List.copyOf(pieces);}}
-    public SectionStore(Path root)throws IOException{this.root=root;Files.createDirectories(root);}
+    public SectionStore(Path root)throws IOException{this.root=root;DurableDirectories.create(root);}
     private Path path(SectionPos section){return root.resolve(section.x()+"_"+section.y()+"_"+section.z()+".nmg");}
     public Section read(SectionPos pos)throws IOException{
         Path file=path(pos);if(!Files.exists(file))return new Section(0,List.of());
@@ -21,7 +21,7 @@ public final class SectionStore {
         CRC32C crc=new CRC32C();crc.update(bytes,0,bytes.length-4);if((int)crc.getValue()!=ByteBuffer.wrap(bytes).getInt(bytes.length-4))throw new IOException("Section checksum; original retained");
         var in=new DataInputStream(new ByteArrayInputStream(bytes,0,bytes.length-4));
         if(in.readInt()!=1)throw new IOException("Future section schema; original retained");long checkpoint=in.readLong();int count=in.readInt();
-        if(count<0||count>4096)throw new IOException("Section record budget");var pieces=new ArrayList<PieceRecord>();Set<UUID> ids=new HashSet<>();
+        if(checkpoint<0||count<0||count>4096)throw new IOException("Section record budget/checkpoint");var pieces=new ArrayList<PieceRecord>();Set<UUID> ids=new HashSet<>();
         for(int i=0;i<count;i++){
             var result=BoxPieceCodec.decode(OperationCodec.blob(in,BoxPieceCodec.MAX_BYTES));if(!(result instanceof BoxPieceCodec.Decoded d))throw new IOException("Future piece; original retained");
             var p=d.piece();if(!p.ownerSection().equals(pos)||!ids.add(p.pieceId()))throw new IOException("Invalid section authority");pieces.add(p);
@@ -33,16 +33,16 @@ public final class SectionStore {
     }
     public static byte[] encode(SectionPos pos,long checkpoint,Collection<PieceRecord> pieces)throws IOException{
         if(checkpoint<0||pieces.size()>4096)throw new IOException("Section budget");
-        var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(bytes);out.writeInt(1);out.writeLong(checkpoint);out.writeInt(pieces.size());
+        var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(bytes);out.writeInt(1);out.writeLong(checkpoint);out.writeInt(pieces.size());Set<UUID> ids=new HashSet<>();
         for(var p:pieces.stream().sorted(Comparator.comparing(PieceRecord::pieceId)).toList()){
-            if(!p.ownerSection().equals(pos))throw new IOException("Wrong owner section");byte[] record=BoxPieceCodec.encode(p);
+            if(!p.ownerSection().equals(pos)||!ids.add(p.pieceId()))throw new IOException("Wrong/duplicate owner section authority");byte[] record=BoxPieceCodec.encode(p);
             if(bytes.size()+record.length+8>MAX)throw new IOException("Section byte budget");OperationCodec.blob(out,record);
         }
         CRC32C crc=new CRC32C();crc.update(bytes.toByteArray());out.writeInt((int)crc.getValue());return bytes.toByteArray();
     }
     /** Atomic replacement requires actual filesystem support; never falls back to deleting old data. */
     public static void atomic(Path target,byte[] data)throws IOException{
-        Path parent=target.toAbsolutePath().getParent();Files.createDirectories(parent);Path tmp=Files.createTempFile(parent,"nmg-",".tmp");
+        Path parent=target.toAbsolutePath().getParent();DurableDirectories.create(parent);Path tmp=Files.createTempFile(parent,"nmg-",".tmp");
         try{
             try(var channel=FileChannel.open(tmp,StandardOpenOption.WRITE)){ByteBuffer buffer=ByteBuffer.wrap(data);while(buffer.hasRemaining())channel.write(buffer);channel.force(true);}
             Files.move(tmp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);

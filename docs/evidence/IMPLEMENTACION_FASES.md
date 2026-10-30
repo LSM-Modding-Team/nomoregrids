@@ -261,3 +261,38 @@ La reacción a modificaciones nativas externas posteriores requiere aún el puen
 de vecindario. Se escribieron casos de puertos desplazados y las 24 rotaciones.
 Comprobaciones estructurales y parser de 130 fuentes aprobados, sin tipos, Java,
 Minecraft ni certificación multijugador ejecutados.
+
+
+## Sesiones, diagnóstico y reparación presupuestada (F1, F9)
+
+Handshake requerido del protocolo experimental 2: hash físico, versiones de
+adaptadores, esquema/API y presupuestos. El servidor exige acuse coincidente
+antes de aceptar edición. Reglas del mundo persistidas; versiones cambiadas y
+manifest físico distinto requieren migración. Una dependencia ausente conserva
+su versión registrada y permite cargar sustitutos, sin reinterpretar payloads.
+
+Comandos administrativos inspect/validate/report/recover/export en fuente.
+Reportes y exportación pública excluyen inventarios y recibos. recover produce
+solo una propuesta; nunca trunca el diario ni sustituye datos automáticamente.
+La validación administrativa recorre como máximo 4096 piezas, cuenta conflictos,
+réplicas y referencias no cargadas, y declara lo diferido.
+
+La reparación de chunks espera al evento Post del servidor y usa getChunkNow,
+según las firmas exactas y la advertencia de ChunkEvent.Load. server.execute no
+asegura diferir si ya se está en el hilo del servidor. Trabajos coalescidos,
+16 celdas por avance y presupuesto de dos milisegundos entre avances; un avance
+individual aún puede sobrepasarlo y no es un benchmark. Descarga cancela trabajo.
+Las formas de consulta se cachean por revisión de la réplica y se invalidan al
+cargar/instalar. Directorios nuevos se fuerzan junto a sus padres antes de que
+un recibo dependa de ellos. Secciones rechazan UUID repetidos/checkpoints negativos.
+
+Preview no tira loot, no consume azar de durabilidad ni dispara BreakBlockEvent.
+BeforeOperationEvent expone preview para que los observadores solo validen.
+Reemplazos/cascadas quedan ámbar si aún dependen de loot y callbacks de rotura.
+Tras permisos se vuelven a contrastar inventario, imágenes nativas y réplicas;
+una celda desconocida no se sobrescribe. El recorte visible usa geometría pública,
+sin filtrar el payload privado del ítem para determinar su altura.
+
+Pruebas de reglas futuras, cambios de versión y dependencia ausente escritas;
+comprobaciones estructurales y parser de 136 fuentes aprobados. No compilación,
+tests Java, Minecraft, benchmarks ni certificación ejecutados.

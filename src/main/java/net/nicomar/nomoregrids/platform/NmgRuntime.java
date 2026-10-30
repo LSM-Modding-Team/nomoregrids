@@ -30,12 +30,15 @@ public final class NmgRuntime {
     private static final Map<ServerLevel,Map<net.minecraft.world.level.ChunkPos,net.minecraft.world.level.chunk.LevelChunk>> LOADED=new IdentityHashMap<>();
     private static final Map<UUID,IntentLimiter> LIMITERS=new HashMap<>();
     private static final Map<UUID,Mining> MINING=new HashMap<>(),REPLACEMENTS=new HashMap<>();
+    private record ChunkTask(ServerLevel level,net.minecraft.world.level.ChunkPos position){}
+    private static final Set<ChunkTask> CHUNKS=java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final Map<net.minecraft.server.MinecraftServer,net.nicomar.nomoregrids.diagnostic.TickWorkQueue<ChunkTask>> REPAIRS=new IdentityHashMap<>();
     private static final class Mining {
         final UUID piece;final long revision;final net.minecraft.world.item.ItemStack main,offhand;float progress;
         Mining(net.nicomar.nomoregrids.core.PieceRecord p,ServerPlayer actor,float initial){piece=p.pieceId();revision=p.revision();main=actor.getMainHandItem().copy();offhand=actor.getOffhandItem().copy();progress=initial;}
     }
     private NmgRuntime(){}
-    public static void register(){NeoForge.EVENT_BUS.addListener(NmgRuntime::load);NeoForge.EVENT_BUS.addListener(NmgRuntime::unload);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkLoad);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkUnload);NeoForge.EVENT_BUS.addListener(NmgRuntime::login);NeoForge.EVENT_BUS.addListener(NmgRuntime::logout);NeoForge.EVENT_BUS.addListener(NmgRuntime::commands);NeoForge.EVENT_BUS.addListener(NmgRuntime::breaking);NeoForge.EVENT_BUS.addListener(NmgRuntime::rightClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::leftClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::playerTick);}
+    public static void register(){NeoForge.EVENT_BUS.addListener(NmgRuntime::load);NeoForge.EVENT_BUS.addListener(NmgRuntime::unload);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkLoad);NeoForge.EVENT_BUS.addListener(NmgRuntime::chunkUnload);NeoForge.EVENT_BUS.addListener(NmgRuntime::login);NeoForge.EVENT_BUS.addListener(NmgRuntime::logout);NeoForge.EVENT_BUS.addListener(NmgRuntime::commands);NeoForge.EVENT_BUS.addListener(NmgRuntime::breaking);NeoForge.EVENT_BUS.addListener(NmgRuntime::rightClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::leftClick);NeoForge.EVENT_BUS.addListener(NmgRuntime::playerTick);NeoForge.EVENT_BUS.addListener(NmgRuntime::serverTick);}
     public static WorldService require(ServerLevel level)throws IOException{
         if(!ENABLED.contains(level)&&!Boolean.getBoolean("nomoregrids.experimental"))throw new IOException("Experimental world editing is disabled");
         if(QUARANTINE.containsKey(level))throw new IOException(QUARANTINE.get(level));return open(level);
@@ -51,24 +54,38 @@ public final class NmgRuntime {
         try{open(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
     });}
     private static void quarantine(ServerLevel level,Exception ex){QUARANTINE.put(level,Objects.toString(ex.getMessage(),"NMG recovery conflict"));NoMoreGrids.LOGGER.error("NMG recovery blocked; original data retained",ex);}
-    private static void chunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
-        var chunk=event.getChunk();if(!level.isLoaded(new net.minecraft.core.BlockPos(chunk.getPos().getMinBlockX(),level.getMinY(),chunk.getPos().getMinBlockZ())))return;
-        LOADED.computeIfAbsent(level,key->new HashMap<>()).put(chunk.getPos(),chunk);
-        try{open(level).repairChunk(chunk);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
-    });}
+    private static void chunkLoad(net.neoforged.neoforge.event.level.ChunkEvent.Load event){if(event.getLevel() instanceof ServerLevel level)CHUNKS.add(new ChunkTask(level,event.getChunk().getPos()));}
+    private static void serverTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event){
+        long start=System.nanoTime();int done=0;for(var task:List.copyOf(CHUNKS)){
+            if(task.level.getServer()!=event.getServer())continue;if(++done>32||System.nanoTime()-start>=2_000_000)break;CHUNKS.remove(task);
+            var chunk=task.level.getChunkSource().getChunkNow(task.position.x,task.position.z);if(chunk==null)continue;
+            LOADED.computeIfAbsent(task.level,key->new HashMap<>()).put(task.position,chunk);
+            if(QUARANTINE.containsKey(task.level))continue;
+            try{
+                var service=open(task.level);var cells=service.cellsInChunk(chunk).iterator();
+                REPAIRS.computeIfAbsent(event.getServer(),key->new net.nicomar.nomoregrids.diagnostic.TickWorkQueue<>(4096)).submit(task,units->{
+                    if(QUARANTINE.containsKey(task.level)||task.level.getChunkSource().getChunkNow(task.position.x,task.position.z)!=chunk)return true;
+                    try{for(int i=0;i<units&&cells.hasNext();i++)service.repairLoadedCells(List.of(cells.next()));return !cells.hasNext();}
+                    catch(IOException|RuntimeException ex){quarantine(task.level,ex);return true;}
+                });
+            }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
+        }
+        var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
+    }
     private static void chunkUnload(net.neoforged.neoforge.event.level.ChunkEvent.Unload event){if(event.getLevel() instanceof ServerLevel level)level.getServer().execute(()->{
-        var chunks=LOADED.get(level);if(chunks!=null)chunks.remove(event.getChunk().getPos());
+        var task=new ChunkTask(level,event.getChunk().getPos());CHUNKS.remove(task);var repairs=REPAIRS.get(level.getServer());if(repairs!=null)repairs.cancel(task);var chunks=LOADED.get(level);if(chunks!=null)chunks.remove(event.getChunk().getPos());
     });}
     private static void login(PlayerEvent.PlayerLoggedInEvent event){if(event.getEntity() instanceof ServerPlayer player){NmgNetworking.joined(player);for(var level:List.copyOf(QUARANTINE.keySet())){
         var old=SERVICES.remove(level);if(old!=null)try{old.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close failed NMG service",ex);continue;}
-        try{var service=open(level);for(var chunk:LOADED.getOrDefault(level,Map.of()).values())service.repairChunk(chunk);QUARANTINE.remove(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
+        try{open(level);for(var chunk:LOADED.getOrDefault(level,Map.of()).keySet())CHUNKS.add(new ChunkTask(level,chunk));QUARANTINE.remove(level);}catch(IOException|RuntimeException ex){quarantine(level,ex);}
     }}}
     public static void action(ServerPlayer player,ActionPayload packet){
         if(!LIMITERS.computeIfAbsent(player.getUUID(),key->new IntentLimiter()).allow(System.nanoTime()))return;
         try{
+            if(!NmgNetworking.ready(player.getUUID()))throw new IllegalArgumentException("INVALID_DATA: session handshake pending");
             var hit=LoadedRay.pick(player);if(!(hit instanceof BlockHitResult block)||hit.getType()!=HitResult.Type.BLOCK)throw new IllegalArgumentException("No reachable surface");
             if(!player.level().isLoaded(block.getBlockPos()))throw new IllegalArgumentException("UNLOADED_REGION");
-            var service=require(player.level());var mode=NmgNetworking.modes(player.getUUID());InteractionHand hand=packet.offhand()?InteractionHand.OFF_HAND:InteractionHand.MAIN_HAND;
+            String result="OK";var service=require(player.level());var mode=NmgNetworking.modes(player.getUUID());InteractionHand hand=packet.offhand()?InteractionHand.OFF_HAND:InteractionHand.MAIN_HAND;
             switch(packet.action()){
                 case PLACE->{
                     if(mode.replace()&&!player.isCreative()){
@@ -79,7 +96,7 @@ public final class NmgRuntime {
                     }
                     service.place(player,hand,block,mode,packet.operation());REPLACEMENTS.remove(player.getUUID());
                 }
-                case PROBE->service.probe(player,hand,block,mode);
+                case PROBE->{if(!service.probe(player,hand,block,mode))result="PENDING_LOOT";}
                 case REMOVE->{
                     if(!player.isCreative())throw new IllegalArgumentException("Survival removal uses native mining progress");
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No component");
@@ -90,7 +107,7 @@ public final class NmgRuntime {
                     var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.toggleConnections(player,piece.pieceId(),packet.operation());
                 }
             }
-            PacketDistributor.sendToPlayer(player,new ActionResultPayload(packet.operation(),true,"OK"));
+            PacketDistributor.sendToPlayer(player,new ActionResultPayload(packet.operation(),true,result));
         }catch(IOException|RuntimeException ex){var service=SERVICES.get(player.level());if(service!=null&&service.quarantined())quarantine(player.level(),ex);String reason=reason(ex);PacketDistributor.sendToPlayer(player,new ActionResultPayload(packet.operation(),false,reason));if(packet.action()!=ActionPayload.Action.PROBE)player.displayClientMessage(Component.translatable("message.nomoregrids."+reason.toLowerCase(Locale.ROOT)),true);NoMoreGrids.LOGGER.debug("NMG rejected {}: {}",reason,ex.getMessage());}
     }
     private static String reason(Exception ex){
@@ -148,13 +165,25 @@ public final class NmgRuntime {
         if(piece.isEmpty()||!piece.orElseThrow().pieceId().equals(mining.piece)||piece.orElseThrow().revision()!=mining.revision){sessions.remove(player.getUUID());return;}
         float rate=NativeStates.resolve(piece.orElseThrow()).getDestroyProgress(player,player.level(),block.getBlockPos());if(Float.isFinite(rate)&&rate>=0)mining.progress=Math.min(1,mining.progress+rate);
     }
-    private static void unload(LevelEvent.Unload event){if(event.getLevel() instanceof ServerLevel level){ENABLED.remove(level);QUARANTINE.remove(level);LOADED.remove(level);var service=SERVICES.remove(level);if(service!=null)try{service.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close NMG journal",ex);}}}
+    private static void unload(LevelEvent.Unload event){if(event.getLevel() instanceof ServerLevel level){CHUNKS.removeIf(task->task.level==level);var repairs=REPAIRS.get(level.getServer());if(repairs!=null){repairs.cancelIf(task->task.level==level);if(repairs.pending()==0)REPAIRS.remove(level.getServer());}ENABLED.remove(level);QUARANTINE.remove(level);LOADED.remove(level);var service=SERVICES.remove(level);if(service!=null)try{service.close();}catch(IOException ex){NoMoreGrids.LOGGER.error("Cannot close NMG journal",ex);}}}
     private static void commands(RegisterCommandsEvent event){
         event.getDispatcher().register(Commands.literal("nmg")
             .then(Commands.literal("status").executes(ctx->{var service=SERVICES.get(ctx.getSource().getLevel());ctx.getSource().sendSuccess(()->Component.literal("No More Grids: experimental, unverified; "+(service==null?"not opened":service.snapshot().records().size()+" pieces")),false);return 1;}))
             .then(Commands.literal("enable").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_OWNER)).executes(ctx->{ENABLED.add(ctx.getSource().getLevel());ctx.getSource().sendSuccess(()->Component.literal("NMG experimental editing enabled for this session; not certified"),true);return 1;}))
-            .then(Commands.literal("validate").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->{
-                try{var service=require(ctx.getSource().getLevel());for(var p:service.snapshot().records().values())p.worldOccupation().cells(8);ctx.getSource().sendSuccess(()->Component.literal("Structural index validation only; Java/GameTests not executed"),false);return 1;}
-                catch(IOException|RuntimeException ex){ctx.getSource().sendFailure(Component.literal(ex.getMessage()));return 0;}})));
+            .then(Commands.literal("inspect").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"inspect")))
+            .then(Commands.literal("validate").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"validate")))
+            .then(Commands.literal("report").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"report")))
+            .then(Commands.literal("recover").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"recover")))
+            .then(Commands.literal("export").requires(src->src.permissions().hasPermission(Permissions.COMMANDS_ADMIN)).executes(ctx->diagnostic(ctx.getSource(),"export"))));
+    }
+    private static int diagnostic(net.minecraft.commands.CommandSourceStack source,String action){
+        try{var service=SERVICES.get(source.getLevel());return switch(action){
+            case "report"->NmgDiagnostics.report(source,service,QUARANTINE.containsKey(source.getLevel()));
+            case "recover"->NmgDiagnostics.recoveryProposal(source,service,QUARANTINE.containsKey(source.getLevel()));
+            case "inspect"->NmgDiagnostics.inspect(source,Objects.requireNonNull(service,"NMG authority unavailable"));
+            case "validate"->NmgDiagnostics.validate(source,Objects.requireNonNull(service,"NMG authority unavailable"));
+            case "export"->NmgDiagnostics.export(source,Objects.requireNonNull(service,"NMG authority unavailable"));
+            default->throw new IllegalArgumentException("Unknown diagnostic");};
+        }catch(IOException|RuntimeException ex){source.sendFailure(Component.literal("NMG diagnostic: "+Objects.toString(ex.getMessage(),"unavailable")));return 0;}
     }
 }

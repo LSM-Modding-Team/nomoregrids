@@ -19,7 +19,7 @@ public final class DurableJournal implements AutoCloseable {
     private boolean failed;
 
     public DurableJournal(Path path) throws IOException {
-        Files.createDirectories(path.toAbsolutePath().getParent());
+        DurableDirectories.create(path.toAbsolutePath().getParent());
         channel=FileChannel.open(path,StandardOpenOption.CREATE,StandardOpenOption.READ,StandardOpenOption.WRITE);
         FileLock acquired;
         try { acquired=channel.tryLock(); } catch (RuntimeException | IOException ex) { channel.close();throw ex; }

@@ -21,11 +21,12 @@ public final class CompositeCellEntity extends BlockEntity {
     private CellView view=new CellView(List.of());
     private String preserved;
     private boolean valid;
+    private VoxelShape collisionCache,selectionCache;
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(view.replicas().isEmpty())throw new IllegalArgumentException("Empty cells must be restored to air");
-        this.view=Objects.requireNonNull(view);preserved=null;valid=true;setChanged();requestModelDataUpdate();
+        this.view=Objects.requireNonNull(view);collisionCache=null;selectionCache=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
     }
     private void updateLight(){
@@ -46,16 +47,16 @@ public final class CompositeCellEntity extends BlockEntity {
         if(!state.equals(getBlockState()))level.setBlock(worldPosition,state,Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE);
     }
     public VoxelShape shape(boolean collision){
-        if(!valid)return Shapes.block();VoxelShape shape=Shapes.empty();
+        if(!valid)return Shapes.block();var cached=collision?collisionCache:selectionCache;if(cached!=null)return cached;VoxelShape shape=Shapes.empty();
         long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
         for(var piece:view.replicas()){
             BoxUnion local=collision?piece.geometry().collision():piece.geometry().selection();
             for(var box:local.transform(Rotation.of(piece.orientation()),piece.pivot16(),piece.origin16()).boxes())
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
-        }return collision?shape:new CompositeOutlineShape(shape,view);
+        }if(collision){collisionCache=shape;return shape;}selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
     }
     @Override protected void loadAdditional(ValueInput input){
-        super.loadAdditional(input);preserved=input.getStringOr("nmg_public","");valid=false;
+        super.loadAdditional(input);collisionCache=null;selectionCache=null;preserved=input.getStringOr("nmg_public","");valid=false;
         try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=!view.replicas().isEmpty();}
         catch(IOException|IllegalArgumentException ex){view=new CellView(List.of());}
     }

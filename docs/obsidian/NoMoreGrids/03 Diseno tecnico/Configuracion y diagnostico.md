@@ -21,7 +21,7 @@ Comandos administrativos bajo /nmg:
 - recover: propuesta de reparación; no borra ni sustituye automáticamente.
 - export: diseños/datos para respaldo y asistencia.
 
-Los nombres son requisitos de interfaz, no comandos existentes. Las reparaciones destructivas requerirán selección explícita del administrador y copia previa.
+Los comandos inspect, validate, report, recover y export existen en fuente como diagnóstico administrativo experimental. validate limita el lote a 4096 piezas y declara referencias no cargadas; recover escribe una propuesta sin aplicar cambios; export produce un diseño público sin inventario. No se han ejecutado. Las reparaciones destructivas requerirán selección explícita del administrador y copia previa.
 
 ## Errores
 

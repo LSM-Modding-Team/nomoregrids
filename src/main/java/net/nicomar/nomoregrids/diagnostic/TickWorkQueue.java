@@ -16,5 +16,5 @@ public final class TickWorkQueue<K> {
             if(work.advance(unitsPerJob))completed++;else pending.put(key,work);}
         return completed;
     }
-    public void cancel(K key){pending.remove(key);}public int pending(){return pending.size();}
+    public void cancel(K key){pending.remove(key);}public void cancelIf(java.util.function.Predicate<K> predicate){pending.keySet().removeIf(predicate);}public int pending(){return pending.size();}
 }

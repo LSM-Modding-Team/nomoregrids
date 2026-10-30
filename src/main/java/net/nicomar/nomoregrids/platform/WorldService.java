@@ -45,6 +45,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         String dimension=level.dimension().identifier().toString();
         String hash=java.util.HexFormat.of().formatHex(SnapshotAssembler.sha256(dimension.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         receiptKey="nmg_applied_"+hash;Path root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
+        Map<String,Integer> versions=new HashMap<>();adapters.versions().forEach((id,version)->versions.put(id.value(),version));WorldRules.verifyOrCreate(root.resolve("rules.json"),SessionPayload.localHash(),ProtocolRules.defaults(versions));
         store=new SectionStore(root.resolve("sections"));journal=new DurableJournal(root.resolve("operations.log"));
         try{restore();}catch(IOException|RuntimeException ex){journal.close();throw ex;}
     }
@@ -100,18 +101,18 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public boolean quarantined(){return engine.quarantined();}
     public static BlockPos pos(CellPos p){return new BlockPos(Math.toIntExact(p.x()),Math.toIntExact(p.y()),Math.toIntExact(p.z()));}
     public void place(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode)throws IOException{
-        engine.execute(placementPlan(player,hand,hit,mode,UUID.randomUUID()));
+        engine.execute(placementPlan(player,hand,hit,mode,UUID.randomUUID(),false));
     }
     public void place(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode,UUID operation)throws IOException{
-        if(repeated(operation,player,OperationPlan.Kind.PLACE))return;engine.execute(placementPlan(player,hand,hit,mode,operation));
+        if(repeated(operation,player,OperationPlan.Kind.PLACE))return;engine.execute(placementPlan(player,hand,hit,mode,operation,false));
     }
-    public void probe(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode)throws IOException{
-        var plan=placementPlan(player,hand,hit,mode,UUID.randomUUID());var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after);
+    public boolean probe(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode)throws IOException{
+        var plan=placementPlan(player,hand,hit,mode,UUID.randomUUID(),true);var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
     }
     private boolean repeated(UUID id,ServerPlayer actor,OperationPlan.Kind kind){
         var old=history.get(id);if(old==null)return false;if(!old.actor().equals(actor.getUUID())||old.kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;
     }
-    private OperationPlan placementPlan(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode,UUID operation)throws IOException{
+    private OperationPlan placementPlan(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode,UUID operation,boolean preview)throws IOException{
         assertServerThread();PieceRecord candidate=ConstructionCandidate.build(player,hand,hit,mode,catalog,UUID.randomUUID());
         var changes=new ArrayList<OperationPlan.Change>();
         PieceRecord replaced=null;
@@ -138,9 +139,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             var sourceBlock=NativeStates.resolve(candidate).getBlock();
             if(net.nicomar.nomoregrids.material.FragmentItem.cuttable(sourceBlock))NativeInventory.takeFragment(slots,sourceBlock,net.nicomar.nomoregrids.material.FragmentItem.length(candidate.itemPayload()));
             else{if(slots.get(slot).isEmpty())throw new IllegalArgumentException("INVENTORY_MISSING");slots.get(slot).shrink(1);}
-            if(replaced!=null)recoverLoot(player,replaced,slots);
+            if(replaced!=null&&!preview)recoverLoot(player,replaced,slots);
         }
-        completeSupport(player,changes,slots);
+        completeSupport(player,changes,slots,preview);
         return new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.PLACE,changes,before,NativeInventory.encode(player,slots));
     }
     public void remove(ServerPlayer player,UUID id)throws IOException{
@@ -171,7 +172,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(tool.getDamageValue()>=tool.getMaxDamage())slots.set(selected,ItemStack.EMPTY);
         }
     }
-    private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){
+    private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){completeSupport(player,changes,slots,false);}
+    private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots,boolean preview){
         for(int pass=0;pass<16;pass++){
             WorldConnections.complete(level,snapshot(),changes,catalog);
             var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
@@ -181,7 +183,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
                 var p=proposed.records().get(id);if(WorldSupport.supported(level,proposed,touched,p,catalog))continue;
                 var original=snapshot().records().get(id);if(original==null)throw new IllegalArgumentException("NO_SUPPORT");
                 changes.removeIf(c->c.id().equals(id));changes.add(new OperationPlan.Change(id,Optional.of(original),Optional.empty()));
-                if(!player.isCreative())recoverLoot(player,original,slots,false);removed=true;
+                if(!player.isCreative()&&!preview)recoverLoot(player,original,slots,false);removed=true;
                 if(changes.size()>128)throw new IllegalArgumentException("COMPLEXITY_LIMIT: support cascade");
             }
             if(!removed)return;
@@ -196,6 +198,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     @Override public void assertServerThread(){if(!level.getServer().isSameThread())throw new IllegalStateException("Server thread required");}
     @Override public void validate(OperationPlan plan,PieceIndex before,PieceIndex after){
+        validate(plan,before,after,false);
+    }
+    private void validate(OperationPlan plan,PieceIndex before,PieceIndex after,boolean preview){
         ServerPlayer player=level.getServer().getPlayerList().getPlayer(plan.actor());if(player==null||player.level()!=level||player.isSpectator())throw new IllegalArgumentException("Invalid actor");
         if(!NativeInventory.matches(player,plan.resourcesBefore()))throw new IllegalArgumentException("STALE_REVISION");
         if(player.getPersistentData().getLongOr(receiptKey,0)>sequences.size())throw new IllegalArgumentException("INVALID_DATA: receipt is ahead of journal");
@@ -249,11 +254,24 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             }
             if(!WorldSupport.supported(level,after,plan.affectedCells(),p,catalog))throw new IllegalArgumentException("NO_SUPPORT");
         }
-        var event=new BeforeOperationEvent(level,plan);NeoForge.EVENT_BUS.post(event);if(event.isCanceled())throw new IllegalArgumentException("PROTECTED");
-        for(var c:plan.changes())if(c.before().isPresent()&&c.after().isEmpty()){
+        var event=new BeforeOperationEvent(level,plan,preview);NeoForge.EVENT_BUS.post(event);if(event.isCanceled())throw new IllegalArgumentException("PROTECTED");
+        for(var c:plan.changes())if(!preview&&c.before().isPresent()&&c.after().isEmpty()){
             var p=c.before().orElseThrow();var permission=new net.nicomar.nomoregrids.event.PieceBreakPermissionEvent(level,pos(p.origin16().cell()),NativeStates.resolve(p),player,p.pieceId());NeoForge.EVENT_BUS.post(permission);if(permission.isCanceled())throw new IllegalArgumentException("PROTECTED");
         }
         if(!NativeInventory.matches(player,plan.resourcesBefore()))throw new IllegalArgumentException("STALE_REVISION: inventory changed during a permission callback");
+        validateWorldImages(plan,before);
+    }
+    private void validateWorldImages(OperationPlan plan,PieceIndex before){
+        for(var cell:plan.affectedCells()){
+            var at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");var state=level.getBlockState(at);
+            if(!before.at(cell).isEmpty()){
+                if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid()||!entity.view().equals(CellView.from(cell,before)))throw new IllegalArgumentException("STALE_REVISION: replica requires recovery");
+            }else if(state.getBlock()==NmgContent.CELL.get())throw new IllegalArgumentException("INVALID_DATA: unrecognized cell is retained");
+            else if(!state.isAir()){
+                boolean expected=plan.changes().stream().anyMatch(c->c.before().isEmpty()&&c.after().isPresent()&&c.after().orElseThrow().origin16().cell().equals(cell)&&NativeStates.original(c.after().orElseThrow()).equals(state));
+                if(!expected)throw new IllegalArgumentException("STALE_REVISION: native world changed");
+            }
+        }
     }
     @Override public void install(OperationPlan plan,PieceIndex after)throws IOException{
         long sequence=sequences.computeIfAbsent(plan.id(),key->(long)sequences.size()+1);history.put(plan.id(),plan);
@@ -283,13 +301,15 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             else if(!snapshot().at(cell).isEmpty())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }
     }
-    public void repairChunk(net.minecraft.world.level.chunk.LevelChunk chunk)throws IOException{
+    public Set<BlockPos> cellsInChunk(net.minecraft.world.level.chunk.LevelChunk chunk){
         var chunkPos=chunk.getPos();Set<BlockPos> cells=new HashSet<>();
         chunk.getBlockEntities().forEach((pos,entity)->{if(entity instanceof CompositeCellEntity)cells.add(pos);});
         for(int y=level.getMinSectionY();y<level.getMaxSectionY();y++)for(UUID id:snapshot().referencedBy(new SectionPos(chunkPos.x,y,chunkPos.z)))
             for(var cell:snapshot().records().get(id).worldOccupation().cells(8))if(Math.floorDiv(cell.x(),16)==chunkPos.x&&Math.floorDiv(cell.z(),16)==chunkPos.z)cells.add(pos(cell));
-        // repairLoadedCells also covers cells whose replicas disappeared before a chunk save.
-        repairLoadedCells(cells);
+        return Set.copyOf(cells);
+    }
+    public void repairChunk(net.minecraft.world.level.chunk.LevelChunk chunk)throws IOException{
+        repairLoadedCells(cellsInChunk(chunk));
     }
     @Override public boolean alreadyApplied(UUID id)throws IOException{
         OperationPlan plan=history.get(id);Long sequence=sequences.get(id);if(plan==null||sequence==null||!receipt(plan,sequence))return false;
