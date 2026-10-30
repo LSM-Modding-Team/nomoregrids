@@ -52,3 +52,26 @@ UV y transformaciones locales; BoxMesh entrega rectángulos, no texturas hornead
 
 Pruebas escritas de conservación, inventario lleno, apoyo real, ciclos y caras
 internas. No ejecutadas. Parser y comprobación estructural sin compilación.
+
+## Fluidos parciales y geometría convexa (F5, base F6)
+
+Implementados máscaras de cavidad 16³, fuente completa separada del agua/lava
+parcial, cubos que solo crean/recogen fuentes completas, redistribución
+conservadora por cavidades cargadas dentro de cuatro casillas y rechazo sin
+mutación cuando faltan espacio o presupuesto. El trabajo de flujo es incremental:
+no publica un drenaje parcial al agotar presupuesto. Agua/lava mantienen alcance
+horizontal propio; las fronteras ausentes están cerradas. Las reacciones solo
+proponen productos completos representables; los contactos parciales se conservan.
+
+Decisión conservadora: obstruir una fuente completa se rechaza; primero debe
+recogerse/reubicarse la fuente. No se transforma una fuente en un cubo fraccionario
+ni se inventa una nueva fuente en otra cavidad. La redistribución usa los caminos
+abiertos anteriores a la colocación para evacuar el volumen desplazado, sin
+atravesar sólidos preexistentes. Productos/reacciones y cadencias se integrarán
+mediante el host de simulación; los algoritmos no escriben directamente el mundo.
+
+Añadida geometría convexa por semiespacios con clipping, transformaciones,
+selección por rayo y prueba de ejes separadores. Se conserva precisión no integral;
+los contactos casi degenerados se clasifican indeterminados, no como permiso de
+invasión. Pruebas de pendiente, cavidades, cubos, conservación y presupuesto
+escritas y no ejecutadas. No se afirma que el motor de fluidos esté certificado.
