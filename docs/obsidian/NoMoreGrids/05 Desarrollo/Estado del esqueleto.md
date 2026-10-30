@@ -10,6 +10,10 @@ Los package-info.java conservan las carpetas sin fingir clases implementadas. La
 
 Se verificaron estructura, nombres, recursos, enlaces, checksum del wrapper y ZIP. No se ejecutó Gradle ni Minecraft. F0 sigue pendiente de resolución de dependencias, compilación y arranque dedicado/cliente.
 
-Documentos de raíz: README.md y AGENTS.md. Guías externas a la bóveda: docs/PRIMEROS_PASOS.md, docs/ESTRUCTURA.md y docs/PROCEDENCIA.md.
+Documentos de raíz: README.md y AGENTS.md. Guías externas a la bóveda: docs/PRIMEROS_PASOS.md, docs/ESTRUCTURA.md.
 
 Siguiente trabajo: [[Plan de fases]]. El diseño completo se conserva en [[Indice completo]].
+
+## Revisión de la base
+
+Ver `docs/evidence/F0-revision-estatica.md`: wrapper restaurado en Git y metadatos alineados con LICENSE (MIT). F0 continúa abierta; no se ejecutaron Gradle ni Minecraft.

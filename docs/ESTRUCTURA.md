@@ -19,4 +19,4 @@
 
 No se incluyen clases PieceRecord, adaptadores, contenedores ni registros simulados. Sus responsabilidades están en la bóveda; se crearán cuando se implemente cada fase. Los archivos .gitkeep conservan carpetas en Git y se excluyen del JAR de recursos.
 
-No hay proyecto .git, binarios compilados del mod, carpetas run/build ni credenciales. El único JAR suministrado es el wrapper oficial de Gradle, no un mod de Minecraft.
+El repositorio usa Git. No se incluyen binarios compilados del mod, carpetas run/build ni credenciales. El único JAR suministrado es el wrapper oficial de Gradle, no un mod de Minecraft.

@@ -1,6 +1,7 @@
 .idea/
 .gradle/
 build/
-gradle/
 run/
 docs/obsidian/NoMoreGrids/.obsidian/
+__pycache__/
+*.pyc
