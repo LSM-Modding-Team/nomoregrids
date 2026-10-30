@@ -33,6 +33,7 @@ public final class SignalNetwork {
         for(var e:edges){if(!map.containsKey(e.from)||!map.containsKey(e.to)||map.get(e.to).kind==Kind.SOURCE)throw new IllegalArgumentException("Invalid circuit edge or source input");incoming.computeIfAbsent(e.to,key->new ArrayList<>()).add(e);outgoing.computeIfAbsent(e.from,key->new ArrayList<>()).add(e);}
     }
     public int value(UUID id){return values.getOrDefault(id,0);}
+    public void sourceAt(UUID id,int value,long logicalTick){if(logicalTick<now)throw new IllegalArgumentException("Source clock moved backwards");now=logicalTick;source(id,value);}
     public void source(UUID id,int value){
         if(value<0||value>15||nodes.get(id)==null||nodes.get(id).kind!=Kind.SOURCE)throw new IllegalArgumentException("Signal source");
         var timeline=sourcePending.get(id);Scheduled atTick=timeline==null?null:timeline.get(now);var before=timeline==null?null:timeline.lowerEntry(now);int baseline=before==null?value(id):before.getValue().value;
@@ -49,6 +50,8 @@ public final class SignalNetwork {
         }
         int desired=switch(n.kind){case SOURCE->sources.getOrDefault(id,0);case DUST->Math.max(rear,side);case REPEATER->side>0?value(id):rear>0?15:0;case COMPARATOR->n.subtract?Math.max(0,rear-side):rear>=side?rear:0;case TORCH->rear==0?15:0;};
         Scheduled old=pending.get(id);if(old!=null&&old.value==desired)return;
+        // A scheduled rising repeater edge completes even if its input was a one-tick pulse.
+        if(n.kind==Kind.REPEATER&&side==0&&old!=null&&old.value==15&&desired==0&&value(id)==0)return;
         if(old!=null){queue.remove(old);pending.remove(id);}
         if(value(id)==desired)return;
         var next=new Scheduled(Math.addExact(logicalTick,n.delayTicks),id,desired);pending.put(id,next);queue.add(next);
@@ -58,10 +61,13 @@ public final class SignalNetwork {
         if(tick<now||budget<1)throw new IllegalArgumentException("Circuit clock/budget");now=tick;int processed=0;
         while(processed<budget&&!queue.isEmpty()&&queue.first().tick<=tick){
             Scheduled s=queue.pollFirst();if(nodes.get(s.id).kind==Kind.SOURCE){var timeline=sourcePending.get(s.id);timeline.remove(s.tick);sourceEvents--;if(timeline.isEmpty())sourcePending.remove(s.id);}else pending.remove(s.id);processed++;values.put(s.id,s.value);
+            if(nodes.get(s.id).kind==Kind.REPEATER)schedule(s.id,s.tick);
             // A deferred due event propagates from its logical time, not the later frame that drains the queue.
             for(var e:outgoing.getOrDefault(s.id,List.of()))schedule(e.to,s.tick);
         }return processed;
     }
+    /** Stop at the first physical output transition so the host cannot flatten a deferred pulse. */
+    public int advanceObservable(long tick,int budget,Set<UUID> outputs){int processed=0;while(processed<budget&&!queue.isEmpty()&&queue.first().tick<=tick){var next=queue.first();int before=value(next.id);processed+=advance(tick,1);if(outputs.contains(next.id)&&before!=value(next.id))break;}if(processed==0)advance(tick,1);return processed;}
     public int pending(){return queue.size();}
     public Snapshot snapshot(){return new Snapshot(now,nodes.values().stream().sorted(Comparator.comparing(Node::id)).toList(),edges,values,sources,queue.stream().map(s->new Pending(s.tick,s.id,s.value)).toList());}
     public static SignalNetwork restored(Snapshot snapshot){

@@ -938,3 +938,23 @@ de apoyo hasta observar la escritura real; no simula una retirada de su soporte
 mientras el bloque nativo todavía está presente.
 Verificado estáticamente contra firmas/bytecode y parser; no se ejecutó una
 conversión, un cierre forzado ni una prueba de duplicación en el juego.
+
+## Tiempo lógico, publicación de pulsos y corrientes de cavidad
+
+Los cambios de fuentes NMG entran en el mismo plan durable que el control; los
+cambios de bloques/BEs nativos registran sus entradas con el tick observado.
+El avance se detiene en cada transición observable para publicar sus dos flancos,
+incluso si el trabajo está atrasado. Un repetidor conserva el flanco ascendente
+de un pulso corto y programa después su apagado mínimo. Los checkpoints se
+conservan durante descarga; al reparar se notifican vecinos y se deja un turno
+antes de reanudar. Las publicaciones y cambios de inventario notifican señales
+nativas explícitamente. La carga excesiva puede añadir latencia de entrega al
+mundo nativo, pero no elimina los eventos lógicos guardados.
+Las corrientes de entidades se calculan sobre los microvolúmenes contactados y
+el campo de distancias persistido, con fronteras cargadas y caída por huecos;
+no reutilizan el nivel grueso del host. Su fuerza/arrastre mantiene el tracker
+nativo por tipo. Cadenas de carteles colgantes comprueban apoyos declarados hasta
+una raíz nativa/NMG, con detección de ciclos y presupuesto de profundidad/trabajo.
+Pruebas puras de pulso aplazado y corriente por gradiente escritas, no ejecutadas.
+Se revisaron firmas de notificación de vecinos de 26.2 y sintaxis/imports/recursos;
+no se probaron relojes, corrientes ni cadenas en Minecraft.

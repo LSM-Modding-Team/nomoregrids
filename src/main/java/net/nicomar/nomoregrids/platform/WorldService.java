@@ -447,7 +447,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownPiece(p.pieceId())))continue;
             boolean expectedNative=nativeProjection(cell,snapshot()).filter(state::equals).isPresent()||snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
             retainNativeCapture(cell,snapshot());
-            if(nativeGoal(cell).isPresent()||state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative)syncCell(cell,snapshot());
+            if(nativeGoal(cell).isPresent()||state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative){syncCell(cell,snapshot());level.updateNeighborsAt(pos(cell),NmgContent.CELL.get(),null);level.updateNeighbourForOutputSignal(pos(cell),NmgContent.CELL.get());}
             else if(!snapshot().at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }
     }
@@ -536,6 +536,6 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         OperationPlan plan=history.get(id);Long sequence=sequences.get(id);if(plan==null||sequence==null||!receipt(plan,sequence))return false;
         for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;for(var e:plan.effects())if(effectStore.checkpoint(e.owner().section())<sequence||effectStore.checkpoint(e.previousOwner().section())<sequence)return false;return true;
     }
-    @Override public void afterCommit(OperationPlan plan){for(var cell:plan.affectedCells())WorldMutationHooks.changed(level,pos(cell));NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
+    @Override public void afterCommit(OperationPlan plan){for(var cell:plan.affectedCells()){WorldMutationHooks.changed(level,pos(cell));if(plan.effects().stream().anyMatch(e->e.key().startsWith("machine:")||e.key().matches("circuit:[0-9a-f-]{36}"))||plan.changes().stream().anyMatch(c->c.before().filter(WorldCircuits::piece).isPresent()||c.after().filter(WorldCircuits::piece).isPresent()||c.before().filter(WorldFunctionals::piece).isPresent()||c.after().filter(WorldFunctionals::piece).isPresent()||c.before().filter(WorldRails::piece).isPresent()||c.after().filter(WorldRails::piece).isPresent())){level.updateNeighborsAt(pos(cell),NmgContent.CELL.get(),null);level.updateNeighbourForOutputSignal(pos(cell),NmgContent.CELL.get());}}NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
     @Override public void close()throws IOException{try{compaction.close();}finally{journal.close();}}
 }

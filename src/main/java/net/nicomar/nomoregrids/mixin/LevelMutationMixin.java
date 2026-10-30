@@ -20,4 +20,6 @@ public abstract class LevelMutationMixin {
     private void nmgAfter(BlockPos pos,BlockState state,int flags,int recursion,CallbackInfoReturnable<Boolean> callback){
         if(callback.getReturnValueZ()&&(Object)this instanceof ServerLevel level)WorldMutationHooks.changed(level,pos);
     }
+    @Inject(method="blockEntityChanged",at=@At("RETURN"))
+    private void nmgInventoryChanged(BlockPos pos,org.spongepowered.asm.mixin.injection.callback.CallbackInfo callback){if((Object)this instanceof ServerLevel level)WorldMutationHooks.changed(level,pos);}
 }
