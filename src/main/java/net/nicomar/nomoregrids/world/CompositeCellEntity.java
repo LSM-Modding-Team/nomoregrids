@@ -24,8 +24,26 @@ public final class CompositeCellEntity extends BlockEntity {
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
+        if(view.replicas().isEmpty())throw new IllegalArgumentException("Empty cells must be restored to air");
         this.view=Objects.requireNonNull(view);preserved=null;valid=true;setChanged();requestModelDataUpdate();
-        if(level!=null)level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);
+        if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
+    }
+    private void updateLight(){
+        if(level.isClientSide())return;var parts=new ArrayList<net.nicomar.nomoregrids.simulation.light.CellLighting.Part>();
+        long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
+        for(var p:view.replicas()){
+            net.minecraft.world.level.block.state.BlockState source=null;try{source=net.nicomar.nomoregrids.platform.NativeStates.resolve(p);}catch(RuntimeException ignored){}
+            var clipped=new ArrayList<Box16>();
+            for(var b:p.worldOccupation().boxes()){
+                long x0=Math.max(0,b.min().x()-bx),y0=Math.max(0,b.min().y()-by),z0=Math.max(0,b.min().z()-bz),x1=Math.min(16,b.max().x()-bx),y1=Math.min(16,b.max().y()-by),z1=Math.min(16,b.max().z()-bz);
+                if(x0<x1&&y0<y1&&z0<z1)clipped.add(Box16.of(x0,y0,z0,x1,y1,z1));
+            }
+            var profile=source==null?new net.nicomar.nomoregrids.material.MaterialProfile(-1,3600000,0.6f,0,0,15,true,true,false):
+                new net.nicomar.nomoregrids.material.MaterialProfile(source.getDestroySpeed(level,worldPosition),source.getBlock().getExplosionResistance(),source.getBlock().getFriction(),source.getBlock().getBounceRestitution(),source.getLightEmission(),source.getLightDampening(),source.canOcclude(),true,false);
+            parts.add(new net.nicomar.nomoregrids.simulation.light.CellLighting.Part(clipped,profile));
+        }
+        var light=net.nicomar.nomoregrids.simulation.light.CellLighting.calculate(parts);var state=getBlockState().setValue(CompositeCellBlock.EMISSION,light.emission()).setValue(CompositeCellBlock.ATTENUATION,light.attenuation()).setValue(CompositeCellBlock.SEALED,light.sealed());
+        if(!state.equals(getBlockState()))level.setBlock(worldPosition,state,Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE);
     }
     public VoxelShape shape(boolean collision){
         if(!valid)return Shapes.block();VoxelShape shape=Shapes.empty();
@@ -34,11 +52,11 @@ public final class CompositeCellEntity extends BlockEntity {
             BoxUnion local=collision?piece.geometry().collision():piece.geometry().selection();
             for(var box:local.transform(Rotation.of(piece.orientation()),piece.pivot16(),piece.origin16()).boxes())
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
-        }return shape;
+        }return collision?shape:new CompositeOutlineShape(shape,view);
     }
     @Override protected void loadAdditional(ValueInput input){
         super.loadAdditional(input);preserved=input.getStringOr("nmg_public","");valid=false;
-        try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=true;}
+        try{if(preserved.length()>CellView.MAX_BYTES*4/3+8)throw new IOException("Cell snapshot too large");view=CellView.decode(Base64.getDecoder().decode(preserved));valid=!view.replicas().isEmpty();}
         catch(IOException|IllegalArgumentException ex){view=new CellView(List.of());}
     }
     @Override protected void saveAdditional(ValueOutput output){

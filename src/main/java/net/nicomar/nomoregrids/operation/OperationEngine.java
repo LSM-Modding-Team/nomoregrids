@@ -28,6 +28,7 @@ public final class OperationEngine {
         this.host=Objects.requireNonNull(host);this.limits=Objects.requireNonNull(limits);
     }
     public PieceIndex snapshot(){return index;}
+    public boolean quarantined(){return quarantined;}
     public void execute(OperationPlan plan) throws IOException {
         host.assertServerThread();if(quarantined)throw new IOException("Operation engine quarantined");
         if(journal.contains(plan.id())) {

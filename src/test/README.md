@@ -1,7 +1,9 @@
-# Pruebas del núcleo
+# Pruebas escritas
 
-Pruebas JUnit Jupiter del núcleo puro, conectadas a la tarea `test` de Gradle.
-Cubren negativos, fronteras, rotaciones, composición, cuantización, selección, identidad, índices y codec de cajas.
-No requieren arrancar Minecraft. Aun así, ejecutar `test` compila Java: requiere
-solicitud explícita conforme a AGENTS.md. Las pruebas están escritas, NO EJECUTADAS.
-Un build sin pruebas no acredita la matriz de aceptación.
+Casos JUnit Jupiter del núcleo, geometría, índices, codecs, operaciones/diario,
+red, fragmentos, apoyo, cavidades, convexos, funcionales, mecanismos, secciones
+y presupuestos. Prueban contratos concretos; no sustituyen integración del juego.
+
+**NO EJECUTADAS.** La tarea Gradle `test` compila Java y requiere petición
+explícita conforme a AGENTS.md. No hay GameTests conectados ni JAR generado.
+Los scripts Python de `tools` verifican estructura y sintaxis sin compilar.

@@ -14,7 +14,7 @@ public final class PlayerModes {
     public void cycleAxis(boolean screenOpen){if(!screenOpen)axis=(axis+1)%3;}
     public void scroll(int steps,boolean shiftPosition,boolean cycleCandidates,boolean screenOpen){
         if(screenOpen)return;
-        if(shiftPosition)offset=offset.add(new GridPoint(axis==0?steps:0,axis==1?steps:0,axis==2?steps:0));
+        if(shiftPosition){GridPoint next=offset.add(new GridPoint(axis==0?steps:0,axis==1?steps:0,axis==2?steps:0));if(next.x()>=-256&&next.x()<=256&&next.y()>=-256&&next.y()<=256&&next.z()>=-256&&next.z()<=256)offset=next;}
         else if(cycleCandidates)candidate=Math.addExact(candidate,steps);
     }
     public void align(GridPoint reference){alignment=alignment.isPresent()?Optional.empty():Optional.of(reference);}

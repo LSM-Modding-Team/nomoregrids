@@ -20,6 +20,7 @@ import net.neoforged.neoforge.client.model.quad.*;
 import net.nicomar.nomoregrids.core.*;
 import net.nicomar.nomoregrids.geometry.Rotation;
 import net.nicomar.nomoregrids.geometry.ConvexVolume;
+import net.nicomar.nomoregrids.geometry.BoxMesh;
 import net.nicomar.nomoregrids.compat.paintableblocks.PaintableAdapter;
 import net.nicomar.nomoregrids.platform.NativeStates;
 import net.nicomar.nomoregrids.world.*;
@@ -43,6 +44,8 @@ public final class CellModel implements DynamicBlockStateModel {
         CellView view=world.getModelData(pos).get(CompositeCellEntity.VIEW);if(view==null){parts.add(fallback);return;}
         List<BakedQuad> output=new ArrayList<>();int flags=0;
         for(var p:view.replicas()){
+            try{
+            if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){placeholder(p,pos,output);continue;}
             if(p.adapterId().value().equals("nomoregrids:paintableblocks")&&paintable!=null){paintable(p,pos,output);continue;}
             BlockState source=NativeStates.resolve(p);var nativeModel=Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(source);
             var nativeParts=new ArrayList<BlockStateModelPart>();nativeModel.collectParts(RandomSource.create(0),nativeParts);
@@ -53,8 +56,13 @@ public final class CellModel implements DynamicBlockStateModel {
                 for(var sample:samples)emit(p,pos,face,sample,output);
                 if(output.size()>131072)throw new IllegalArgumentException("Section mesh triangle budget");
             }
+            }catch(RuntimeException ex){placeholder(p,pos,output);}
         }
         for(var q:output)flags|=q.materialInfo().flags();parts.add(new Part(List.copyOf(output),particleMaterial(),flags));
+    }
+    private void placeholder(PieceRecord piece,BlockPos cell,List<BakedQuad> output){
+        var shape=new net.nicomar.nomoregrids.geometry.BoxUnion(List.of(piece.geometry().occupation().bounds()));
+        for(var face:BoxMesh.extract(shape,100))for(var sample:fallback.getQuads(Direction.valueOf(face.normal().name())))emit(piece,cell,face,sample,output);
     }
     private record Vertex(Vec3 point,float u,float v,int color){
         Vertex mix(Vertex b,double t){int c=0;for(int shift=0;shift<32;shift+=8)c|=(int)Math.round(((color>>>shift)&255)+(((b.color>>>shift)&255)-((color>>>shift)&255))*t)<<shift;

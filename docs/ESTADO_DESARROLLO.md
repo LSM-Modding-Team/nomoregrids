@@ -1,52 +1,54 @@
-# Estado de desarrollo — 2026-10-29 (America/Lima)
+# Estado de desarrollo — 2026-10-30 UTC
 
-La solicitud de implementar las fases amplía el alcance del esqueleto. Se
-mantienen las versiones y la restricción de AGENTS.md sobre compilación y
-arranque: requieren una petición explícita de ejecución. Ninguna fase está
-aceptada. Las pruebas escritas no se presentan como resultados ejecutados.
+El usuario autorizó implementar F0–F9 dejando pendientes compilación y ejecución.
+Esto permite avanzar código de fases posteriores. No elimina las puertas de
+aceptación ni convierte los módulos aislados en funcionalidades integradas.
+**Ninguna fase está aceptada; tampoco están implementadas por completo todas las fases.**
 
-| Fase | Avance real | Pendiente para aceptación |
+| Fase | Código disponible | Trabajo de implementación restante |
 |---|---|---|
-| F0 | Wrapper restaurado y checksum contrastado; licencia coherente; JDK 25 localizado; fuentes exactas NeoForge inspeccionadas parcialmente | Resolver build y APIs restantes, compilar, arrancar cliente/dedicado |
-| F1 | Coordenadas, rotaciones, geometría de cajas, selección local, identidad, índices inmutables y codec de memoria; tests Java escritos | Contenedor, captura/restauración nativa, operaciones con permisos/apoyo/inventario, persistencia de secciones, diario/recibos, red y pruebas de fallo |
-| F2 | Geometrías canónicas preparatorias dentro del núcleo F1; ninguna mecánica habilitada | Adaptadores vanilla, controles, preview, selección/loot del mundo, multijugador y matriz geométrica |
-| F3 | Diseño documentado; sin implementación | Paneles/barrotes/vallas/muros, modelos, recortes y conexiones tras F1–F2 |
-| F4 | Diseño documentado; sin implementación | Familias decorativas, parches de apoyo, materiales y luz tras integración de mundo |
-| F5 | Diseño documentado; sin implementación | Cavidades, redistribución, fuentes, cubos y reacciones; depende de F1–F4 |
-| F6 | Referencia PB fijada en documentación; sin adaptador | Puente de datos/herramientas/render y certificación con PB, tras F1–F4 |
-| F7 | Diseño documentado; sin implementación | Inventarios/menús/puertos/grupos únicos y persistencia |
-| F8 | Diseño documentado; sin implementación | Redstone/raíles/pistones, temporización y volumen barrido |
-| F9 | Presupuestos y escenas definidos; sin medición | Optimización medida, recuperación y certificación ejecutada |
+| F0 | Versiones fijadas, wrapper oficial y metadatos MIT; registros técnicos; consulta de firmas exactas de Minecraft/NeoForge | Resolver cualquier incompatibilidad de tipos al compilar |
+| F1 | Geometría pura, UUID/revisiones, índices, contenedor/BE, captura vanilla, diario durable, recibos, secciones, reparación al cargar, permisos y payloads de acciones | Restauración nativa exacta cuando vuelva a ser representable; snapshots/deltas generales y transporte fragmentado conectados; endurecer recuperación intermod y compactación |
+| F2 | Colocación compartida cliente/servidor, 24 rotaciones, losas/escaleras/cubos, selección, minería, reemplazo, controles y preview con validación del servidor | Esquinas de escaleras en 3D y contorno fino por componente; fidelidad completa de modelos/tints |
+| F3 | Paneles/barrotes recortables, ítem de fragmento, corte/unión, sobrantes; solver puro de conexiones y familias | Integrar vallas/muros y actualización de puertos/conexiones en el host; modelos de extremos |
+| F4 | Materiales y agregación de luz conectada al bloque; solver exacto puro de apoyo | Conectar parches y pérdida de apoyo; decoración completa, contactos, efectos, fuego y explosiones por componente |
+| F5 | Cavidades 16³, fuentes, cubos, redistribución conservadora, flujo incremental y reacciones en módulo puro | Guardado/sincronización de fluidos, cadencias, buckets y puente del mundo, malla; la ruta actual rechaza composición mojada |
+| F6 | API por versión/capacidad; adaptador PB opcional de diseño, convexos, selección y render; conservación de codec nativo | Captura/colocación BE de PB, búsqueda de herramientas, edición/cobro/recuperación nativos y ciclo completo en dedicado |
+| F7 | Autoridad única de inventario/energía, puertos sin ambigüedad, grupos y lógica de horno | Persistencia de estado funcional, captura nativa, menús, recetas, capacidades y ticking conectados |
+| F8 | Planificador de pistones con barrido y grupos, red lógica con retardos y continuidad de raíles | Hooks nativos de pistones/redstone/raíles, guardado lógico y movimiento transaccional del mundo; el contenedor bloquea empuje vanilla |
+| F9 | Presupuestos previos, LRU por peso, trabajos coalescidos y muestras de tiempos | Conectar todas las cachés/colas; compactación segura del diario; escenas y certificación medidas |
 
 ## Verificación realizada
 
-- `python tools/check_repository.py`: JSON, TOML expandido en memoria, licencia,
-  checksum del wrapper, enlaces wiki e independencia del núcleo.
-- `python tools/check_java_syntax.py`: parser Tree-sitter 0.25.2 / Java 0.23.5,
-  53 fuentes sin errores sintácticos. No comprueba tipos ni APIs.
-- `git diff --check`: sin errores de whitespace.
+- `python tools/check_repository.py`: recursos JSON, TOML, MIT, checksum del
+  wrapper, enlaces wiki e independencia del núcleo.
+- Parser Tree-sitter: sintaxis Java; no resuelve tipos ni firmas de APIs.
+- `git diff --check`: whitespace.
+- Lectura de fuentes NeoForge 26.2.0.88, parches userdev, jars oficiales 26.2 y
+  firmas mediante `javap`; no ejecuta código del juego ni compila.
 
-No ejecutados: Gradle, compiladores Java, tests Java, GameTests, Minecraft,
-inyección de fallos, mediciones de rendimiento ni integración Paintable Blocks.
-No hay JAR del mod generado ni mecánicas activas en las entradas del juego.
+Hay pruebas Java escritas para geometría, índices, codecs, diario, coordinador,
+red, economía, apoyo, cavidades, convexos, funcionales, mecanismos y presupuestos.
+**No ejecutadas**: Gradle, compiladores, tests Java, GameTests, Minecraft,
+inyección de fallos real, integración PB y benchmarks. No existe JAR generado.
 
-## Decisiones durante el trabajo
+## Decisiones y límites de la integración actual
 
-- Commits locales por bloque coherente: no hay una política local de solo-online,
-  ni se heredan reglas del otro repositorio. No se hace push ni se publica.
-- Conservar MIT ya existente en LICENSE; alinear los metadatos.
-- Restaurar el wrapper oficial desde la distribución 9.2.1 y su permiso ejecutable sin ejecutar Gradle.
-- Avanzar únicamente en código independiente del mundo mientras F0 no pueda
-  verificarse. No inventar hooks ni habilitar capacidades sin sus pruebas.
-- Limitar este núcleo a cajas integrales; geometrías externas siguen intactas
-  y excluidas hasta su adaptador. No convertir pendientes en cajas aproximadas.
-- Mantener el codec experimental separado de guardado de mundo y red. Una
-  serialización en memoria no satisface la recuperación entre chunks/inventarios.
-- Conservar grupos/sustituciones como datos y bloquear sus cambios hasta contar con su adaptador.
-- Preservar instantáneas existentes al reducir límites; exigirlos para cambios
-  que aumenten el exceso. Ningún límite nuevo autoriza borrar piezas.
+- Commits locales por bloques coherentes; sin push, publicación ni cambios de versiones.
+- Edición experimental explícita. Soporte no integrado se rechaza antes del consumo.
+- El inventario y su recibo se guardan juntos en los datos nativos del jugador;
+  se verifica en disco antes de escribir checkpoints de secciones.
+- Fallo tras commit: se bloquean operaciones y reparación con la instantánea
+  anterior; la recuperación usa el diario, sin cobrar ni soltar loot a ciegas.
+- Si loot o sobrante no caben en el inventario, se rechaza la operación entera.
+  Todavía no hay entrega mediante entidades de ítem en el mundo.
+- Hasta conectar transporte fragmentado, una réplica de celda no supera 64 KiB.
+- El diario conserva toda la historia en disco y memoria. No está compactado ni
+  certificado para mundos grandes; no se trunca automáticamente una cola corrupta.
+- Los fsync de directorio son obligatorios en las rutas durables actuales;
+  sistemas de archivos sin soporte fallan de forma conservadora. Falta validación Windows.
+- Las réplicas y diseños desconocidos conservan sus originales y se protegen;
+  la caja conservadora no acredita la geometría exacta de un mod ausente.
 
-La siguiente tarea dependiente es verificar F0 y el contenedor real de F1.
-Seguir habilitando F2–F9 sin ello contradiría las puertas de aceptación y la
-regla de no crear registros ficticios. El trabajo independiente autorizado está
-registrado en `docs/evidence`; el resto permanece pendiente, sin marcarlo completo.
+La evidencia detallada y decisiones por entrega están en
+[evidence/IMPLEMENTACION_FASES.md](evidence/IMPLEMENTACION_FASES.md).

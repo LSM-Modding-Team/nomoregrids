@@ -57,7 +57,7 @@ neoForge {
     }
 }
 
-// No hay dependencias de Paintable Blocks ni APIs de compatibilidad implementadas.
+// Paintable Blocks se consulta opcionalmente por reflexión; no es dependencia obligatoria.
 repositories {
     mavenCentral()
 }

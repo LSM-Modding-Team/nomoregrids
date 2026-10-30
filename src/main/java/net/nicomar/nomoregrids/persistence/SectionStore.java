@@ -29,13 +29,16 @@ public final class SectionStore {
         if(in.available()!=0)throw new IOException("Trailing section bytes");return new Section(checkpoint,pieces);
     }
     public void write(SectionPos pos,long checkpoint,Collection<PieceRecord> pieces)throws IOException{
+        atomic(path(pos),encode(pos,checkpoint,pieces));
+    }
+    public static byte[] encode(SectionPos pos,long checkpoint,Collection<PieceRecord> pieces)throws IOException{
         if(checkpoint<0||pieces.size()>4096)throw new IOException("Section budget");
         var bytes=new ByteArrayOutputStream();var out=new DataOutputStream(bytes);out.writeInt(1);out.writeLong(checkpoint);out.writeInt(pieces.size());
         for(var p:pieces.stream().sorted(Comparator.comparing(PieceRecord::pieceId)).toList()){
             if(!p.ownerSection().equals(pos))throw new IOException("Wrong owner section");byte[] record=BoxPieceCodec.encode(p);
             if(bytes.size()+record.length+8>MAX)throw new IOException("Section byte budget");OperationCodec.blob(out,record);
         }
-        CRC32C crc=new CRC32C();crc.update(bytes.toByteArray());out.writeInt((int)crc.getValue());atomic(path(pos),bytes.toByteArray());
+        CRC32C crc=new CRC32C();crc.update(bytes.toByteArray());out.writeInt((int)crc.getValue());return bytes.toByteArray();
     }
     /** Atomic replacement requires actual filesystem support; never falls back to deleting old data. */
     public static void atomic(Path target,byte[] data)throws IOException{

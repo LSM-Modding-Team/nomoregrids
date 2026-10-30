@@ -2,7 +2,7 @@
   "variants": {
     "": {
       "type": "nomoregrids:cell",
-      "base_model": "minecraft:block/stone"
+      "base_model": "nomoregrids:block/quarantined"
     }
   }
 }

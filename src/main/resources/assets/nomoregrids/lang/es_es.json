@@ -19,5 +19,18 @@
   "message.nomoregrids.entity_blocked": "Una entidad impide la colocación.",
   "message.nomoregrids.protected": "No tienes permiso en todo el espacio afectado.",
   "message.nomoregrids.inventory_missing": "Faltan materiales o espacio para los sobrantes.",
-  "message.nomoregrids.invalid_data": "Los datos de la pieza necesitan revisión."
+  "message.nomoregrids.invalid_data": "Los datos de la pieza necesitan revisión.",
+  "key.category.nomoregrids.controls": "No More Grids",
+  "item.nomoregrids.fragment": "Fragmento",
+  "item.nomoregrids.fragment.named": "Fragmento de %s (%s/16)",
+  "item.nomoregrids.fragment.invalid": "Fragmento conservado: datos no reconocidos",
+  "tooltip.nomoregrids.fragment": "Conserva su longitud. Ajuste + rueda elige tamaño; ajuste + botón central vuelve a automático.",
+  "message.nomoregrids.length": "Longitud: %s/16",
+  "message.nomoregrids.length_auto": "Longitud automática hasta el siguiente límite",
+  "message.nomoregrids.session": "No More Grids: preferencias recuperadas.",
+  "message.nomoregrids.profile_mismatch": "Las reglas físicas de No More Grids no coinciden con el servidor.",
+  "message.nomoregrids.pending_mining": "Mantén el objetivo y la herramienta correcta hasta terminar la rotura.",
+  "message.nomoregrids.experimental_disabled": "La edición experimental de este mundo está desactivada.",
+  "message.nomoregrids.recovery_required": "Los datos se conservan; hay una operación pendiente de recuperación.",
+  "message.nomoregrids.unreachable": "No se puede alcanzar la superficie sin atravesar un obstáculo."
 }

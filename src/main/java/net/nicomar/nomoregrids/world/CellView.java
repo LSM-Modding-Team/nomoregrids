@@ -14,9 +14,10 @@ public record CellView(List<PieceRecord> replicas) {
         var pieces=new ArrayList<PieceRecord>();
         for(UUID id:index.at(cell).stream().sorted().toList()){
             var p=index.records().get(id);
-            if(!Set.of("nomoregrids:box","nomoregrids:paintableblocks").contains(p.adapterId().value()))throw new IllegalArgumentException("Adapter needs a public-data projection");
+            boolean publicGeometry=Set.of("nomoregrids:box","nomoregrids:paintableblocks").contains(p.adapterId().value());
+            if(!publicGeometry&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))throw new IllegalArgumentException("Adapter needs a public-data projection");
             pieces.add(new PieceRecord(p.pieceId(),p.revision(),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),
-                p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),BinaryData.EMPTY,BinaryData.EMPTY,p.groupId(),p.flags()));
+                p.orientation(),p.pivot16(),p.geometry(),publicGeometry?p.geometryPayload():BinaryData.EMPTY,BinaryData.EMPTY,BinaryData.EMPTY,p.groupId(),p.flags()));
         }return new CellView(pieces);
     }
     public byte[] encode() throws IOException{

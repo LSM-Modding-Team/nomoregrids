@@ -12,6 +12,7 @@ import net.nicomar.nomoregrids.NoMoreGrids;
 public final class NoMoreGridsClient {
     public NoMoreGridsClient(IEventBus modEventBus) {
         modEventBus.addListener(NoMoreGridsClient::models);
+        net.nicomar.nomoregrids.client.input.ConstructionControls.register(modEventBus);
     }
     private static void models(net.neoforged.neoforge.client.event.RegisterBlockStateModels event){
         event.registerModel(net.minecraft.resources.Identifier.fromNamespaceAndPath("nomoregrids","cell"),net.nicomar.nomoregrids.client.render.CellModel.Unbaked.CODEC);

@@ -14,6 +14,7 @@ public final class AdapterRegistry {
     }
     public Map<ResourceId,Integer> versions(){var result=new HashMap<ResourceId,Integer>();adapters.forEach((id,a)->result.put(id,a.dataVersion()));return Map.copyOf(result);}
     public boolean overlap(PieceRecord a,PieceRecord b){
+        if(a.flags().contains(PieceRecord.Flag.SUBSTITUTE)||b.flags().contains(PieceRecord.Flag.SUBSTITUTE))return a.worldOccupation().overlaps(b.worldOccupation());
         if(!a.worldOccupation().bounds().overlaps(b.worldOccupation().bounds()))return false;
         for(var x:require(a).occupation(a))for(var y:require(b).occupation(b)){
             var contact=x.transformed(a.orientation(),a.pivot16(),a.origin16()).contact(y.transformed(b.orientation(),b.pivot16(),b.origin16()));

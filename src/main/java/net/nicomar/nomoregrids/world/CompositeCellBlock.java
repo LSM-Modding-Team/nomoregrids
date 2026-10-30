@@ -10,8 +10,12 @@ import net.minecraft.world.phys.shapes.*;
 
 /** Technical, non-obtainable multipart cell. Queries use replicas even with owner section unloaded. */
 public final class CompositeCellBlock extends BaseEntityBlock {
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty EMISSION=net.minecraft.world.level.block.state.properties.IntegerProperty.create("emission",0,15);
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty ATTENUATION=net.minecraft.world.level.block.state.properties.IntegerProperty.create("attenuation",0,15);
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty SEALED=net.minecraft.world.level.block.state.properties.BooleanProperty.create("sealed");
     public static final MapCodec<CompositeCellBlock> CODEC=simpleCodec(CompositeCellBlock::new);
-    public CompositeCellBlock(Properties properties){super(properties);}
+    public CompositeCellBlock(Properties properties){super(properties);registerDefaultState(stateDefinition.any().setValue(EMISSION,0).setValue(ATTENUATION,0).setValue(SEALED,false));}
+    @Override protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block,BlockState> builder){builder.add(EMISSION,ATTENUATION,SEALED);}
     @Override protected MapCodec<? extends BaseEntityBlock> codec(){return CODEC;}
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state){return new CompositeCellEntity(pos,state);}
     @Override protected VoxelShape getShape(BlockState state,BlockGetter world,BlockPos pos,CollisionContext context){
@@ -22,7 +26,11 @@ public final class CompositeCellBlock extends BaseEntityBlock {
     }
     @Override protected RenderShape getRenderShape(BlockState state){return RenderShape.MODEL;}
     @Override protected boolean useShapeForLightOcclusion(BlockState state){return true;}
-    @Override protected VoxelShape getOcclusionShape(BlockState state){return Shapes.empty();}
-    @Override protected boolean propagatesSkylightDown(BlockState state){return true;}
-    @Override protected int getLightDampening(BlockState state){return 0;}
+    @Override protected VoxelShape getOcclusionShape(BlockState state){return state.getValue(SEALED)?Shapes.block():Shapes.empty();}
+    @Override protected boolean propagatesSkylightDown(BlockState state){return !state.getValue(SEALED);}
+    @Override protected int getLightDampening(BlockState state){return state.getValue(ATTENUATION);}
+    @Override protected float getDestroyProgress(BlockState state,net.minecraft.world.entity.player.Player player,BlockGetter world,BlockPos pos){
+        if(!(world.getBlockEntity(pos) instanceof CompositeCellEntity cell)||!cell.valid())return 0;
+        try{return net.nicomar.nomoregrids.platform.ComponentSelection.select(player,cell.view(),0).filter(p->!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getDestroyProgress(player,world,pos)).orElse(0f);}catch(RuntimeException ex){return 0;}
+    }
 }

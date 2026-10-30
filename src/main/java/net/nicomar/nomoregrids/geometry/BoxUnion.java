@@ -39,6 +39,7 @@ public record BoxUnion(List<Box16> boxes) {
     }
 
     public NavigableSet<CellPos> cells(int limit) {
+        if(limit<1)throw new IllegalArgumentException("Cell budget must be positive");
         TreeSet<CellPos> result = new TreeSet<>();
         for (Box16 box : boxes) {
             result.addAll(box.cells(limit));

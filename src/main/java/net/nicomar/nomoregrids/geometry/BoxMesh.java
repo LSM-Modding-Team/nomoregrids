@@ -1,4 +1,4 @@
-package net.nicomar.nomoregrids.client.render;
+package net.nicomar.nomoregrids.geometry;
 
 import java.util.*;
 import net.nicomar.nomoregrids.core.Direction6;

@@ -11,7 +11,7 @@ public final class WeightedLru<K,V> {
     public WeightedLru(long capacity){if(capacity<0)throw new IllegalArgumentException("Negative capacity");this.capacity=capacity;}
     public synchronized Optional<V> get(K key){var e=values.get(key);if(e==null){misses++;return Optional.empty();}hits++;return Optional.of(e.value);}
     public synchronized void put(K key,V value,long bytes){
-        Objects.requireNonNull(key);Objects.requireNonNull(value);if(bytes<0)throw new IllegalArgumentException("Negative weight");
+        Objects.requireNonNull(key);Objects.requireNonNull(value);if(bytes<1)throw new IllegalArgumentException("Weight must include a positive entry cost");
         var old=values.remove(key);if(old!=null)used-=old.bytes;if(bytes>capacity)return;
         while(used>capacity-bytes){var it=values.entrySet().iterator();var first=it.next();used-=first.getValue().bytes;it.remove();}
         values.put(key,new Entry<>(value,bytes));used+=bytes;

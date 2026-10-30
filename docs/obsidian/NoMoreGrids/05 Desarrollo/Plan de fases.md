@@ -1,6 +1,6 @@
 # Plan de fases
 
-Cada fase requiere documentación actualizada, compilación cuando haya código y evidencia de ejecución pertinente. No se declara completa por crear clases vacías. Estado actual: F0 abierta; F1 tiene núcleo geométrico parcial y casos Java escritos sin ejecutar. Ninguna fase está aceptada. Ver `docs/evidence`.
+Cada fase requiere documentación actualizada, compilación cuando haya código y evidencia de ejecución pertinente. No se declara completa por crear clases vacías. La autorización actual permite escribir F0–F9 sin compilar. Hay código en todas ellas, con integración de construcción y módulos avanzados parciales. Ninguna fase está aceptada. Ver `docs/ESTADO_DESARROLLO.md` y `docs/evidence`.
 
 | Fase | Entrega | Puerta de salida |
 |---|---|---|

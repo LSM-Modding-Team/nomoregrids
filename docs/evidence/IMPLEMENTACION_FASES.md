@@ -146,3 +146,51 @@ SectionStore guarda solo autoridades por sección, con checkpoint, CRC y reempla
 atómico durable; no degrada una versión futura ni borra originales corruptos.
 Todavía se requiere integrar operaciones/recibos/carga y herramientas en el host
 servidor; disponer de bloque y renderer no acredita esas rutas del juego.
+
+## Construcción conectada al servidor y economía real (F1–F4)
+
+Host por dimensión con historial durable, reconstrucción de autoridad, reparación
+solo de chunks cargados y recibos por jugador/dimensión. Los datos desconocidos o
+futuros se conservan; un conflicto bloquea escritura. Un fallo posterior al commit
+bloquea también reparar réplicas con el índice anterior hasta recuperar el diario.
+
+Se verificó en el parche exacto `Entity.java.patch` de userdev 26.2.0.88 que
+`getPersistentData()` se guarda en la clave raíz `NeoForgeData`. No se buscan
+recibos recursivamente en NBT de ítems. Inventario y recibo se guardan juntos;
+se fuerza el archivo y directorio y se vuelve a leer el recibo de disco antes de
+instalar checkpoints. Userdev SHA256:
+`9e4baada142094ae39670b76ddc225125ec079136105373fc702683e810b100f`.
+
+Candidatos compartidos cliente/servidor, captura de formas vanilla reales,
+composición seca, selección exacta por pieza, minería con tiempo/herramienta,
+reemplazo conservando pivote/orientación, alcance/carga/permisos/entidades,
+eventos de permisos y commit. Manifest explícito ampliado a 312 IDs. Las consultas
+por rayo y estado de colocación usan solo casillas cargadas. Presupuestos de
+geometría, réplica, colisión y sección se verifican antes del consumo.
+
+Controles reconfigurables P/O/J/K, Alt/R/L; rueda y clic central para ajustes.
+Alineación congela plano y propiedades nativas relevantes. Preview con Gizmos
+26.2 y profundidad: ámbar pendiente de servidor, verde/rojo según respuesta al
+candidato vigente. Handshake de protocolo/manifest y preferencias por jugador;
+los modos transitorios se reinician. Aún falta el handshake completo de
+adaptadores/límites y el transporte fragmentado de réplicas grandes.
+
+FragmentItem conserva material y longitud (solo paneles/barrotes declarados),
+recetas de mitades/unión, reserva exacta o del fragmento mayor mínimo y sobrante.
+No se cobra un panel entero por cada fragmento. J+rueda fija longitud 1–16;
+J+clic central vuelve a automático. Los ítems de fragmento nunca caen en la ruta
+vanilla de colocar un panel completo. Loot depende de la tabla/herramienta nativa.
+
+Decisiones: si loot o sobrante no caben, rechazar todo; todavía no se generan
+entidades de ítem. Losas dobles nativas se separan en dos piezas, consumiendo
+solo la mitad realmente colocada. Mantener texturas superior/inferior nativas;
+canonicalizar solo para orientación lateral explícita. No inventar herramientas
+PB contra un mundo falso ni recuperar pintura como un bloque vanilla sin datos.
+Carpetas con apoyo, composición mojada y adaptadores funcionales no conectados
+se rechazan. Empuje vanilla del bloque técnico está bloqueado. Estas restricciones
+son carencias de integración, no meras pruebas pendientes.
+
+Pruebas nuevas escritas: rechazo sin commit/consumo, repetición sin doble cobro,
+fallo tras recibo y recuperación, réplica pública sin datos privados, secciones
+con checksum/corrupción conservada y formas de colisión vacías. No ejecutadas.
+La revisión estructural y parser no comprueban tipos ni ejecutan Java.

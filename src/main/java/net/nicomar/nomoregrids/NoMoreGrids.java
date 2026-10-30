@@ -6,7 +6,7 @@ import net.neoforged.fml.common.Mod;
 import org.slf4j.Logger;
 
 /**
- * Entrada común del esqueleto. No registra bloques ni implementa mecánicas.
+ * Registra el contenedor, los fragmentos y el host transaccional experimental.
  */
 @Mod(NoMoreGrids.MOD_ID)
 public final class NoMoreGrids {
@@ -15,6 +15,8 @@ public final class NoMoreGrids {
 
     public NoMoreGrids(IEventBus modEventBus) {
         net.nicomar.nomoregrids.registry.NmgContent.register(modEventBus);
+        net.nicomar.nomoregrids.network.NmgNetworking.register(modEventBus);
+        net.nicomar.nomoregrids.platform.NmgRuntime.register();
         LOGGER.info("No More Grids: contenedor experimental registrado; implementación pendiente de validación.");
     }
 }

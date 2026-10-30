@@ -75,6 +75,11 @@ public final class PieceIndex {
         index.checkOverlaps(index.records.keySet());
         return index;
     }
+    /** Existing substitute snapshots can conservatively overlap; new edits still collide with them. */
+    public static PieceIndex retained(Collection<PieceRecord> pieces,java.util.function.BiPredicate<PieceRecord,PieceRecord> geometryTest){
+        var index=new PieceIndex(pieces,geometryTest);Set<UUID> known=new HashSet<>();for(var p:pieces)if(!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))known.add(p.pieceId());
+        index.checkOverlaps(known,true);return index;
+    }
 
     private static <K> Map<K, Set<UUID>> freeze(Map<K, Set<UUID>> source) {
         Map<K, Set<UUID>> result = new HashMap<>();
@@ -133,6 +138,9 @@ public final class PieceIndex {
     }
 
     private void checkOverlaps(Set<UUID> changed) {
+        checkOverlaps(changed,false);
+    }
+    private void checkOverlaps(Set<UUID> changed,boolean retainedSubstitutes) {
         Map<UUID, BoxUnion> shapes = new HashMap<>();
         for (UUID id : changed) {
             PieceRecord piece = records.get(id);
@@ -141,6 +149,7 @@ public final class PieceIndex {
             Set<UUID> compared = new HashSet<>();
             for (CellPos cell : shape.cells(8)) for (UUID other : at(cell)) {
                 if (other.equals(id) || !compared.add(other)) continue;
+                if(retainedSubstitutes&&records.get(other).flags().contains(PieceRecord.Flag.SUBSTITUTE))continue;
                 BoxUnion otherShape = shapes.computeIfAbsent(other, key -> records.get(key).worldOccupation());
                 if (shape.bounds().overlaps(otherShape.bounds())&&intersects.test(piece,records.get(other))) throw new IndexException(OVERLAP,"Positive volume intersection");
             }

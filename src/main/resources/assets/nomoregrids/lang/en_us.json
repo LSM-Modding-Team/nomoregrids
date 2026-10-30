@@ -19,5 +19,18 @@
   "message.nomoregrids.entity_blocked": "An entity blocks placement.",
   "message.nomoregrids.protected": "You do not have permission throughout the affected area.",
   "message.nomoregrids.inventory_missing": "Materials or inventory space for leftovers are missing.",
-  "message.nomoregrids.invalid_data": "The piece data needs review."
+  "message.nomoregrids.invalid_data": "The piece data needs review.",
+  "key.category.nomoregrids.controls": "No More Grids",
+  "item.nomoregrids.fragment": "Fragment",
+  "item.nomoregrids.fragment.named": "%s fragment (%s/16)",
+  "item.nomoregrids.fragment.invalid": "Preserved fragment: unknown data",
+  "tooltip.nomoregrids.fragment": "Keeps its length. Resize + wheel chooses length; resize + middle click restores automatic sizing.",
+  "message.nomoregrids.length": "Length: %s/16",
+  "message.nomoregrids.length_auto": "Automatic length to the next boundary",
+  "message.nomoregrids.session": "No More Grids: preferences restored.",
+  "message.nomoregrids.profile_mismatch": "No More Grids physical rules do not match the server.",
+  "message.nomoregrids.pending_mining": "Keep the target and the correct tool until mining completes.",
+  "message.nomoregrids.experimental_disabled": "Experimental editing is disabled for this world.",
+  "message.nomoregrids.recovery_required": "Data is preserved; an operation requires recovery.",
+  "message.nomoregrids.unreachable": "The surface cannot be reached without crossing an obstacle."
 }

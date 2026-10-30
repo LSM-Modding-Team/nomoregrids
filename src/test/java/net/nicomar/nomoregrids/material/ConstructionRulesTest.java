@@ -5,7 +5,7 @@ import java.util.*;
 import net.nicomar.nomoregrids.core.*;
 import net.nicomar.nomoregrids.simulation.support.SupportResolver;
 import net.nicomar.nomoregrids.simulation.support.SupportResolver.Patch;
-import net.nicomar.nomoregrids.client.render.BoxMesh;
+import net.nicomar.nomoregrids.geometry.BoxMesh;
 import net.nicomar.nomoregrids.geometry.*;
 import org.junit.jupiter.api.Test;
 

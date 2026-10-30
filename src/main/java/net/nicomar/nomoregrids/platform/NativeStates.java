@@ -17,6 +17,7 @@ public final class NativeStates {
     public static BlockState resolve(PieceRecord piece){return resolve(piece.sourceBlockId(),piece.sourceState());}
     public static BlockState resolve(ResourceId id,Map<String,String> values){
         BlockState state=BuiltInRegistries.BLOCK.getOptional(Identifier.parse(id.value())).orElseThrow(()->new IllegalArgumentException("Missing block: "+id)).defaultBlockState();
+        if(state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock)throw new IllegalArgumentException("Nested NMG container is forbidden");
         for(var entry:values.entrySet()){
             Property<?> property=state.getBlock().getStateDefinition().getProperty(entry.getKey());
             if(property==null)throw new IllegalArgumentException("Missing state property");state=set(state,property,entry.getValue());
