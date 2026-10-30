@@ -95,7 +95,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         Path playerFile=level.getServer().getWorldPath(LevelResource.PLAYER_DATA_DIR).resolve(actor.getUUID()+".dat");
         if(!Files.isRegularFile(playerFile))throw new IOException("Missing saved player receipt");
         try(var file=FileChannel.open(playerFile,StandardOpenOption.WRITE)){file.force(true);}
-        try(var directory=FileChannel.open(playerFile.getParent(),StandardOpenOption.READ)){directory.force(true);}
+        DurableDirectories.force(playerFile.getParent());
         var saved=level.getServer().getPlayerList().loadPlayerData(actor.nameAndId());
         if(saved.isEmpty()||saved.orElseThrow().getCompoundOrEmpty("NeoForgeData").getLongOr(receiptKey,0)<sequence)throw new IOException("Receipt not persisted with player inventory");
     }

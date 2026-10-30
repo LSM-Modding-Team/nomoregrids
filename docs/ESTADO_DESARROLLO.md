@@ -47,8 +47,10 @@ inyección de fallos real, integración PB y benchmarks. No existe JAR generado.
 - Hasta conectar transporte fragmentado, una réplica de celda no supera 64 KiB.
 - El diario conserva toda la historia en disco y memoria. No está compactado ni
   certificado para mundos grandes; no se trunca automáticamente una cola corrupta.
-- Los fsync de directorio son obligatorios en las rutas durables actuales;
-  sistemas de archivos sin soporte fallan de forma conservadora. Falta validación Windows.
+- En Windows NIO se omite únicamente el fsync de directorios, que ese proveedor
+  no admite. Se mantienen force(true) de archivos y reemplazos atómicos; la
+  durabilidad de metadatos de directorio ante un corte eléctrico es menor.
+  Los errores reales de acceso/escritura siguen bloqueando. Falta ejecución Windows.
 - Las réplicas y diseños desconocidos conservan sus originales y se protegen;
   la caja conservadora no acredita la geometría exacta de un mod ausente.
 

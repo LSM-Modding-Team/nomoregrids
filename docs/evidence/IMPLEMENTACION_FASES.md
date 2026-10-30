@@ -428,3 +428,20 @@ administrador. /nmg status distingue edición habilitada y cuarentena.
 No se borran diarios ni se omiten comprobaciones de durabilidad. La causa del
 bloqueo concreto requiere el error de la partida del usuario. Revisión
 estructural y whitespace aprobados; sin compilación ni Minecraft ejecutados.
+
+
+## Compatibilidad de fsync con Windows NIO
+
+El log del usuario ubica AccessDeniedException en DurableJournal al abrir la
+carpeta de dimensión, no el archivo operations.log. WindowsFileSystemProvider
+no admite abrir carpetas mediante FileChannel. Todas las rutas de directorio
+(diario, creación, reemplazo de secciones/preferencias y recibos del jugador)
+usan ahora DurableDirectories.force. Este verifica atributos y solo omite el
+flush de directorio en ese proveedor Windows específico, con aviso único.
+No se capturan/ignoran AccessDeniedException genéricas. Archivos mantienen
+force(true), reemplazo ATOMIC_MOVE, checksums, locks y validación de recibos.
+
+Decisión: permitir Windows con esa limitación explícita de durabilidad de
+metadatos ante apagado abrupto. Los errores reales de archivos siguen fallando.
+Pruebas escritas de creación, reapertura del diario, reemplazo y rutas inválidas;
+no ejecutadas. Estructura y whitespace aprobados; sin Gradle ni Minecraft.

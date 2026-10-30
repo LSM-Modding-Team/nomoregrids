@@ -46,7 +46,7 @@ public final class SectionStore {
         try{
             try(var channel=FileChannel.open(tmp,StandardOpenOption.WRITE)){ByteBuffer buffer=ByteBuffer.wrap(data);while(buffer.hasRemaining())channel.write(buffer);channel.force(true);}
             Files.move(tmp,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
-            try(var directory=FileChannel.open(parent,StandardOpenOption.READ)){directory.force(true);}
+            DurableDirectories.force(parent);
         }finally{Files.deleteIfExists(tmp);}
     }
 }

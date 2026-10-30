@@ -27,7 +27,7 @@ public final class DurableJournal implements AutoCloseable {
         lock=acquired;
         try {
             scan();channel.position(channel.size());channel.force(true);
-            try(var directory=FileChannel.open(path.toAbsolutePath().getParent(),StandardOpenOption.READ)){directory.force(true);}
+            DurableDirectories.force(path.toAbsolutePath().getParent());
         }
         catch(IOException | RuntimeException ex){lock.release();channel.close();throw ex;}
     }

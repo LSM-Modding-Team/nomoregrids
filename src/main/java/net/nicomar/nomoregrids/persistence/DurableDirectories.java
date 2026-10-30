@@ -5,7 +5,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.*;
 import java.util.*;
 
-/** Persists every newly created directory entry before a receipt can depend on its child file. */
+/** Forces directory metadata where the platform supports opening directory channels. */
 public final class DurableDirectories {
     private DurableDirectories(){}
     public static void create(Path directory)throws IOException{
@@ -13,5 +13,15 @@ public final class DurableDirectories {
         Files.createDirectories(directory);Collections.reverse(missing);
         for(Path created:missing){force(created);if(created.getParent()!=null)force(created.getParent());}
     }
-    public static void force(Path directory)throws IOException{try(var channel=FileChannel.open(directory,StandardOpenOption.READ)){channel.force(true);}}
+    private static final java.util.concurrent.atomic.AtomicBoolean WINDOWS_NOTICE=new java.util.concurrent.atomic.AtomicBoolean();
+    public static void force(Path directory)throws IOException{
+        var attributes=Files.readAttributes(directory,java.nio.file.attribute.BasicFileAttributes.class);
+        if(!attributes.isDirectory())throw new NotDirectoryException(directory.toString());
+        // Windows NIO cannot open directory FileChannels. Never suppress file flush or real I/O failures.
+        if(directory.getFileSystem().provider().getClass().getName().equals("sun.nio.fs.WindowsFileSystemProvider")){
+            if(WINDOWS_NOTICE.compareAndSet(false,true))System.getLogger(DurableDirectories.class.getName()).log(System.Logger.Level.WARNING,"Windows NIO does not support directory fsync; files remain forced and replacements atomic, but directory metadata durability across power loss is not guaranteed.");
+            return;
+        }
+        try(var channel=FileChannel.open(directory,StandardOpenOption.READ)){channel.force(true);}
+    }
 }
