@@ -72,7 +72,13 @@ public final class ConstructionCandidate {
             // Recompute contact using the final shape; pivot stays stable after cropping.
             if(!mode.replace()&&(mode.precise()||mode.aligned()))origin=PlacementSolver.origin(geometry.occupation(),piece.pivot16(),orientation,normal,hx,hy,hz,mode.offset());
         }
-        return new PieceRecord(piece.pieceId(),0,piece.adapterId(),piece.adapterVersion(),piece.sourceBlockId(),piece.sourceState(),origin,orientation,piece.pivot16(),geometry,piece.geometryPayload(),piece.materialPayload(),itemData,Optional.empty(),Set.of());
+        var result=new PieceRecord(piece.pieceId(),0,piece.adapterId(),piece.adapterVersion(),piece.sourceBlockId(),piece.sourceState(),origin,orientation,piece.pivot16(),geometry,piece.geometryPayload(),piece.materialPayload(),itemData,Optional.empty(),Set.of());
+        if((mode.precise()||mode.aligned())&&!mode.replace())for(var anchor:net.nicomar.nomoregrids.simulation.support.SupportPatches.required(result))if(anchor.normal()==normal.opposite()){
+            long face=PlacementQuantizer.outward(normal.axis()==0?hx:normal.axis()==1?hy:hz,normal.sign()>0),offset=normal.axis()==0?mode.offset().x():normal.axis()==1?mode.offset().y():mode.offset().z();
+            long shift=Math.subtractExact(Math.addExact(face,offset),anchor.plane());GridPoint delta=new GridPoint(normal.axis()==0?shift:0,normal.axis()==1?shift:0,normal.axis()==2?shift:0);
+            result=new PieceRecord(result.pieceId(),0,result.adapterId(),result.adapterVersion(),result.sourceBlockId(),result.sourceState(),result.origin16().add(delta),result.orientation(),result.pivot16(),result.geometry(),result.geometryPayload(),result.materialPayload(),result.itemPayload(),result.groupId(),result.flags());break;
+        }
+        return result;
     }
     private static BoxUnion crop(BoxUnion shape,int length){var boxes=new ArrayList<Box16>();for(var b:shape.boxes())if(b.min().y()<length)boxes.add(Box16.of(b.min().x(),b.min().y(),b.min().z(),b.max().x(),Math.min(length,b.max().y()),b.max().z()));return new BoxUnion(boxes);}
 }

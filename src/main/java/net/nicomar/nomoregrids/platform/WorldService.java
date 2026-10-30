@@ -140,6 +140,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             else{if(slots.get(slot).isEmpty())throw new IllegalArgumentException("INVENTORY_MISSING");slots.get(slot).shrink(1);}
             if(replaced!=null)recoverLoot(player,replaced,slots);
         }
+        completeSupport(player,changes,slots);
         return new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.PLACE,changes,before,NativeInventory.encode(player,slots));
     }
     public void remove(ServerPlayer player,UUID id)throws IOException{
@@ -151,9 +152,13 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Use the adapter's native recovery bridge; generic loot is forbidden");
         var slots=NativeInventory.copy(player);BinaryData before=NativeInventory.encode(player,slots);
         if(!player.isCreative())recoverLoot(player,target,slots);
-        var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.REMOVE,List.of(new OperationPlan.Change(id,Optional.of(target),Optional.empty())),before,NativeInventory.encode(player,slots));engine.execute(plan);
+        var changes=new ArrayList<>(List.of(new OperationPlan.Change(id,Optional.of(target),Optional.empty())));completeSupport(player,changes,slots);
+        var plan=new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.REMOVE,changes,before,NativeInventory.encode(player,slots));engine.execute(plan);
     }
     private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots){
+        recoverLoot(player,target,slots,true);
+    }
+    private void recoverLoot(ServerPlayer player,PieceRecord target,List<ItemStack> slots,boolean damageTool){
         if(!target.adapterId().value().equals("nomoregrids:box"))throw new IllegalArgumentException("Native adapter recovery is required");
         var state=NativeStates.resolve(target);var at=pos(target.origin16().cell());
         int length=net.nicomar.nomoregrids.material.FragmentItem.length(target.itemPayload());
@@ -161,10 +166,25 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(length<16&&item.getItem()==state.getBlock().asItem())item=net.nicomar.nomoregrids.material.FragmentItem.create(state.getBlock(),length).copyWithCount(item.getCount());NativeInventory.insert(slots,item);
         }
         int selected=player.getInventory().getSelectedSlot();ItemStack tool=slots.get(selected);
-        if(tool.isDamageableItem()){
+        if(damageTool&&tool.isDamageableItem()){
             int damage=EnchantmentHelper.processDurabilityChange(level,tool,1);tool.setDamageValue(Math.addExact(tool.getDamageValue(),damage));
             if(tool.getDamageValue()>=tool.getMaxDamage())slots.set(selected,ItemStack.EMPTY);
         }
+    }
+    private void completeSupport(ServerPlayer player,ArrayList<OperationPlan.Change> changes,List<ItemStack> slots){
+        for(int pass=0;pass<16;pass++){
+            var proposed=snapshot().changed(changes.stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
+            Set<CellPos> touched=new HashSet<>();for(var c:changes){c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}
+            boolean removed=false;
+            for(UUID id:WorldSupport.nearby(proposed,touched)){
+                var p=proposed.records().get(id);if(WorldSupport.supported(level,proposed,touched,p,catalog))continue;
+                var original=snapshot().records().get(id);if(original==null)throw new IllegalArgumentException("NO_SUPPORT");
+                changes.removeIf(c->c.id().equals(id));changes.add(new OperationPlan.Change(id,Optional.of(original),Optional.empty()));
+                if(!player.isCreative())recoverLoot(player,original,slots,false);removed=true;
+                if(changes.size()>128)throw new IllegalArgumentException("COMPLEXITY_LIMIT: support cascade");
+            }
+            if(!removed)return;
+        }throw new IllegalArgumentException("COMPLEXITY_LIMIT: support cascade did not stabilize");
     }
     public void toggleConnections(ServerPlayer player,UUID id,UUID operation)throws IOException{
         if(repeated(operation,player,OperationPlan.Kind.EDIT))return;var p=snapshot().records().get(id);if(p==null)throw new IllegalArgumentException("STALE_REVISION");
@@ -182,7 +202,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             var b=p.worldOccupation().bounds();double x=Math.max(b.min().x()/16.0,Math.min(b.max().x()/16.0,eye.x)),y=Math.max(b.min().y()/16.0,Math.min(b.max().y()/16.0,eye.y)),z=Math.max(b.min().z()/16.0,Math.min(b.max().z()/16.0,eye.z));return eye.distanceToSqr(new Vec3(x,y,z))<=reach*reach;});
         if(!inReach)throw new IllegalArgumentException("Interaction out of reach");
         if(plan.kind()==OperationPlan.Kind.PLACE){
-            var p=plan.changes().getLast().after().orElseThrow();var b=p.worldOccupation().bounds();
+            var p=plan.changes().reversed().stream().flatMap(c->c.after().stream()).findFirst().orElseThrow();var b=p.worldOccupation().bounds();
             Vec3 destination=new Vec3(Math.max(b.min().x()/16.0,Math.min(b.max().x()/16.0,eye.x)),Math.max(b.min().y()/16.0,Math.min(b.max().y()/16.0,eye.y)),Math.max(b.min().z()/16.0,Math.min(b.max().z()/16.0,eye.z)));
             var ray=LoadedRay.clip(player,eye,destination,net.minecraft.world.level.ClipContext.Block.COLLIDER);
             if(ray.getType()!=HitResult.Type.MISS&&ray.getLocation().distanceToSqr(destination)>1e-10)throw new IllegalArgumentException("Placement surface is occluded");
@@ -225,8 +245,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
                 var bounds=new AABB(box.min().x()/16.0,box.min().y()/16.0,box.min().z()/16.0,box.max().x()/16.0,box.max().y()/16.0,box.max().z()/16.0);
                 if(bounds.intersects(player.getBoundingBox())||!level.getEntityCollisions(null,bounds).isEmpty())throw new IllegalArgumentException("ENTITY_BLOCKED");
             }
-            // Native support-requiring families are rejected until their exact patch adapter is connected.
-            if(p.sourceBlockId().value().endsWith("_carpet"))throw new IllegalArgumentException("Support adapter not connected");
+            if(!WorldSupport.supported(level,after,plan.affectedCells(),p,catalog))throw new IllegalArgumentException("NO_SUPPORT");
         }
         var event=new BeforeOperationEvent(level,plan);NeoForge.EVENT_BUS.post(event);if(event.isCanceled())throw new IllegalArgumentException("PROTECTED");
         for(var c:plan.changes())if(c.before().isPresent()&&c.after().isEmpty()){

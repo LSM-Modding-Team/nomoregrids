@@ -44,19 +44,20 @@ public final class CellModel implements DynamicBlockStateModel {
         CellView view=world.getModelData(pos).get(CompositeCellEntity.VIEW);if(view==null){parts.add(fallback);return;}
         List<BakedQuad> output=new ArrayList<>();int flags=0;
         for(var p:view.replicas()){
-            try{
+            int start=output.size();try{
             if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){placeholder(p,pos,output);continue;}
-            if(p.adapterId().value().equals("nomoregrids:paintableblocks")&&paintable!=null){paintable(p,pos,output);continue;}
+            if(p.adapterId().value().equals("nomoregrids:paintableblocks")&&paintable!=null){paintable(p,pos,world,output);continue;}
             BlockState source=NativeStates.resolve(p);var nativeModel=Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(source);
             var nativeParts=new ArrayList<BlockStateModelPart>();nativeModel.collectParts(RandomSource.create(0),nativeParts);
-            for(var face:BoxMesh.extract(p.geometry().occupation(),131072)){
-                Direction direction=Direction.valueOf(face.normal().name());List<BakedQuad> samples=new ArrayList<>();
-                for(var part:nativeParts){samples.addAll(part.getQuads(direction));for(var q:part.getQuads(null))if(q.direction()==direction)samples.add(q);}
-                if(samples.isEmpty())samples.addAll(fallback.getQuads(direction));
-                for(var sample:samples)emit(p,pos,face,sample,output);
-                if(output.size()>131072)throw new IllegalArgumentException("Section mesh triangle budget");
+            var samples=new ArrayList<BakedQuad>();
+            for(var part:nativeParts){samples.addAll(part.getQuads(null));for(var face:Direction.values())samples.addAll(part.getQuads(face));}
+            int cut=net.nicomar.nomoregrids.material.FragmentItem.length(p.itemPayload());
+            for(var sample:samples)emitNative(p,pos,tint(sample,source,world,pos),cut,output);
+            if(cut<16)for(var face:BoxMesh.extract(p.geometry().occupation(),131072))if(face.normal()==Direction6.UP&&face.plane()==cut){
+                for(var sample:samples)if(sample.direction()==Direction.UP)emitCap(p,pos,face,tint(sample,source,world,pos),output);
             }
-            }catch(RuntimeException ex){placeholder(p,pos,output);}
+            if(output.size()>131072)throw new IllegalArgumentException("Section mesh triangle budget");
+            }catch(RuntimeException ex){output.subList(start,output.size()).clear();placeholder(p,pos,output);}
         }
         for(var q:output)flags|=q.materialInfo().flags();parts.add(new Part(List.copyOf(output),particleMaterial(),flags));
     }
@@ -78,7 +79,6 @@ public final class CellModel implements DynamicBlockStateModel {
     }
     private static void emitPolygon(PieceRecord piece,BlockPos cell,List<Vec3> local,Direction6 face,BakedQuad source,List<BakedQuad> output){
         int axis=face.axis(),uAxis=axis==0?2:0,vAxis=axis==1?2:1;
-        Direction6 transformed=face.rotated(piece.orientation());Rotation rotation=Rotation.of(piece.orientation());
         var p0=source.position(0);var p1=source.position(1);var p3=source.position(3);
         double a=component(p1,uAxis)-component(p0,uAxis),b=component(p3,uAxis)-component(p0,uAxis),c=component(p1,vAxis)-component(p0,vAxis),d=component(p3,vAxis)-component(p0,vAxis),det=a*d-b*c;
         if(Math.abs(det)<1e-12)return;
@@ -87,25 +87,48 @@ public final class CellModel implements DynamicBlockStateModel {
         for(var p:local){double u=coord(p,uAxis)/16-component(p0,uAxis),v=coord(p,vAxis)/16-component(p0,vAxis),s=(u*d-b*v)/det,t=(a*v-u*c)/det;
             float texU=(float)(u0+s*(UVPair.unpackU(source.packedUV(1))-u0)+t*(UVPair.unpackU(source.packedUV(3))-u0));
             float texV=(float)(v0+s*(UVPair.unpackV(source.packedUV(1))-v0)+t*(UVPair.unpackV(source.packedUV(3))-v0));
-            GridPoint aX=rotation.apply(new GridPoint(1,0,0)),aY=rotation.apply(new GridPoint(0,1,0)),aZ=rotation.apply(new GridPoint(0,0,1));
+            vertices.add(new Vertex(p,texU,texV,source.bakedColors().color(0)));
+        }
+        finish(piece,cell,vertices,face,source,output);
+    }
+    private static void emitNative(PieceRecord piece,BlockPos cell,BakedQuad source,int cut,List<BakedQuad> output){
+        var vertices=new ArrayList<Vertex>();for(int i=0;i<4;i++){
+            var p=source.position(i);vertices.add(new Vertex(new Vec3(p.x()*16,p.y()*16,p.z()*16),UVPair.unpackU(source.packedUV(i)),UVPair.unpackV(source.packedUV(i)),source.bakedColors().color(i)));
+        }
+        List<Vertex> polygon=cut<16?clip(vertices,1,cut,false):vertices;
+        finish(piece,cell,polygon,Direction6.valueOf(source.direction().name()),source,output);
+    }
+    private static void emitCap(PieceRecord piece,BlockPos cell,BoxMesh.Face face,BakedQuad source,List<BakedQuad> output){
+        double x0=Double.POSITIVE_INFINITY,x1=Double.NEGATIVE_INFINITY,z0=x0,z1=x1;
+        for(int i=0;i<4;i++){var p=source.position(i);x0=Math.min(x0,p.x()*16);x1=Math.max(x1,p.x()*16);z0=Math.min(z0,p.z()*16);z1=Math.max(z1,p.z()*16);}
+        var r=face.rect();double u0=Math.max(r.u0(),x0),u1=Math.min(r.u1(),x1),v0=Math.max(r.v0(),z0),v1=Math.min(r.v1(),z1);
+        if(u0>=u1||v0>=v1)return;
+        var local=new ArrayList<>(List.of(new Vec3(u0,face.plane(),v0),new Vec3(u1,face.plane(),v0),new Vec3(u1,face.plane(),v1),new Vec3(u0,face.plane(),v1)));Collections.reverse(local);
+        emitPolygon(piece,cell,local,Direction6.UP,source,output);
+    }
+    private static void finish(PieceRecord piece,BlockPos cell,List<Vertex> local,Direction6 face,BakedQuad source,List<BakedQuad> output){
+        if(local.size()<3)return;Direction6 transformed=face.rotated(piece.orientation());Rotation rotation=Rotation.of(piece.orientation());
+        GridPoint aX=rotation.apply(new GridPoint(1,0,0)),aY=rotation.apply(new GridPoint(0,1,0)),aZ=rotation.apply(new GridPoint(0,0,1));
+        var vertices=new ArrayList<Vertex>();for(var vertex:local){var p=vertex.point;
             double lx=p.x-piece.pivot16().x(),ly=p.y-piece.pivot16().y(),lz=p.z-piece.pivot16().z();
             Vec3 world=new Vec3(aX.x()*lx+aY.x()*ly+aZ.x()*lz+piece.pivot16().x()+piece.origin16().x(),aX.y()*lx+aY.y()*ly+aZ.y()*lz+piece.pivot16().y()+piece.origin16().y(),aX.z()*lx+aY.z()*ly+aZ.z()*lz+piece.pivot16().z()+piece.origin16().z());
-            vertices.add(new Vertex(new Vec3(world.x/16-cell.getX(),world.y/16-cell.getY(),world.z/16-cell.getZ()),texU,texV,source.bakedColors().color(0)));
+            vertices.add(new Vertex(new Vec3(world.x/16-cell.getX(),world.y/16-cell.getY(),world.z/16-cell.getZ()),vertex.u,vertex.v,vertex.color));
         }
-        // On a cell boundary emit only in the cell on the solid's interior side.
-        double plane=coord(vertices.getFirst().point,transformed.axis());if(transformed.sign()>0&&plane==0||transformed.sign()<0&&plane==1)return;
+        // A planar boundary face belongs to the cell on its solid interior side.
+        double plane=coord(vertices.getFirst().point,transformed.axis());boolean planar=vertices.stream().allMatch(v->Math.abs(coord(v.point,transformed.axis())-plane)<1e-10);
+        if(planar&&(transformed.sign()>0&&plane==0||transformed.sign()<0&&plane==1))return;
         List<Vertex> polygon=vertices;
-        for(int clipAxis=0;clipAxis<3;clipAxis++){polygon=clip(polygon,clipAxis,0,true);polygon=clip(polygon,clipAxis,1,false);}
-        if(polygon.size()<3)return;
-        var material=source.materialInfo();Direction normal=Direction.valueOf(transformed.name());
+        for(int axis=0;axis<3;axis++){polygon=clip(polygon,axis,0,true);polygon=clip(polygon,axis,1,false);}
+        if(polygon.size()<3)return;var material=source.materialInfo();Direction normal=Direction.valueOf(transformed.name());
         for(int i=1;i+1<polygon.size();i++){
             Vertex x=polygon.getFirst(),y=polygon.get(i),z=polygon.get(i+1);if(y.point.subtract(x.point).cross(z.point.subtract(x.point)).lengthSqr()<1e-18)continue;
+            if(output.size()>=131072)throw new IllegalArgumentException("Section mesh triangle budget");
             output.add(new BakedQuad(vector(x),vector(y),vector(z),vector(z),UVPair.pack(x.u,x.v),UVPair.pack(y.u,y.v),UVPair.pack(z.u,z.v),UVPair.pack(z.u,z.v),normal,material,
                 normals(x,y,z),BakedColors.of(x.color,y.color,z.color,z.color)));
         }
     }
     private static BakedNormals normals(Vertex a,Vertex b,Vertex c){var n=b.point.subtract(a.point).cross(c.point.subtract(a.point)).normalize();return BakedNormals.of(BakedNormals.pack((float)n.x,(float)n.y,(float)n.z));}
-    private void paintable(PieceRecord piece,BlockPos cell,List<BakedQuad> output){
+    private void paintable(PieceRecord piece,BlockPos cell,BlockAndTintGetter world,List<BakedQuad> output){
         var primitives=paintable.primitives(piece.geometryPayload());
         for(var primitive:primitives)for(int index=0;index<primitive.geometry().planes().size();index++){
             var plane=primitive.geometry().planes().get(index);var vertices=primitive.geometry().vertices().stream().filter(p->Math.abs(plane.normal().dot(p)-plane.distance())<ConvexVolume.EPS).toList();
@@ -122,9 +145,17 @@ public final class CellModel implements DynamicBlockStateModel {
             if(paint!=0)try{Object entry=Class.forName("net.nicomar.paintableblocks.paint.PaintCatalog").getMethod("byId",int.class).invoke(null,paint);material=(BlockState)entry.getClass().getMethod("sampleState").invoke(entry);}catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB paint API mismatch",ex);}
             var model=Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(material);var parts=new ArrayList<BlockStateModelPart>();model.collectParts(RandomSource.create(0),parts);
             Direction normal=Direction.valueOf(face.name());var samples=new ArrayList<BakedQuad>();for(var part:parts){samples.addAll(part.getQuads(normal));for(var q:part.getQuads(null))if(q.direction()==normal)samples.add(q);}
-            if(samples.isEmpty())samples.addAll(fallback.getQuads(normal));for(var source:samples)emitPolygon(piece,cell,sorted,face,source,output);
+            if(samples.isEmpty())samples.addAll(fallback.getQuads(normal));for(var source:samples)emitPolygon(piece,cell,sorted,face,tint(source,material,world,cell),output);
         }
     }
+    private static BakedQuad tint(BakedQuad source,BlockState state,BlockAndTintGetter world,BlockPos pos){
+        var old=source.materialInfo();if(!old.isTinted())return source;
+        var tint=Minecraft.getInstance().getBlockColors().getTintSource(state,old.tintIndex());int color=tint==null?0xffffffff:0xff000000|tint.colorInWorld(state,world,pos);
+        var material=new BakedQuad.MaterialInfo(old.sprite(),old.layer(),old.itemRenderType(),-1,old.shade(),old.lightEmission(),old.ambientOcclusion());
+        return new BakedQuad(source.position0(),source.position1(),source.position2(),source.position3(),source.packedUV0(),source.packedUV1(),source.packedUV2(),source.packedUV3(),source.direction(),material,source.bakedNormals(),
+            BakedColors.of(multiply(source.bakedColors().color(0),color),multiply(source.bakedColors().color(1),color),multiply(source.bakedColors().color(2),color),multiply(source.bakedColors().color(3),color)));
+    }
+    private static int multiply(int a,int b){int result=0;for(int shift=0;shift<32;shift+=8)result|=(((a>>>shift)&255)*((b>>>shift)&255)/255)<<shift;return result;}
     private static double component(org.joml.Vector3fc p,int axis){return axis==0?p.x():axis==1?p.y():p.z();}
     private static Vector3f vector(Vertex v){return new Vector3f((float)v.point.x,(float)v.point.y,(float)v.point.z);}
     private static List<Vertex> clip(List<Vertex> input,int axis,double limit,boolean minimum){

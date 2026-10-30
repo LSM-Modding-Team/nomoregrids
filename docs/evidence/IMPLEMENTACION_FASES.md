@@ -209,3 +209,28 @@ experiencia NaN/infinita. Grupos y orientación de fragmentos validan sus claves
 antes de modificar estado. Crear/reabrir el diario fuerza también el directorio.
 Pruebas de regresión escritas para estos casos, sin ejecución Java. Revisión
 estructural, parser de 123 fuentes y whitespace aprobados; no comprueban tipos.
+
+
+## Apoyos transaccionales y modelos nativos (F4)
+
+Parches por familia (alfombras, antorchas, faroles, escalera de mano), transformados
+con la pieza, y comprobación exacta de cobertura contra la propuesta y vecinos
+nativos cargados. Los objetos dependientes no se usan como raíces de apoyo.
+La colocación precisa usa el plano de anclaje y no confunde la caja visual de un
+farol colgante o antorcha de pared con su plano de soporte. Un hueco de 1/16 se
+rechaza. Retirar/cambiar un soporte mediante NMG añade sus dependientes al mismo
+plan con un loot por pieza, sin desgaste adicional de herramienta por cascada.
+La pérdida de un soporte nativo fuera de NMG aún requiere puente de actualización.
+
+El renderer conserva ahora los quads nativos, UV, colores y capas, los transforma
+y recorta por casilla. Los fragmentos cortan altura y añaden tapa con textura de
+la cara correspondiente. El tint del material se resuelve contra su estado y
+bioma, no contra el contenedor. Un error descarta solo la malla incompleta de esa
+pieza antes de mostrar sustituto. No se usa la caja de selección como modelo
+visible de antorchas/faroles. Geometría PB conserva su ruta convexa independiente.
+
+Manifest explícito: 324 IDs; cadenas de hierro y cobre encerado sin oxidación
+activa. La nieve y el cobre no encerado continúan excluidos de captura genérica
+por sus transformaciones. Pruebas de parches cruzando casillas y las 24
+rotaciones escritas. Parser de 126 fuentes y comprobaciones estructurales
+aprobados; sin compilación, ejecución ni acreditación de fidelidad visual.
