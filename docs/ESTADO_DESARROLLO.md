@@ -12,7 +12,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | F2 | Colocación compartida cliente/servidor, 24 rotaciones, losas/escaleras/cubos, selección, minería, reemplazo, controles, contorno por componente con aristas reales y preview con validación del servidor | Completar validación de la matriz geométrica y fidelidad visual/modelos/tints en Minecraft |
 | F3 | Paneles/barrotes recortables, fragmentos/recetas, vallas/muros, puertos geométricos, resolución estable de conexiones y esquinas de escaleras 3D en el host | Verificar en ejecución cambios nativos externos, extremos, tapas y recursos visuales |
 | F4 | Materiales/luz, parches exactos, cadenas estables, dependientes en operaciones NMG, contactos por área, fricción/rebote/sonidos, escalada pérdida de soporte externo journalizada, fuego y explosión por componente | Decoración con datos, efectos de contacto avanzado y fidelidad de propagación de explosiones |
-| F5 | Cavidades 16³ conectadas a diario, réplicas, cubos, redistribución, flujo/reacciones, máscara convexa, cadencias y malla de caras fusionadas | Ampliar planificación de regiones activas grandes; validar puente vanilla, efectos físicos, cadencias y reacciones en el juego |
+| F5 | Cavidades 16³ conectadas a diario, réplicas, cubos, redistribución, flujo/reacciones, máscara convexa, cadencias y malla de caras fusionadas | Ampliar planificación de regiones activas grandes; validar puente vanilla, contactos/corrientes, cadencias y reacciones en el juego |
 | F6 | API versionada, captura/colocación PB, convexos/render, apoyo nativo, pincel por áreas, herramientas simples, volumen/pendientes con selección por revisiones, costes por copia y loot nativo | Lotes que mezclen PB nativos y convertidos; pruebas del ciclo completo en dedicado |
 | F7 | Autoridad única, captura nativa, codec/checkpoints privados, barriles y hornos nativos con recetas, ticking y menús conectados | Capacidades transaccionales entre mods, XP y autofill de menús, cadencia con más de 16 hornos, grupos y migración de dueño al mover |
 | F8 | Planificador de barrido, primer hook de pistones con base/cabezal journalizados, red lógica con retardos y continuidad de raíles | Empujes mixtos con bloques nativos, grupos, PB, continuidad nativa de raíles y circuitos/redstone conectados |
@@ -22,8 +22,8 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 
 - `python tools/check_repository.py`: recursos JSON, TOML, MIT, checksum del
   wrapper, enlaces wiki e independencia del núcleo.
-- Parser Tree-sitter: 178 fuentes Java sin errores sintácticos; no resuelve tipos ni firmas de APIs.
-- Archivo de APIs: 69 imports explícitos presentes en los jars consultados;
+- Parser Tree-sitter: 183 fuentes Java sin errores sintácticos; no resuelve tipos ni firmas de APIs.
+- Archivo de APIs: 72 imports explícitos presentes en los jars consultados;
   no comprueba miembros, comodines ni extensiones parcheadas.
 - `git diff --check`: whitespace.
 - Lectura de fuentes NeoForge 26.2.0.88, parches userdev, jars oficiales 26.2 y
@@ -73,8 +73,11 @@ F5 usa una región activa acotada a 256 celdas por trabajo. Si la región cargad
 excede ese límite se aplaza sin publicar un resultado parcial. Sigue pendiente
 dividir redes de fluido grandes con fronteras temporales consistentes. La máscara
 conservadora puede cerrar ranuras menores a 1/16; no modifica el sólido original.
-Los efectos físicos vanilla reciben una proyección conservadora de fluido de
-celda; falta contrastar inmersión/contacto exacto dentro de cavidades.
+La inmersión, los ojos y los efectos de fuego usan intersección con microvolúmenes
+para entidades de hasta 512 celdas de envolvente. Los trackers nativos mantienen
+fricción, flotación y efectos por tipo, incluidos agua/lava mezclados. Entidades
+mayores conservan la proyección nativa conservadora para acotar trabajo; corrientes
+y barridos rápidos siguen pendientes de contrastar en el juego.
 
 F7 activa un perfil explícito de barril, horno, alto horno y ahumador. Cada
 inventario solo existe en FunctionalStore.State dentro del diario; los objetos
@@ -101,8 +104,8 @@ de la compilación/ejecución expresamente no realizadas:
   representaciones nativas orientadas; la restauración actual exige marco exacto.
 - F4: decoración con BE/datos, contactos avanzados y propagación exacta de energía
   de explosiones para geometría arbitraria.
-- F5: partición consistente de redes activas mayores a 256 celdas y contacto
-  físico exacto de entidades con cada microvolumen; completar/verificar puente
+- F5: partición consistente de redes activas mayores a 256 celdas y perfiles para
+  entidades muy grandes; completar/verificar puente
   de flujos vanilla en todos los casos de fuente y carga.
 - F6: volúmenes mixtos con PB nativo y convertido, y creación volumétrica conjunta.
 - F7: capacidades de transferencia/energía entre mods, grupos, cursor/drag/autofill

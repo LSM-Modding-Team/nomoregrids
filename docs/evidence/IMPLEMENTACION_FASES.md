@@ -643,3 +643,24 @@ reemplazar el diario durante validación/aplicación. Se añade un caso escrito
 del coordinador real con diario para comprobar que la operación anidada no se
 confirma ni consume. No ejecutado. Se corrige el recuento de imports consultados
 a 69; parser permanece en 178 fuentes, sin resolución de tipos.
+
+## Entrega: contacto físico real con cavidades
+
+CavityContacts calcula por separado contacto de cuerpo, ojos, altura y volumen
+de agua/lava. Un hook en EntityFluidInteraction.update(Entity,Predicate), cuya
+firma y parche se consultaron para 26.2.0.88, sustituye la contribución gruesa
+del contenedor por estos contactos y alimenta los trackers de tipos nativos.
+Otro hook enruta extinción/ignición mediante el applier nativo solo si el cuerpo
+toca microvolúmenes reales; una barrera de reentrada protege el despacho. No
+enciende por la mera presencia de lava en otra cavidad de la misma celda.
+
+Se usan accessors aislados para los campos inspeccionados del tracker. El
+factory privado getTrackerFor(FluidType) se consulta por reflexión versionada
+al no existir una API pública para aportar un contacto parcial al tracker.
+Decisión: hasta 512 celdas de envolvente por entidad; entidades mayores mantienen
+la consulta conservadora nativa. Corrientes usan el perfil nativo y quedan
+pendientes comprobaciones de barridos rápidos y efectos en juego. Pruebas puras
+de hueco seco, contacto parcial, negativos y ojos en fluidos mezclados escritas,
+no ejecutadas. Compilación, tests Java y Minecraft siguen sin ejecutarse.
+
+Resultado de esta revisión: 183 fuentes parseadas y 72 imports explícitos presentes; recursos y whitespace válidos. No acredita tipos ni miembros parcheados.

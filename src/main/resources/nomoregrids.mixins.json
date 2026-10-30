@@ -6,7 +6,10 @@
   "mixins": [
     "LevelMutationMixin",
     "FunctionalMenuMixin",
-    "FunctionalRecipeMixin"
+    "FunctionalRecipeMixin",
+    "FluidTrackerAccess",
+    "CavityEntityFluidMixin",
+    "CavityFluidEffectMixin"
   ],
   "injectors": {
     "defaultRequire": 1
