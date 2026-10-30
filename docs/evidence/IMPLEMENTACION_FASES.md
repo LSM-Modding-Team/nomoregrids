@@ -664,3 +664,20 @@ de hueco seco, contacto parcial, negativos y ojos en fluidos mezclados escritas,
 no ejecutadas. Compilación, tests Java y Minecraft siguen sin ejecutarse.
 
 Resultado de esta revisión: 183 fuentes parseadas y 72 imports explícitos presentes; recursos y whitespace válidos. No acredita tipos ni miembros parcheados.
+
+## Recuperación intermod y migración de autoridad
+
+La disponibilidad se proyecta como SUBSTITUTE exclusivamente en réplicas, sin
+reescribir originales al faltar un mod. Se normaliza explícitamente la marca
+derivada de diarios 1/2 y checkpoints 1 al leer; los archivos originales siguen
+intactos. Diarios 3 y checkpoints 2 guardan autoridad canónica. Reinstalar un
+adaptador vuelve a habilitar su proyección sin cambiar UUID, revisión o payload.
+Los efectos incluyen dueño previo y destino: se comprueban ambas imágenes y
+se checkpointan ambas secciones en una migración, evitando inventarios duplicados.
+La representación nativa orientada traduce propiedades axis/facing/half/type
+y exige igualdad volumétrica exacta de ocupación, colisión y selección. Marcos
+que vanilla no puede representar conservan el contenedor.
+
+Decisión: falta de adaptador es estado de consulta, no migración destructiva.
+Prueba escrita de codec/migración entre secciones; no ejecutada. Parser, recursos
+y whitespace revisados; no compilación, Gradle, Java tests ni Minecraft.

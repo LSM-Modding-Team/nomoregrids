@@ -13,7 +13,7 @@ public final class OperationCodec {
     public static byte[] encode(OperationPlan plan) throws IOException {
         var bytes = new ByteArrayOutputStream();
         var out = new DataOutputStream(bytes);
-        out.writeInt(2); uuid(out,plan.id()); uuid(out,plan.actor()); out.writeUTF(plan.kind().name());
+        out.writeInt(3); uuid(out,plan.id()); uuid(out,plan.actor()); out.writeUTF(plan.kind().name());
         out.writeInt(plan.changes().size());
         for (var c : plan.changes()) {
             uuid(out,c.id()); piece(out,c.before()); piece(out,c.after());
@@ -22,7 +22,7 @@ public final class OperationCodec {
         blob(out,plan.resourcesBefore().copy()); blob(out,plan.resourcesAfter().copy());
         out.writeInt(plan.effects().size());for(var e:plan.effects()){
             out.writeUTF(e.key());out.writeLong(e.owner().x());out.writeLong(e.owner().y());out.writeLong(e.owner().z());
-            data(out,e.before());data(out,e.after());if(bytes.size()>MAX_BYTES)throw new IOException("Operation too large");
+            out.writeLong(e.previousOwner().x());out.writeLong(e.previousOwner().y());out.writeLong(e.previousOwner().z());data(out,e.before());data(out,e.after());if(bytes.size()>MAX_BYTES)throw new IOException("Operation too large");
         }
         if (bytes.size()>MAX_BYTES) throw new IOException("Operation too large");
         return bytes.toByteArray();
@@ -31,16 +31,16 @@ public final class OperationCodec {
         if (bytes.length>MAX_BYTES) throw new IOException("Operation too large");
         var in = new DataInputStream(new ByteArrayInputStream(bytes));
         try {
-            int schema=in.readInt();if(schema!=1&&schema!=2) throw new IOException("Unsupported operation schema");
+            int schema=in.readInt();if(schema!=1&&schema!=2&&schema!=3) throw new IOException("Unsupported operation schema");
             UUID id=uuid(in), actor=uuid(in);
             String kind=in.readUTF();
             int count=in.readInt();
             if (count<0 || count>128) throw new IOException("Invalid operation count");
             var changes=new ArrayList<OperationPlan.Change>(count);
-            for (int i=0;i<count;i++) changes.add(new OperationPlan.Change(uuid(in),piece(in),piece(in)));
+            for (int i=0;i<count;i++) changes.add(new OperationPlan.Change(uuid(in),piece(in,schema),piece(in,schema)));
             var before=new BinaryData(blob(in,BinaryData.MAX_BYTES));
             var after=new BinaryData(blob(in,BinaryData.MAX_BYTES));
-            var effects=new ArrayList<OperationPlan.Effect>();if(schema>=2){int n=in.readInt();if(n<0||n>512)throw new IOException("Effect budget");for(int i=0;i<n;i++)effects.add(new OperationPlan.Effect(in.readUTF(),new net.nicomar.nomoregrids.core.CellPos(in.readLong(),in.readLong(),in.readLong()),data(in),data(in)));}
+            var effects=new ArrayList<OperationPlan.Effect>();if(schema>=2){int n=in.readInt();if(n<0||n>512)throw new IOException("Effect budget");for(int i=0;i<n;i++){String key=in.readUTF();var owner=new net.nicomar.nomoregrids.core.CellPos(in.readLong(),in.readLong(),in.readLong());var previous=schema>=3?new net.nicomar.nomoregrids.core.CellPos(in.readLong(),in.readLong(),in.readLong()):owner;effects.add(new OperationPlan.Effect(key,owner,data(in),data(in),previous));}}
             if (in.available()!=0) throw new IOException("Trailing operation bytes");
             return new OperationPlan(id,actor,OperationPlan.Kind.valueOf(kind),changes,before,after,effects);
         } catch (IllegalArgumentException ex) { throw new IOException("Invalid operation",ex); }
@@ -58,11 +58,11 @@ public final class OperationCodec {
     private static void piece(DataOutput out,Optional<PieceRecord> piece) throws IOException {
         out.writeBoolean(piece.isPresent());if (piece.isPresent()) blob(out,BoxPieceCodec.encode(piece.orElseThrow()));
     }
-    private static Optional<PieceRecord> piece(DataInputStream in) throws IOException {
+    private static Optional<PieceRecord> piece(DataInputStream in,int schema) throws IOException {
         int marker=in.readUnsignedByte();if(marker>1)throw new IOException("Invalid optional marker");
         if(marker==0)return Optional.empty();
         var result=BoxPieceCodec.decode(blob(in,BoxPieceCodec.MAX_BYTES));
         if (!(result instanceof BoxPieceCodec.Decoded decoded)) throw new IOException("Future piece schema; preserve journal");
-        return Optional.of(decoded.piece());
+        return Optional.of(schema<3?AuthorityRecords.legacy(decoded.piece()):decoded.piece());
     }
 }

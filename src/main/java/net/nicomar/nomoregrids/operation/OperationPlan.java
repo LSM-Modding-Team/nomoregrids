@@ -15,9 +15,10 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
         BinaryData resourcesBefore, BinaryData resourcesAfter, List<Effect> effects) {
     public enum Kind { PLACE, REMOVE, EDIT, REPLACE, MOVE, SYSTEM, CLAIM, TRANSFER }
     public static final UUID WORLD_ACTOR=new UUID(0,0);
-    public record Effect(String key,CellPos owner,Optional<BinaryData> before,Optional<BinaryData> after){
-        public Effect{java.util.Objects.requireNonNull(owner);java.util.Objects.requireNonNull(before);java.util.Objects.requireNonNull(after);
-            if(!key.matches("(fluid|machine|loot|circuit|group|native):[a-zA-Z0-9_:.-]{1,192}")||before.equals(after))throw new IllegalArgumentException("Invalid world effect");}
+    public record Effect(String key,CellPos owner,Optional<BinaryData> before,Optional<BinaryData> after,CellPos previousOwner){
+        public Effect(String key,CellPos owner,Optional<BinaryData> before,Optional<BinaryData> after){this(key,owner,before,after,owner);}
+        public Effect{java.util.Objects.requireNonNull(owner);java.util.Objects.requireNonNull(previousOwner);java.util.Objects.requireNonNull(before);java.util.Objects.requireNonNull(after);
+            if(!key.matches("(fluid|machine|loot|circuit|group|native|cursor|decoration):[a-zA-Z0-9_:.-]{1,192}")||before.equals(after)&&owner.equals(previousOwner))throw new IllegalArgumentException("Invalid world effect");}
     }
     public OperationPlan(UUID id,UUID actor,Kind kind,List<Change> changes,BinaryData before,BinaryData after){this(id,actor,kind,changes,before,after,List.of());}
     public record Change(UUID id, Optional<PieceRecord> before, Optional<PieceRecord> after) {
@@ -39,7 +40,7 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
         if(effects.size()>512)throw new IllegalArgumentException("Effect budget");
         var keys=new HashSet<String>();for(var e:effects)if(!keys.add(e.key()))throw new IllegalArgumentException("Duplicate world effect");
         if(actor.equals(WORLD_ACTOR)&&(kind!=Kind.SYSTEM||resourcesBefore.size()!=0||resourcesAfter.size()!=0))throw new IllegalArgumentException("Invalid system actor");
-        if (changes.isEmpty()&&effects.isEmpty() || changes.size()>128) throw new IllegalArgumentException("Operation piece budget");
+        if (changes.isEmpty()&&effects.isEmpty()&&resourcesBefore.equals(resourcesAfter) || changes.size()>128) throw new IllegalArgumentException("Operation piece budget");
         Set<UUID> ids = new HashSet<>();
         for (Change c : changes) if (!ids.add(c.id)) throw new IllegalArgumentException("Duplicate change");
         if (allCells(changes,effects).size()>512) throw new IllegalArgumentException("Operation cell budget");
@@ -52,7 +53,7 @@ public record OperationPlan(UUID id, UUID actor, Kind kind, List<Change> changes
         }
         return Set.copyOf(cells);
     }
-    private static Set<CellPos> allCells(List<Change> changes,List<Effect> effects){var cells=new HashSet<>(cells(changes));effects.forEach(e->cells.add(e.owner()));return Set.copyOf(cells);}
+    private static Set<CellPos> allCells(List<Change> changes,List<Effect> effects){var cells=new HashSet<>(cells(changes));effects.forEach(e->{cells.add(e.owner());cells.add(e.previousOwner());});return Set.copyOf(cells);}
     public Set<CellPos> pieceCells(){return cells(changes);}
     public Set<CellPos> affectedCells() { return allCells(changes,effects); }
 }

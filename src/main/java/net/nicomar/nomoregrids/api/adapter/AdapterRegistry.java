@@ -13,7 +13,9 @@ public final class AdapterRegistry {
         var a=adapters.get(piece.adapterId());if(a==null||a.dataVersion()!=piece.adapterVersion())throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: "+piece.adapterId());return a;
     }
     public Map<ResourceId,Integer> versions(){var result=new HashMap<ResourceId,Integer>();adapters.forEach((id,a)->result.put(id,a.dataVersion()));return Map.copyOf(result);}
+    public boolean available(PieceRecord p){try{require(p);return true;}catch(IllegalArgumentException ex){return false;}}
     public boolean overlap(PieceRecord a,PieceRecord b){
+        if(!available(a)||!available(b))return a.worldOccupation().overlaps(b.worldOccupation());
         if(a.flags().contains(PieceRecord.Flag.SUBSTITUTE)||b.flags().contains(PieceRecord.Flag.SUBSTITUTE))return a.worldOccupation().overlaps(b.worldOccupation());
         if(a.adapterId().value().equals("nomoregrids:box")&&b.adapterId().value().equals("nomoregrids:box")&&a.adapterVersion()==1&&b.adapterVersion()==1){require(a);require(b);return a.worldOccupation().overlaps(b.worldOccupation());}
         if(!a.worldOccupation().bounds().overlaps(b.worldOccupation().bounds()))return false;

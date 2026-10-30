@@ -11,6 +11,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class WorldEffectsTest {
     @TempDir Path root;
+    @Test void movingPrivateAuthorityPreservesBothCheckpointOwners()throws Exception{
+        var old=new CellPos(15,0,0);var next=new CellPos(16,0,0);var data=new BinaryData(new byte[]{1});var effect=new OperationPlan.Effect("machine:"+UUID.randomUUID(),next,Optional.of(data),Optional.of(data),old);
+        var plan=new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,List.of(),BinaryData.EMPTY,BinaryData.EMPTY,List.of(effect));
+        assertEquals(Set.of(old,next),plan.affectedCells());assertEquals(plan,OperationCodec.decode(OperationCodec.encode(plan)));
+    }
     @Test void journalReplaysEffectOnlyWorldOperations()throws Exception{
         var owner=new CellPos(-1,15,16);var value=new BinaryData(new byte[]{1,2,3});
         var effect=new OperationPlan.Effect("loot:"+UUID.randomUUID(),owner,Optional.empty(),Optional.of(value));

@@ -69,7 +69,9 @@ public final class WorldFunctionals {
                 var p=c.after().orElseThrow();var value=service.effects().get(key(p.pieceId()));if(value==null){BaseContainerBlockEntity be;
                     var actual=level.getBlockEntity(WorldService.pos(p.origin16().cell()));if(actual instanceof BaseContainerBlockEntity nativeBE&&matchesNative(p,nativeBE.getBlockPos()))be=nativeBE;else if(p.itemPayload().size()==0)be=fresh(p);else throw new IllegalArgumentException("STALE_REVISION: native inventory");
                     effects.add(new OperationPlan.Effect(key(p.pieceId()),p.origin16().cell(),Optional.empty(),Optional.of(encode(p,capture(p,be,0)))));
-                }else if(c.before().isPresent()&&!c.before().orElseThrow().ownerSection().equals(p.ownerSection()))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: functional cross-section move requires owner migration");
+                }else if(!value.owner().equals(p.origin16().cell())){
+                    var data=encode(p,state(p));effects.removeIf(e->e.key().equals(key(p.pieceId())));effects.add(new OperationPlan.Effect(key(p.pieceId()),p.origin16().cell(),Optional.of(value.data()),Optional.of(data),value.owner()));
+                }
             }else if(c.before().isPresent()&&piece(c.before().orElseThrow())){var p=c.before().orElseThrow();var old=service.effects().get(key(p.pieceId()));if(old==null)throw new IllegalArgumentException("INVALID_DATA: missing functional authority");effects.add(new OperationPlan.Effect(key(p.pieceId()),old.owner(),Optional.of(old.data()),Optional.empty()));}
         }
         return new OperationPlan(plan.id(),plan.actor(),plan.kind(),plan.changes(),plan.resourcesBefore(),plan.resourcesAfter(),effects);

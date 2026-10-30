@@ -82,9 +82,6 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(UUID actor:actors){
             long marker=watermark(actor);if(archive!=null&&marker<archive.state().receipts().getOrDefault(actor,0L))throw new IOException("Player receipt predates compacted history; original retained");if(marker!=0&&(marker<=baseSequence?!Objects.equals(archive.state().receipts().get(actor),marker):!actor.equals(owners.get(marker))))throw new IOException("Player receipt does not belong to this journal history; data retained");
         }
-        for(var p:List.copyOf(records.values()))try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);}catch(RuntimeException ex){
-            var flags=new HashSet<>(p.flags());flags.add(PieceRecord.Flag.SUBSTITUTE);records.put(p.pieceId(),new PieceRecord(p.pieceId(),p.revision(),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),flags));
-        }
         var index=PieceIndex.retained(records.values(),adapters::overlap);
         engine=new OperationEngine(index,journal,this,PieceIndex.Limits.DEFAULT);recovering=false;
     }
@@ -102,7 +99,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(receipt(plan,sequence))return;
         if(recovering)for(var change:plan.changes())for(var p:List.of(change.before(),change.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()>=sequence)
             throw new IOException("World checkpoint exists without its player receipt; operation quarantined");
-        if(recovering)for(var effect:plan.effects())if(effectStore.checkpoint(effect.owner().section())>=sequence)throw new IOException("Effects checkpoint exists without its player receipt; operation quarantined");
+        if(recovering)for(var effect:plan.effects())if(effectStore.checkpoint(effect.owner().section())>=sequence||effectStore.checkpoint(effect.previousOwner().section())>=sequence)throw new IOException("Effects checkpoint exists without its player receipt; operation quarantined");
         ServerPlayer actor=level.getServer().getPlayerList().getPlayer(plan.actor());
         if(actor==null)throw new IOException("Recovery waiting for actor "+plan.actor()+"; no resources replayed");
         if(!recovering&&!NativeInventory.matches(actor,plan.resourcesBefore()))throw new IOException("Resource image changed before live commit application");
@@ -134,7 +131,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         var plan=fluids.prepare(functionals.prepare(original));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}
     }
-    public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index).replicas(),fluids.at(c));}
+    public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
+    public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index,p->!available(p)).replicas(),fluids.at(c));}
     public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null){if(archive==null)return false;try{var stamp=archive.operation(operation);if(stamp.isEmpty())return false;if(!stamp.orElseThrow().actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
     private boolean repeated(UUID id,ServerPlayer actor,OperationPlan.Kind kind){
         var old=history.get(id);if(old==null){if(!hasOperation(id,actor.getUUID()))return false;try{if(archive.operation(id).orElseThrow().kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor.getUUID())||old.kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;
@@ -262,7 +260,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(ray.getType()!=HitResult.Type.MISS&&ray.getLocation().distanceToSqr(destination)>1e-10)throw new IllegalArgumentException("Placement surface is occluded");
         }
         for(var c:plan.changes()){
-            c.after().ifPresent(adapters::require);
+            c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");});
             for(var p:List.of(c.before(),c.after()))if(p.isPresent()){
                 PieceRecord piece=p.orElseThrow();BlockPos owner=pos(new CellPos(piece.ownerSection().x()*16,piece.ownerSection().y()*16,piece.ownerSection().z()*16));
                 if(!level.isLoaded(owner))throw new IllegalArgumentException("UNLOADED_REGION");
@@ -335,31 +333,31 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         reconcileResources(plan,sequence);
         applyEffects(plan);
         writing++;try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")||e.key().startsWith("native:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{writing--;}
-        Set<SectionPos> effectSections=new HashSet<>();plan.effects().forEach(e->effectSections.add(e.owner().section()));
+        Set<SectionPos> effectSections=new HashSet<>();plan.effects().forEach(e->{effectSections.add(e.owner().section());effectSections.add(e.previousOwner().section());});
         for(var section:effectSections)effectStore.write(section,sequence,sectionEffects(section));
         Set<SectionPos> sections=new HashSet<>();for(var c:plan.changes()){c.before().ifPresent(p->sections.add(p.ownerSection()));c.after().ifPresent(p->sections.add(p.ownerSection()));}
         for(var section:sections)store.write(section,sequence,after.ownedBy(section).stream().map(after.records()::get).toList());
     }
     private Map<String,WorldEffectStore.Value> sectionEffects(SectionPos section){var result=new TreeMap<String,WorldEffectStore.Value>();effects.forEach((key,value)->{if(value.owner().section().equals(section))result.put(key,value);});return result;}
     private void validateEffects(OperationPlan plan){
-        for(var e:plan.effects())if(!Objects.equals(Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data),e.before())||effects.containsKey(e.key())&&!effects.get(e.key()).owner().equals(e.owner()))throw new IllegalArgumentException("STALE_REVISION: world effects");
+        for(var e:plan.effects())if(!Objects.equals(Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data),e.before())||effects.containsKey(e.key())&&!effects.get(e.key()).owner().equals(e.previousOwner()))throw new IllegalArgumentException("STALE_REVISION: world effects");
         var afterIndex=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
         for(var e:plan.effects())if(e.key().startsWith("native:")&&e.after().isPresent()&&!afterIndex.at(e.owner()).isEmpty())throw new IllegalArgumentException("OVERLAP: native mechanism goal");
         var proposed=new TreeMap<>(effects);for(var e:plan.effects()){if(e.after().isPresent())proposed.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else proposed.remove(e.key());}
-        for(var section:plan.effects().stream().map(e->e.owner().section()).distinct().toList()){
+        for(var section:plan.effects().stream().flatMap(e->java.util.stream.Stream.of(e.owner().section(),e.previousOwner().section())).distinct().toList()){
             var values=new TreeMap<String,WorldEffectStore.Value>();proposed.forEach((k,v)->{if(v.owner().section().equals(section))values.put(k,v);});try{WorldEffectStore.encode(1,values);}catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: section effects",ex);}
         }
     }
     private void applyEffects(OperationPlan plan)throws IOException{
         for(var e:plan.effects()){
-            var current=Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data);if(!current.equals(e.before())&&!current.equals(e.after()))throw new IOException("Conflicting world effect; original retained");
+            var current=Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data);if(!(current.equals(e.before())&&(!effects.containsKey(e.key())||effects.get(e.key()).owner().equals(e.previousOwner())))&&!(current.equals(e.after())&&(!effects.containsKey(e.key())||effects.get(e.key()).owner().equals(e.owner()))))throw new IOException("Conflicting world effect; original retained");
             if(e.after().isPresent())effects.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else effects.remove(e.key());
         }
     }
     private void validateSystem(OperationPlan plan,PieceIndex before,PieceIndex after){
         if(plan.kind()!=OperationPlan.Kind.SYSTEM)throw new IllegalArgumentException("Invalid world operation");
         for(var cell:plan.affectedCells()){var at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION");}
-        for(var c:plan.changes())c.after().ifPresent(adapters::require);
+        for(var c:plan.changes())c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");});
         try{for(var cell:plan.pieceCells()){
             CellView.from(cell,after).encode();int boxes=0;for(UUID id:after.at(cell))boxes+=after.records().get(id).geometry().collision().boxes().size();if(boxes>512)throw new IllegalArgumentException("COMPLEXITY_LIMIT: world collision");
         }for(var section:plan.pieceCells().stream().map(CellPos::section).distinct().toList())SectionStore.encode(section,0,after.ownedBy(section).stream().map(after.records()::get).toList());}
@@ -391,8 +389,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public Optional<net.minecraft.world.level.block.state.BlockState> nativeProjection(CellPos cell){return nativeProjection(cell,snapshot());}
     private Optional<net.minecraft.world.level.block.state.BlockState> nativeProjection(CellPos cell,PieceIndex index){
         if(fluids.at(cell).isPresent()||index.at(cell).size()!=1)return Optional.empty();var p=index.records().get(index.at(cell).iterator().next());
-        if(!p.adapterId().value().equals("nomoregrids:box")||p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||p.orientation()!=0||p.groupId().isPresent()||!p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))||p.worldOccupation().cells(8).size()!=1)return Optional.empty();
-        try{var state=NativeStates.resolve(p);if(!catalog.eligible(state))return Optional.empty();var captured=NativeStates.capture(state,level,pos(cell),p.pieceId());if(!captured.geometry().equals(p.geometry()))return Optional.empty();return Optional.of(state);}catch(RuntimeException ex){return Optional.empty();}
+        if(!available(p))return Optional.empty();return NativeRepresentation.restore(p,cell,level);
     }
     public void releaseNative(CellPos cell)throws IOException{
         if(nativeProjection(cell).isEmpty())return;var p=snapshot().records().get(snapshot().at(cell).iterator().next());executeWorld(List.of(new OperationPlan.Change(p.pieceId(),Optional.of(p),Optional.empty())),List.of());
@@ -478,7 +475,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     @Override public boolean alreadyApplied(UUID id)throws IOException{
         OperationPlan plan=history.get(id);Long sequence=sequences.get(id);if(plan==null||sequence==null||!receipt(plan,sequence))return false;
-        for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;for(var e:plan.effects())if(effectStore.checkpoint(e.owner().section())<sequence)return false;return true;
+        for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;for(var e:plan.effects())if(effectStore.checkpoint(e.owner().section())<sequence||effectStore.checkpoint(e.previousOwner().section())<sequence)return false;return true;
     }
     @Override public void afterCommit(OperationPlan plan){for(var cell:plan.affectedCells())WorldMutationHooks.changed(level,pos(cell));NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
     @Override public void close()throws IOException{journal.close();}

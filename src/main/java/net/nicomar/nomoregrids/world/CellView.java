@@ -13,13 +13,17 @@ public record CellView(List<PieceRecord> replicas,Optional<net.nicomar.nomoregri
     public CellView{Objects.requireNonNull(cavity);replicas=replicas.stream().sorted(Comparator.comparing(PieceRecord::pieceId)).toList();if(replicas.size()>64)throw new IllegalArgumentException("Cell reference limit");
         Set<UUID> ids=new HashSet<>();for(var p:replicas)if(!ids.add(p.pieceId())||p.itemPayload().size()!=0||p.materialPayload().size()!=0)throw new IllegalArgumentException("Invalid public replica");}
     public static CellView from(CellPos cell,net.nicomar.nomoregrids.world.PieceIndex index){
+        return from(cell,index,p->p.flags().contains(PieceRecord.Flag.SUBSTITUTE));
+    }
+    public static CellView from(CellPos cell,net.nicomar.nomoregrids.world.PieceIndex index,java.util.function.Predicate<PieceRecord> unavailable){
         var pieces=new ArrayList<PieceRecord>();
         for(UUID id:index.at(cell).stream().sorted().toList()){
             var p=index.records().get(id);
+            var flags=new HashSet<>(p.flags());if(unavailable.test(p))flags.add(PieceRecord.Flag.SUBSTITUTE);
             boolean publicGeometry=Set.of("nomoregrids:box","nomoregrids:paintableblocks","nomoregrids:functional").contains(p.adapterId().value());
-            if(!publicGeometry&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE))throw new IllegalArgumentException("Adapter needs a public-data projection");
+            if(!publicGeometry&&!flags.contains(PieceRecord.Flag.SUBSTITUTE))throw new IllegalArgumentException("Adapter needs a public-data projection");
             pieces.add(new PieceRecord(p.pieceId(),p.revision(),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),
-                p.orientation(),p.pivot16(),p.geometry(),publicGeometry?p.geometryPayload():BinaryData.EMPTY,BinaryData.EMPTY,BinaryData.EMPTY,p.groupId(),p.flags()));
+                p.orientation(),p.pivot16(),p.geometry(),publicGeometry?p.geometryPayload():BinaryData.EMPTY,BinaryData.EMPTY,BinaryData.EMPTY,p.groupId(),flags));
         }return new CellView(pieces);
     }
     public byte[] encode() throws IOException{
