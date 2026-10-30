@@ -30,7 +30,11 @@ import net.nicomar.nomoregrids.world.*;
 /** Experimental server host. Authoritative history is durable; chunk replicas can be rebuilt on natural load. */
 public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private final ServerLevel level;
-    private final DurableJournal journal;
+    private DurableJournal journal;
+    private final Path root;
+    private JournalArchive archive;
+    private long baseSequence;
+    private boolean compactionFault;
     private final SectionStore store;
     private final WorldEffectStore effectStore;
     private final Map<String,WorldEffectStore.Value> effects=new TreeMap<>();
@@ -57,13 +61,13 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         this.level=level;this.adapters=adapters;fluids=new WorldFluids(level,this);functionals=new WorldFunctionals(level,this);
         String dimension=level.dimension().identifier().toString();
         String hash=java.util.HexFormat.of().formatHex(SnapshotAssembler.sha256(dimension.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        receiptKey="nmg_applied_"+hash;Path root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
+        receiptKey="nmg_applied_"+hash;root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
         Map<String,Integer> versions=new HashMap<>();adapters.versions().forEach((id,version)->versions.put(id.value(),version));WorldRules.verifyOrCreate(root.resolve("rules.json"),SessionPayload.localHash(),ProtocolRules.defaults(versions));
-        store=new SectionStore(root.resolve("sections"));effectStore=new WorldEffectStore(root.resolve("effects"));journal=new DurableJournal(root.resolve("operations.log"));
+        store=new SectionStore(root.resolve("sections"));effectStore=new WorldEffectStore(root.resolve("effects"));archive=JournalArchive.open(root).orElse(null);baseSequence=archive==null?0:archive.state().sequence();journal=new DurableJournal(archive==null?root.resolve("operations.log"):archive.activeLog());
         try{restore();}catch(IOException|RuntimeException ex){journal.close();throw ex;}
     }
     private void restore()throws IOException{
-        recovering=true;var records=new HashMap<UUID,PieceRecord>();long sequence=0;
+        recovering=true;var records=new HashMap<UUID,PieceRecord>();if(archive!=null){records.putAll(archive.state().records());effects.putAll(archive.state().effects());knownIds.addAll(records.keySet());}long sequence=baseSequence;
         for(var plan:journal.committed()){
             sequences.put(plan.id(),++sequence);history.put(plan.id(),plan);
             for(var c:plan.changes()){
@@ -74,8 +78,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             applyEffects(plan);reconcileResources(plan,sequence);
         }
         Map<Long,UUID> owners=new HashMap<>();sequences.forEach((id,seq)->owners.put(seq,history.get(id).actor()));
-        for(UUID actor:history.values().stream().map(OperationPlan::actor).filter(id->!id.equals(OperationPlan.WORLD_ACTOR)).collect(java.util.stream.Collectors.toSet())){
-            long marker=watermark(actor);if(marker!=0&&!actor.equals(owners.get(marker)))throw new IOException("Player receipt does not belong to this journal history; data retained");
+        var actors=new HashSet<UUID>();if(archive!=null)actors.addAll(archive.state().receipts().keySet());history.values().stream().map(OperationPlan::actor).filter(id->!id.equals(OperationPlan.WORLD_ACTOR)).forEach(actors::add);
+        for(UUID actor:actors){
+            long marker=watermark(actor);if(marker!=0&&(marker<=baseSequence?!Objects.equals(archive.state().receipts().get(actor),marker):!actor.equals(owners.get(marker))))throw new IOException("Player receipt does not belong to this journal history; data retained");
         }
         for(var p:List.copyOf(records.values()))try{adapters.require(p).occupation(p);NativeStates.resolve(p);NativeStates.original(p);}catch(RuntimeException ex){
             var flags=new HashSet<>(p.flags());flags.add(PieceRecord.Flag.SUBSTITUTE);records.put(p.pieceId(),new PieceRecord(p.pieceId(),p.revision(),p.adapterId(),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),flags));
@@ -112,7 +117,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(saved.isEmpty()||saved.orElseThrow().getCompoundOrEmpty("NeoForgeData").getLongOr(receiptKey,0)<sequence)throw new IOException("Receipt not persisted with player inventory");
     }
     public PieceIndex snapshot(){return engine.snapshot();}
-    public boolean quarantined(){return engine.quarantined();}
+    public boolean quarantined(){return compactionFault||engine.quarantined();}
+    public net.nicomar.nomoregrids.diagnostic.TimingSamples timings(){return engine.timings();}
     public static BlockPos pos(CellPos p){return new BlockPos(Math.toIntExact(p.x()),Math.toIntExact(p.y()),Math.toIntExact(p.z()));}
     public void place(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode)throws IOException{
         executePrepared(placementPlan(player,hand,hit,mode,UUID.randomUUID(),false));
@@ -128,9 +134,9 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}
     }
     public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index).replicas(),fluids.at(c));}
-    public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null)return false;if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
+    public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null){if(archive==null)return false;try{var stamp=archive.operation(operation);if(stamp.isEmpty())return false;if(!stamp.orElseThrow().actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
     private boolean repeated(UUID id,ServerPlayer actor,OperationPlan.Kind kind){
-        var old=history.get(id);if(old==null)return false;if(!old.actor().equals(actor.getUUID())||old.kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;
+        var old=history.get(id);if(old==null){if(!hasOperation(id,actor.getUUID()))return false;try{if(archive.operation(id).orElseThrow().kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor.getUUID())||old.kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;
     }
     private OperationPlan placementPlan(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode,UUID operation,boolean preview)throws IOException{
         assertServerThread();PieceRecord candidate=ConstructionCandidate.build(player,hand,hit,mode,catalog,UUID.randomUUID());
@@ -237,11 +243,12 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         validate(plan,before,after,false);
     }
     private void validate(OperationPlan plan,PieceIndex before,PieceIndex after,boolean preview){
+        if(compactionFault)throw new IllegalStateException("Recovery required after checkpoint publication");
         validateEffects(plan);
         if(plan.actor().equals(OperationPlan.WORLD_ACTOR)){validateSystem(plan,before,after);return;}
         ServerPlayer player=level.getServer().getPlayerList().getPlayer(plan.actor());if(player==null||player.level()!=level||player.isSpectator())throw new IllegalArgumentException("Invalid actor");
         if(!NativeInventory.matches(player,plan.resourcesBefore()))throw new IllegalArgumentException("STALE_REVISION");
-        if(player.getPersistentData().getLongOr(receiptKey,0)>sequences.size())throw new IllegalArgumentException("INVALID_DATA: receipt is ahead of journal");
+        if(player.getPersistentData().getLongOr(receiptKey,0)>baseSequence+sequences.size())throw new IllegalArgumentException("INVALID_DATA: receipt is ahead of journal");
         double reach=player.blockInteractionRange();var eye=player.getEyePosition();
         boolean inReach=plan.changes().stream().flatMap(c->java.util.stream.Stream.concat(c.before().stream(),c.after().stream())).anyMatch(p->{
             var b=p.worldOccupation().bounds();double x=Math.max(b.min().x()/16.0,Math.min(b.max().x()/16.0,eye.x)),y=Math.max(b.min().y()/16.0,Math.min(b.max().y()/16.0,eye.y)),z=Math.max(b.min().z()/16.0,Math.min(b.max().z()/16.0,eye.z));return eye.distanceToSqr(new Vec3(x,y,z))<=reach*reach;});
@@ -282,7 +289,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             try{SectionStore.encode(section,0,after.ownedBy(section).stream().map(after.records()::get).toList());}
             catch(IOException ex){throw new IllegalArgumentException("COMPLEXITY_LIMIT: persistent section",ex);}
             long triangles=0;for(UUID id:after.referencedBy(section)){
-                var p=after.records().get(id);triangles+=BoxMesh.extract(p.geometry().occupation(),131072).size()*2L;
+                var p=after.records().get(id);triangles+=net.nicomar.nomoregrids.diagnostic.GeometryCache.faces(p.geometry().occupation(),131072).size()*2L;
                 if(triangles>262144)throw new IllegalArgumentException("COMPLEXITY_LIMIT: section mesh");
             }
         }
@@ -322,7 +329,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         return !p.adapterId().value().equals("nomoregrids:paintableblocks")||net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().filter(b->b.matchesOriginal(p,level,at)).isPresent();
     }
     @Override public void install(OperationPlan plan,PieceIndex after)throws IOException{
-        long sequence=sequences.computeIfAbsent(plan.id(),key->(long)sequences.size()+1);history.put(plan.id(),plan);
+        long sequence=sequences.computeIfAbsent(plan.id(),key->baseSequence+sequences.size()+1);history.put(plan.id(),plan);
         for(var c:plan.changes())knownIds.add(c.id());
         reconcileResources(plan,sequence);
         applyEffects(plan);
@@ -398,7 +405,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var cell:cells){
             var state=level.getBlockState(pos(cell));
             if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&!entity.valid())continue;
-            if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownIds.contains(p.pieceId())))continue;
+            if(level.getBlockEntity(pos(cell)) instanceof CompositeCellEntity entity&&entity.view().replicas().stream().anyMatch(p->!knownPiece(p.pieceId())))continue;
             boolean expectedNative=nativeProjection(cell,snapshot()).filter(state::equals).isPresent()||snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
             if(nativeGoal(cell).isPresent()||state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative)syncCell(cell,snapshot());
             else if(!snapshot().at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
@@ -451,6 +458,22 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             slots=attempt;claimed.add(new OperationPlan.Effect(entry.getKey(),c,Optional.of(value.data()),Optional.empty()));
         }
         if(!claimed.isEmpty())executePrepared(new OperationPlan(UUID.randomUUID(),player.getUUID(),OperationPlan.Kind.CLAIM,List.of(),before,NativeInventory.encode(player,slots),claimed));
+    }
+    private boolean knownPiece(UUID id){if(knownIds.contains(id))return true;if(archive==null)return false;try{return archive.knownPiece(id);}catch(IOException ex){throw new UncheckedIOException(ex);}}
+    public long compact()throws IOException{
+        assertServerThread();if(quarantined())throw new IOException("Recovery required before compaction");long sequence=baseSequence+sequences.size();if(sequence==baseSequence)return sequence;
+        var receipts=new HashMap<UUID,Long>();if(archive!=null)receipts.putAll(archive.state().receipts());var stamps=new HashMap<UUID,JournalArchive.Stamp>();
+        for(var plan:history.values()){
+            long n=sequences.get(plan.id());if(!plan.actor().equals(OperationPlan.WORLD_ACTOR))receipts.merge(plan.actor(),n,Math::max);
+            stamps.put(plan.id(),new JournalArchive.Stamp(plan.id(),plan.actor(),plan.kind(),n,SnapshotAssembler.sha256(OperationCodec.encode(plan))));
+        }
+        for(var receipt:receipts.entrySet())if(watermark(receipt.getKey())!=receipt.getValue())throw new IOException("Compaction requires every actor's exact durable receipt");
+        var prepared=JournalArchive.prepare(root,new JournalArchive.State(sequence,snapshot().records(),effects,receipts),archive,stamps,knownIds);var nextJournal=new DurableJournal(prepared.activeLog());
+        try{prepared.publish();}catch(IOException|RuntimeException ex){nextJournal.close();throw ex;}
+        // Reopen verifies the published checkpoint and every ledger hash before releasing old history.
+        JournalArchive verified;try{verified=JournalArchive.open(root).orElseThrow();}catch(IOException|RuntimeException ex){compactionFault=true;NmgRuntime.failed(level,ex);try{nextJournal.close();}catch(IOException closing){ex.addSuppressed(closing);}throw ex;}var oldJournal=journal;var current=snapshot();journal=nextJournal;archive=verified;baseSequence=sequence;history.clear();sequences.clear();knownIds.clear();knownIds.addAll(current.records().keySet());engine=new OperationEngine(current,journal,this,PieceIndex.Limits.DEFAULT);
+        try{oldJournal.close();}catch(IOException ex){net.nicomar.nomoregrids.NoMoreGrids.LOGGER.warn("Old compacted journal close failed; new generation is durable",ex);}
+        try{prepared.prune();}catch(IOException ex){net.nicomar.nomoregrids.NoMoreGrids.LOGGER.warn("Compaction retained older files after cleanup failure",ex);}return sequence;
     }
     @Override public boolean alreadyApplied(UUID id)throws IOException{
         OperationPlan plan=history.get(id);Long sequence=sequences.get(id);if(plan==null||sequence==null||!receipt(plan,sequence))return false;

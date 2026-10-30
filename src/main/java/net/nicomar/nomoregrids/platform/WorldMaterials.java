@@ -17,7 +17,7 @@ public final class WorldMaterials {
     public static List<PieceRecord> exposed(CompositeCellEntity cell,Direction face){
         var result=new ArrayList<PieceRecord>();if(!cell.valid())return result;var at=cell.getBlockPos();
         for(var p:cell.view().replicas())if(!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)){
-            boolean exposed=false;for(var surface:BoxMesh.extract(p.worldOccupation(),4096)){
+            boolean exposed=false;for(var surface:net.nicomar.nomoregrids.diagnostic.GeometryCache.faces(p.worldOccupation(),4096)){
                 if(face!=null&&!surface.normal().name().equals(face.name()))continue;var r=surface.rect();double u=(r.u0()+r.u1())/32.0,v=(r.v0()+r.v1())/32.0,plane=surface.plane()/16.0;
                 var point=surface.normal().axis()==0?new Vec3(plane,v,u):surface.normal().axis()==1?new Vec3(u,plane,v):new Vec3(u,v,plane);
                 if(point.x<at.getX()-1e-7||point.x>at.getX()+1+1e-7||point.y<at.getY()-1e-7||point.y>at.getY()+1+1e-7||point.z<at.getZ()-1e-7||point.z>at.getZ()+1+1e-7)continue;

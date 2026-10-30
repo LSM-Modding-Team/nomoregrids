@@ -593,3 +593,26 @@ solo tras la aplicación completa. Empujes mixtos, grupos, PB y movimiento funci
 entre dueños aún se rechazan. No se declara F8 completa. Firmas de PistonEvent y
 PistonBaseBlock/Head verificadas en fuentes exactas/javap; parser y revisiones
 estáticas pasan. No se ejecutan compilación, pruebas Java ni Minecraft.
+
+## Entrega: compactación por generaciones y métricas conectadas
+
+`/nmg compact` exige recibos exactos durables de todos los actores. Escribe un
+checkpoint de estado actual, un índice ordenado de operaciones (actor/tipo/hash/
+secuencia) y otro de UUID conocidos, más un diario nuevo vacío. Cada archivo se
+fuerza antes del manifiesto atómico. El checkpoint y hashes se verifican antes
+de liberar la historia previa. UUID antiguos se consultan por búsqueda binaria
+en disco con LRU de 4 MiB: un retry tras compactación no cobra ni entrega otra vez.
+Se conserva una generación previa completa y se elimina la anterior conocida
+tras una nueva publicación; fallos de limpieza conservan archivos. Un fallo al
+verificar el manifiesto publicado bloquea edición y preserva los originales.
+
+La caché compartida de superficies de cajas tiene peso máximo de 16 MiB. Los
+contactos, materiales y presupuestos de malla la usan. OperationEngine mide
+tiempo real observado y `/nmg metrics` muestra muestras/p50/p95 y uso de caché;
+no produce cifras si todavía no hay muestras.
+
+Decisión: compactación manual explícita y límite inicial de checkpoint de 64 MiB;
+no se promete coste por tick ni escalado ilimitado. Se escriben pruebas de
+generaciones, deduplicación, UUID retirados y fallo previo a publicar; no se
+ejecutan. Parser, recursos y whitespace pasan. Compilación, Java tests, juego,
+inyección de fallos real y benchmarks siguen sin ejecutarse.

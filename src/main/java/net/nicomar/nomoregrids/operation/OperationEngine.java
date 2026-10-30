@@ -22,6 +22,8 @@ public final class OperationEngine {
     private final PieceIndex.Limits limits;
     private PieceIndex index;
     private boolean quarantined;
+    private final net.nicomar.nomoregrids.diagnostic.TimingSamples timings=new net.nicomar.nomoregrids.diagnostic.TimingSamples(1024);
+    public net.nicomar.nomoregrids.diagnostic.TimingSamples timings(){return timings;}
 
     public OperationEngine(PieceIndex index,DurableJournal journal,Host host,PieceIndex.Limits limits){
         this.index=Objects.requireNonNull(index);this.journal=Objects.requireNonNull(journal);
@@ -30,6 +32,9 @@ public final class OperationEngine {
     public PieceIndex snapshot(){return index;}
     public boolean quarantined(){return quarantined;}
     public void execute(OperationPlan plan) throws IOException {
+        long started=System.nanoTime();try{executeTimed(plan);}finally{timings.add(System.nanoTime()-started);}
+    }
+    private void executeTimed(OperationPlan plan)throws IOException{
         host.assertServerThread();if(quarantined)throw new IOException("Operation engine quarantined");
         if(journal.contains(plan.id())) {
             // commit() also verifies that a repeated ID has byte-identical intent.

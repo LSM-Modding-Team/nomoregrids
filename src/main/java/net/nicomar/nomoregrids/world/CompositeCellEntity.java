@@ -60,7 +60,7 @@ public final class CompositeCellEntity extends BlockEntity {
     }
     public Optional<net.nicomar.nomoregrids.core.PieceRecord> ground(net.minecraft.world.entity.Entity entity){
         if(!valid||entity==null)return Optional.empty();var body=entity.getBoundingBox();if(contactFaces==null){
-            Map<UUID,List<BoxMesh.Face>> faces=new HashMap<>();for(var p:view.replicas())if(!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE))faces.put(p.pieceId(),BoxMesh.extract(p.geometry().collision().transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()),4096));contactFaces=Map.copyOf(faces);
+            Map<UUID,List<BoxMesh.Face>> faces=new HashMap<>();for(var p:view.replicas())if(!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE))faces.put(p.pieceId(),net.nicomar.nomoregrids.diagnostic.GeometryCache.faces(p.geometry().collision().transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()),4096));contactFaces=Map.copyOf(faces);
         }
         var foot=new net.nicomar.nomoregrids.simulation.contact.ContactResolver.Foot(body.minX*16,body.minZ*16,body.maxX*16,body.maxZ*16,body.minY*16);
         return net.nicomar.nomoregrids.simulation.contact.ContactResolver.ground(foot,contactFaces).flatMap(hit->view.replicas().stream().filter(p->p.pieceId().equals(hit.piece())).findFirst());

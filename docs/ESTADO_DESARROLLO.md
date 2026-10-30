@@ -16,7 +16,7 @@ aceptación ni convierte los módulos aislados en funcionalidades integradas.
 | F6 | API versionada, captura/colocación PB, convexos/render, apoyo nativo, pincel por áreas, herramientas simples, volumen/pendientes con selección por revisiones, costes por copia y loot nativo | Lotes que mezclen PB nativos y convertidos; pruebas del ciclo completo en dedicado |
 | F7 | Autoridad única, captura nativa, codec/checkpoints privados, barriles y hornos nativos con recetas, ticking y menús conectados | Capacidades transaccionales entre mods, XP y autofill de menús, cadencia con más de 16 hornos, grupos y migración de dueño al mover |
 | F8 | Planificador de barrido, primer hook de pistones con base/cabezal journalizados, red lógica con retardos y continuidad de raíles | Empujes mixtos con bloques nativos, grupos, PB, continuidad nativa de raíles y circuitos/redstone conectados |
-| F9 | Presupuestos previos, caché de formas por celda, reparación diferida/coalescida por tick, LRU por peso, muestras y comandos de diagnóstico/exportación | Conectar cachés globales y mediciones; compactación segura del diario; escenas y certificación medidas |
+| F9 | Presupuestos previos, caché de formas por celda, reparación diferida/coalescida por tick, LRU global de geometría por peso, tiempos de operaciones y compactación por generaciones con índices de deduplicación en disco | Conectar cachés globales y mediciones; compactación segura del diario; escenas y certificación medidas |
 
 ## Verificación realizada
 
@@ -46,8 +46,11 @@ inyección de fallos real, integración PB y benchmarks. No existe JAR generado.
   Todavía no hay entrega mediante entidades de ítem en el mundo.
 - Réplicas públicas hasta 2 MiB viajan en fragmentos de 64 KiB; deltas con hashes
   de base/destino y revisiones, snapshot al seguir el chunk y resync ante divergencia.
-- El diario conserva toda la historia en disco y memoria. No está compactado ni
-  certificado para mundos grandes; no se trunca automáticamente una cola corrupta.
+- `/nmg compact` crea checkpoint y ledgers ordenados en disco, cambia el manifiesto
+  atómicamente y libera imágenes antiguas de la memoria. Mantiene una generación
+  anterior; se limpia la más antigua tras la siguiente compactación. No se truncan
+  colas corruptas. La compactación manual tiene un límite de checkpoint de 64 MiB;
+  faltan planificación incremental y certificación para mundos grandes.
 - En Windows NIO se omite únicamente el fsync de directorios, que ese proveedor
   no admite. Se mantienen force(true) de archivos y reemplazos atómicos; la
   durabilidad de metadatos de directorio ante un corte eléctrico es menor.
