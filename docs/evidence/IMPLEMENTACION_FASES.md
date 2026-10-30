@@ -97,3 +97,26 @@ grupos inseparables y lógica explícita de horno con recetas, combustible,
 progreso, resultado y experiencia; un recipiente sobrante nunca se descarta.
 Los menús y recetas concretos deberán conectar esa autoridad al registro vanilla.
 Pruebas escritas para autoridad, revisiones, puertos ambiguos y horno. No ejecutadas.
+
+## Grupos, mecanismos y presupuestos (F8–F9)
+
+Planificador de pistones: cierre por componentes/grupos, límite doce, traslación
+entera de un bloque conservando offset, barrido de cajas, comprobación de carga,
+obstáculos y adhesión explícita; extracción de cambios por lote. Los grupos solo
+pueden editarse registrados y completos. Raíles comprueban extremo y tangente.
+Redstone mantiene niveles 0–15, enlaces explícitos, caída según longitud real,
+comparador y repetidor con retardo lógico y cola determinista/presupuestada.
+
+Herramientas de F9: LRU por bytes, trabajos diferidos/coalescidos y muestras reales
+con percentiles. Ninguna prueba de rendimiento se marca aprobada sin ejecutar.
+No se introducen entidades por microcubo ni un ticker por pieza decorativa.
+
+Decisión: el barrido de pistón implementado es exacto para cajas ortogonales;
+la movilidad de geometría externa sigue requiriendo su proveedor específico.
+Los algoritmos de mecanismos reciben obstáculos/carga/puertos del host, en vez
+de llamar métodos vanilla sobre un mundo simulado. La certificación y las
+mediciones siguen pendientes, aunque exista código de los sistemas.
+
+Pruebas escritas: pieza desplazada que cruza casillas, barrido obstruido,
+trece componentes, retardo de repetidor, nodo sin enlace, LRU y trabajo diferido.
+No ejecutadas. Continúa integración de estos módulos con la plataforma.

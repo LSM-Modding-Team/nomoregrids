@@ -33,9 +33,14 @@ public final class PieceIndex {
     private final Map<SectionPos, Set<UUID>> owners;
     private final Map<SectionPos, Set<UUID>> references;
     private final java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects;
+    private final net.nicomar.nomoregrids.simulation.movement.GroupRegistry groups;
 
     private PieceIndex(Collection<PieceRecord> pieces,java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects) {
+        this(pieces,intersects,null);
+    }
+    private PieceIndex(Collection<PieceRecord> pieces,java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects,net.nicomar.nomoregrids.simulation.movement.GroupRegistry groups) {
         this.intersects=Objects.requireNonNull(intersects);
+        this.groups=groups;
         Map<UUID, PieceRecord> byId = new HashMap<>();
         Map<CellPos, Set<UUID>> byCell = new TreeMap<>();
         Map<SectionPos, Set<UUID>> owned = new TreeMap<>(), referenced = new TreeMap<>();
@@ -78,7 +83,8 @@ public final class PieceIndex {
     }
 
     public Map<UUID, PieceRecord> records() { return records; }
-    public PieceIndex rebuilt(Collection<PieceRecord> records){return restored(records,intersects);}
+    public PieceIndex rebuilt(Collection<PieceRecord> records){var next=new PieceIndex(records,intersects,groups);next.checkOverlaps(next.records.keySet());return next;}
+    public PieceIndex withGroups(net.nicomar.nomoregrids.simulation.movement.GroupRegistry registry){return new PieceIndex(records.values(),intersects,Objects.requireNonNull(registry));}
     public Set<UUID> at(CellPos cell) { return cells.getOrDefault(cell, Set.of()); }
     public Set<UUID> ownedBy(SectionPos section) { return owners.getOrDefault(section, Set.of()); }
     public Set<UUID> referencedBy(SectionPos section) { return references.getOrDefault(section, Set.of()); }
@@ -92,6 +98,8 @@ public final class PieceIndex {
         Map<UUID, PieceRecord> next = new HashMap<>(records);
         Set<UUID> touched = new HashSet<>();
         Set<CellPos> affected = new HashSet<>();
+        Set<UUID> allIds=changes.stream().map(PieceChange::pieceId).collect(java.util.stream.Collectors.toSet());
+        if(groups!=null)groups.requireComplete(allIds);
         for (PieceChange change : changes) {
             if (!touched.add(change.pieceId())) throw new IndexException(INVALID_DATA,"Duplicate change UUID");
             PieceRecord old = records.get(change.pieceId());
@@ -100,13 +108,13 @@ public final class PieceIndex {
             }
             if (old != null) {
                 if (old.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Substitute cannot be edited");
-                if (old.groupId().isPresent()) throw new IndexException(INVALID_DATA,"Group operations require an adapter");
+                checkGroup(old);
                 affected.addAll(old.worldOccupation().cells(8));
             }
             if (change.replacement().isPresent()) {
                 PieceRecord replacement = change.replacement().orElseThrow();
                 if (replacement.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Cannot place substitute");
-                if (replacement.groupId().isPresent()) throw new IndexException(INVALID_DATA,"Group operations require an adapter");
+                checkGroup(replacement);
                 next.put(change.pieceId(), replacement);
                 affected.addAll(replacement.worldOccupation().cells(8));
             } else {
@@ -114,10 +122,14 @@ public final class PieceIndex {
             }
         }
         if (affected.size() > 512) throw new IndexException(COMPLEXITY_LIMIT,"Affected cell budget exceeded");
-        PieceIndex result = new PieceIndex(next.values(),intersects);
+        PieceIndex result = new PieceIndex(next.values(),intersects,groups);
         result.checkBudgets(limits, this);
         result.checkOverlaps(touched);
         return result;
+    }
+
+    private void checkGroup(PieceRecord piece){
+        if(piece.groupId().isPresent()&&(groups==null||!groups.groupOf(piece.pieceId()).equals(piece.groupId())))throw new IndexException(INVALID_DATA,"Group operations require registered complete group");
     }
 
     private void checkOverlaps(Set<UUID> changed) {
