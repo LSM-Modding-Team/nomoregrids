@@ -28,7 +28,7 @@ public final class WorldFluids {
     public WorldFluids(ServerLevel level,WorldService service){this.level=level;this.service=service;}
     public static String key(CellPos c){return "fluid:"+c.x()+":"+c.y()+":"+c.z();}
     public Optional<CavityCell> at(CellPos c){var value=service.effects().get(key(c));if(value==null)return Optional.empty();try{return Optional.of(CavityCodec.decode(value.data()));}catch(IOException ex){throw new IllegalStateException("INVALID_DATA: cavity",ex);}}
-    public Map<CellPos,CavityCell> snapshot(){var result=new TreeMap<CellPos,CavityCell>();for(var entry:service.effects().entrySet())if(entry.getKey().startsWith("fluid:"))try{result.put(entry.getValue().owner(),CavityCodec.decode(entry.getValue().data()));}catch(IOException ex){throw new IllegalStateException("INVALID_DATA: cavity",ex);}return result;}
+    public Map<CellPos,CavityCell> snapshot(){var result=new TreeMap<CellPos,CavityCell>();for(var entry:service.effectsWithPrefix("fluid:").entrySet())if(entry.getKey().startsWith("fluid:"))try{result.put(entry.getValue().owner(),CavityCodec.decode(entry.getValue().data()));}catch(IOException ex){throw new IllegalStateException("INVALID_DATA: cavity",ex);}return result;}
     public static Kind kind(FluidState f){if(f.isEmpty())return Kind.EMPTY;if(f.getType()==Fluids.WATER||f.getType()==Fluids.FLOWING_WATER)return Kind.WATER;if(f.getType()==Fluids.LAVA||f.getType()==Fluids.FLOWING_LAVA)return Kind.LAVA;throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: external fluid");}
     private CavityCell nativeCell(CellPos c,BitSet mask){
         var fluid=level.getFluidState(WorldService.pos(c));var type=kind(fluid);byte[] values=new byte[4096];if(type!=Kind.EMPTY){int height=fluid.isSource()?16:Math.max(1,fluid.getAmount()*2);for(int i=0;i<4096;i++)if(i/16%16<height&&!mask.get(i))values[i]=CavityCell.code(type);}
@@ -55,8 +55,9 @@ public final class WorldFluids {
         if(solids.size()>4096)throw new IllegalArgumentException("COMPLEXITY_LIMIT: cavity geometry");var direct=CavityCell.blocked(new BoxUnion(boxes));if(solids.isEmpty())return direct;var build=new CavityMaskJob(solids);build.advance(4096);direct.or(build.result());return direct;
     }
     public OperationPlan prepare(OperationPlan plan)throws IOException{
-        if(plan.changes().isEmpty()&&plan.effects().stream().noneMatch(e->e.key().startsWith("native:"))||plan.actor().equals(OperationPlan.WORLD_ACTOR)&&plan.effects().stream().anyMatch(e->e.key().startsWith("fluid:")))return plan;var before=service.snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
+        if(plan.changes().isEmpty()&&plan.effects().stream().noneMatch(e->e.key().startsWith("native:"))||plan.actor().equals(OperationPlan.WORLD_ACTOR)&&plan.effects().stream().anyMatch(e->e.key().startsWith("fluid:")))return plan;
         Set<CellPos> touched=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("native:")).forEach(e->touched.add(e.owner()));boolean wet=false;for(var c:touched)if(at(c).isPresent()||!level.getFluidState(WorldService.pos(c)).isEmpty())wet=true;if(!wet)return plan;
+        var before=service.snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
         var previous=new TreeMap<CellPos,CavityCell>();var masks=new TreeMap<CellPos,BitSet>();var region=new LinkedHashSet<CellPos>();var pending=new ArrayDeque<CellPos>();touched.stream().sorted().forEach(c->{region.add(c);pending.add(c);});
         while(!pending.isEmpty()){
             var c=pending.removeFirst();if(region.size()>256)throw new IllegalArgumentException("COMPLEXITY_LIMIT: fluid redistribution region");

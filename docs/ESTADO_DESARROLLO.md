@@ -183,3 +183,14 @@ Estas correcciones se han revisado estáticamente; la compilación y las pruebas
 que se realicen se registran por separado en `docs/evidence/REVISION_2026-10-31.md`.
 Quedan pendientes la inspección visual, la interacción real con cubos, la rotura
 y los casos de apoyo en cliente/servidor; no se declara aceptación de fases.
+
+### Revisión estática de rendimiento (2026-10-31)
+
+Se redujeron reconstrucciones e iteraciones globales en las ediciones, los
+planificadores por tick y las consultas de señal y vías. Las cavidades dejan de
+repetir una ventana ya estable y su render evita procesar tipos de fluido
+inexistentes. La geometría de diseños Paintable Blocks se reutiliza en cachés
+acotadas y la búsqueda de caras ocultas utiliza un índice espacial con respaldo
+exhaustivo. Estas son reducciones de trabajo identificadas por inspección, no
+resultados de rendimiento medidos ni una certificación F9. La evidencia y las
+limitaciones están en `docs/evidence/RENDIMIENTO_2026-10-31.md`.

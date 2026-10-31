@@ -9,6 +9,7 @@ import java.util.UUID;
 import net.nicomar.nomoregrids.core.CellPos;
 import net.nicomar.nomoregrids.core.GridPoint;
 import net.nicomar.nomoregrids.core.PieceRecord;
+import net.nicomar.nomoregrids.core.ResourceId;
 import net.nicomar.nomoregrids.core.SectionPos;
 import net.nicomar.nomoregrids.core.TestPieces;
 import net.nicomar.nomoregrids.geometry.ConstructionShapes;
@@ -19,6 +20,21 @@ class PieceIndexTest {
 
     private static PieceChange place(PieceRecord piece) {
         return new PieceChange(piece.pieceId(),-1,Optional.of(piece));
+    }
+
+    private static PieceRecord adapter(PieceRecord p,String id){return new PieceRecord(p.pieceId(),p.revision(),new ResourceId(id),p.adapterVersion(),p.sourceBlockId(),p.sourceState(),p.origin16(),p.orientation(),p.pivot16(),p.geometry(),p.geometryPayload(),p.materialPayload(),p.itemPayload(),p.groupId(),p.flags());}
+
+    @Test void incrementalIndexesMatchARebuildAcrossCellsAndSections(){
+        var a=adapter(TestPieces.of(UUID.randomUUID(),ConstructionShapes.CUBE,new GridPoint(-1,-1,-1)),"nomoregrids:rail");
+        var b=adapter(TestPieces.of(UUID.randomUUID(),ConstructionShapes.CUBE,new GridPoint(256,0,0)),"nomoregrids:functional");
+        var c=TestPieces.of(UUID.randomUUID(),ConstructionShapes.CUBE,new GridPoint(512,0,0));
+        var before=PieceIndex.restored(List.of(a,b,c));var moved=a.moved(new GridPoint(255,-1,-1),0);
+        var after=before.changed(List.of(new PieceChange(a.pieceId(),0,Optional.of(moved)),new PieceChange(b.pieceId(),0,Optional.empty())),LIMITS);
+        var rebuilt=PieceIndex.restored(List.of(moved,c));assertEquals(rebuilt.records(),after.records());
+        for(int x=-2;x<=33;x++)for(int y=-1;y<=0;y++)for(int z=-1;z<=0;z++)assertEquals(rebuilt.at(new CellPos(x,y,z)),after.at(new CellPos(x,y,z)));
+        for(int x=-1;x<=2;x++)for(int y=-1;y<=0;y++)for(int z=-1;z<=0;z++){var section=new SectionPos(x,y,z);assertEquals(rebuilt.ownedBy(section),after.ownedBy(section));assertEquals(rebuilt.referencedBy(section),after.referencedBy(section));}
+        assertEquals(List.of(moved),after.ticked("nomoregrids:rail"));assertTrue(after.ticked("nomoregrids:functional").isEmpty());
+        assertEquals(List.of(a),before.ticked("nomoregrids:rail"));assertEquals(List.of(b),before.ticked("nomoregrids:functional"));
     }
 
     @Test

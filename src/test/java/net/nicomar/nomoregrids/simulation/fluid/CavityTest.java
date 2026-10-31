@@ -24,4 +24,19 @@ class CavityTest {
         assertThrows(IllegalStateException.class,job::result);
         while(!job.advance(8192)){}assertEquals(4096,job.result().get(new CellPos(0,0,0)).amount(Kind.WATER));
     }
+    @Test void reactionChecksTheTouchingFaceInEveryDirection(){
+        var center=new CellPos(0,0,0);var lava=new CavityCell(new BitSet(),new byte[4096],Kind.EMPTY).bucket(Kind.LAVA,false);
+        for(var direction:net.nicomar.nomoregrids.core.Direction6.values()){
+            var neighbor=new CellPos(direction.x,direction.y,direction.z);byte[] water=new byte[4096];
+            int x=direction.x!=0?(direction.x>0?0:15):7,y=direction.y!=0?(direction.y>0?0:15):7,z=direction.z!=0?(direction.z>0?0:15):7;
+            water[x+16*(y+16*z)]=1;var touching=new CavityCell(new BitSet(),water,Kind.EMPTY);
+            assertTrue(CavitySimulation.react(Map.of(center,lava,neighbor,touching)).products().containsKey(center));
+            Arrays.fill(water,(byte)0);water[7+16*(7+16*7)]=1;var separated=new CavityCell(new BitSet(),water,Kind.EMPTY);
+            assertFalse(CavitySimulation.react(Map.of(center,lava,neighbor,separated)).products().containsKey(center));
+        }
+    }
+    @Test void amountsIncludeBlockedEmptyMicrocells(){
+        var blocked=new BitSet(4096);blocked.set(5);byte[] fluids=new byte[4096];fluids[0]=1;fluids[1]=2;
+        var cell=new CavityCell(blocked,fluids,Kind.EMPTY);assertEquals(1,cell.amount(Kind.WATER));assertEquals(1,cell.amount(Kind.LAVA));assertEquals(4094,cell.amount(Kind.EMPTY));
+    }
 }

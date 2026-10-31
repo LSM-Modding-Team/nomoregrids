@@ -86,10 +86,9 @@ public final class CavitySimulation {
             boolean water=false;
             for(var d:Direction6.values()){
                 CavityCell neighbor=cells.get(new CellPos(pos.x()+d.x,pos.y()+d.y,pos.z()+d.z));if(neighbor==null)continue;
-                for(int i=0;i<4096&&!water;i++){
-                    int x=i%16,y=i/16%16,z=i/256;
-                    boolean face=d.x!=0?x==(d.x>0?0:15):d.y!=0?y==(d.y>0?0:15):z==(d.z>0?0:15);
-                    if(face&&neighbor.at(i)==Kind.WATER)water=true;
+                for(int b=0;b<16&&!water;b++)for(int a=0;a<16&&!water;a++){
+                    int x=d.x!=0?(d.x>0?0:15):a,y=d.y!=0?(d.y>0?0:15):d.x!=0?a:b,z=d.z!=0?(d.z>0?0:15):b;
+                    if(neighbor.at(x+16*(y+16*z))==Kind.WATER)water=true;
                 }
             }
             if(water){products.put(pos,new ResourceId(lava.source()==Kind.LAVA?"minecraft:obsidian":"minecraft:cobblestone"));

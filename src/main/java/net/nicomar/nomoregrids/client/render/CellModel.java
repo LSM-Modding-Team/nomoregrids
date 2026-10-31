@@ -130,25 +130,28 @@ public final class CellModel implements DynamicBlockStateModel {
         }
     }
     private static BakedNormals normals(Vertex a,Vertex b,Vertex c){var n=b.point.subtract(a.point).cross(c.point.subtract(a.point)).normalize();return BakedNormals.of(BakedNormals.pack((float)n.x,(float)n.y,(float)n.z));}
+    private record PaintedFace(BlockState state,Direction face){}
     private void paintable(PieceRecord piece,BlockPos cell,BlockAndTintGetter world,List<BakedQuad> output){
         var primitives=paintable.primitives(piece.geometryPayload());
-        for(var primitive:primitives)for(int index=0;index<primitive.geometry().planes().size();index++){
+        var pointIndex=paintable.surfaceIndex(piece.geometryPayload());
+        var materials=new HashMap<Integer,BlockState>();materials.put(0,NativeStates.resolve(piece));var models=new HashMap<PaintedFace,List<BakedQuad>>();
+        for(int primitiveIndex=0;primitiveIndex<primitives.size();primitiveIndex++){var primitive=primitives.get(primitiveIndex);for(int index=0;index<primitive.geometry().planes().size();index++){
             var plane=primitive.geometry().planes().get(index);var vertices=primitive.geometry().vertices().stream().filter(p->Math.abs(plane.normal().dot(p)-plane.distance())<ConvexVolume.EPS).toList();
             if(vertices.size()<3)continue;
             var center=new ConvexVolume.Vec(0,0,0);for(var p:vertices)center=center.add(p.scale(1.0/vertices.size()));
             var outside=center.add(plane.normal().scale(ConvexVolume.EPS*4));
-            if(primitives.stream().anyMatch(other->other!=primitive&&other.geometry().planes().stream().allMatch(f->f.normal().dot(outside)<=f.distance())))continue;
+            if(pointIndex.covered(outside,primitiveIndex))continue;
             var n=plane.normal();var basis=n.cross(Math.abs(n.x())<0.8?new ConvexVolume.Vec(1,0,0):new ConvexVolume.Vec(0,1,0));basis=basis.scale(1/basis.length());
             var u=basis;var v=n.cross(u);var c=center;
             var sorted=vertices.stream().sorted(Comparator.comparingDouble(p->Math.atan2(p.sub(c).dot(v),p.sub(c).dot(u)))).map(p->new Vec3(p.x(),p.y(),p.z())).toList();
             Direction6 face=Arrays.stream(Direction6.values()).max(Comparator.comparingDouble(d->d.x*n.x()+d.y*n.y()+d.z*n.z())).orElseThrow();
             int key=switch(index){case 0->4;case 1->5;case 2->0;case 3->1;case 4->2;case 5->3;default->6;};
-            BlockState material=NativeStates.resolve(piece);int paint=primitive.paint().getOrDefault(key,0);
-            if(paint!=0)try{Object entry=Class.forName("net.nicomar.paintableblocks.paint.PaintCatalog").getMethod("byId",int.class).invoke(null,paint);material=(BlockState)entry.getClass().getMethod("sampleState").invoke(entry);}catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB paint API mismatch",ex);}
-            var model=Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(material);var parts=new ArrayList<BlockStateModelPart>();model.collectParts(RandomSource.create(0),parts);
-            Direction normal=Direction.valueOf(face.name());var samples=new ArrayList<BakedQuad>();for(var part:parts){samples.addAll(part.getQuads(normal));for(var q:part.getQuads(null))if(q.direction()==normal)samples.add(q);}
-            if(samples.isEmpty())samples.addAll(fallback.getQuads(normal));for(var source:samples)emitPolygon(piece,cell,sorted,face,tint(source,material,world,cell),output);
-        }
+            int paint=primitive.paint().getOrDefault(key,0);BlockState material=materials.get(paint);
+            if(material==null)try{Object entry=Class.forName("net.nicomar.paintableblocks.paint.PaintCatalog").getMethod("byId",int.class).invoke(null,paint);material=(BlockState)entry.getClass().getMethod("sampleState").invoke(entry);materials.put(paint,material);}catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB paint API mismatch",ex);}
+            Direction normal=Direction.valueOf(face.name());var modelKey=new PaintedFace(material,normal);var samples=models.get(modelKey);
+            if(samples==null){var model=Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(material);var parts=new ArrayList<BlockStateModelPart>();model.collectParts(RandomSource.create(0),parts);var fresh=new ArrayList<BakedQuad>();for(var part:parts){fresh.addAll(part.getQuads(normal));for(var q:part.getQuads(null))if(q.direction()==normal)fresh.add(q);}if(fresh.isEmpty())fresh.addAll(fallback.getQuads(normal));var tinted=new ArrayList<BakedQuad>();for(var source:fresh)tinted.add(tint(source,material,world,cell));samples=List.copyOf(tinted);models.put(modelKey,samples);}
+            for(var source:samples)emitPolygon(piece,cell,sorted,face,source,output);
+        }}
     }
     private static BakedQuad tint(BakedQuad source,BlockState state,BlockAndTintGetter world,BlockPos pos){
         var old=source.materialInfo();if(!old.isTinted())return source;

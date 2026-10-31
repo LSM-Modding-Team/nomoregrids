@@ -47,7 +47,8 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public WorldCircuits circuits(){return circuits;}
     private final SectionStore store;
     private final WorldEffectStore effectStore;
-    private final Map<String,WorldEffectStore.Value> effects=new TreeMap<>();
+    private final NavigableMap<String,WorldEffectStore.Value> effects=new TreeMap<>();
+    private long signalGeneration;
     private final FunctionalTransfers transfers;
     public FunctionalTransfers transfers(){return transfers;}
     private final WorldFunctionals functionals;
@@ -63,6 +64,13 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private int writing;
     public boolean writing(){return writing>0;}
     public Map<String,WorldEffectStore.Value> effects(){return Collections.unmodifiableMap(effects);}
+    public long signalGeneration(){return signalGeneration;}
+    /** Ordered read-only view of one key family, including every suffix. */
+    public NavigableMap<String,WorldEffectStore.Value> effectsWithPrefix(String prefix){
+        if(prefix.isEmpty()||prefix.charAt(prefix.length()-1)==Character.MAX_VALUE)throw new IllegalArgumentException("Invalid effect prefix");
+        String upper=prefix.substring(0,prefix.length()-1)+(char)(prefix.charAt(prefix.length()-1)+1);
+        return Collections.unmodifiableNavigableMap(effects.subMap(prefix,true,upper,false));
+    }
     private final AdapterRegistry adapters;
     private final VanillaCatalog catalog=new VanillaCatalog();
     private final String receiptKey;
@@ -152,7 +160,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         try(var nativeView=new WorldNativeView(original.effects())){var plan=vacancies(fluids.prepare(functionals.prepare(circuits.prepare(WorldRails.prepare(this,WorldGroups.prepare(this,level,original))))));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}}
     }
-    private OperationPlan vacancies(OperationPlan plan){if(plan.changes().isEmpty()||nativeHandoffs.contains(plan.id()))return plan;var after=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var auxiliary=new ArrayList<>(plan.effects());for(var c:plan.pieceCells())if(!snapshot().at(c).isEmpty()&&after.at(c).isEmpty()&&auxiliary.stream().noneMatch(e->e.key().equals(nativeKey(c)))&&nativeGoal(c).filter(net.minecraft.world.level.block.state.BlockState::isAir).isEmpty())auxiliary.add(nativeChange(c,Blocks.AIR.defaultBlockState()));return new OperationPlan(plan.id(),plan.actor(),plan.kind(),plan.changes(),plan.resourcesBefore(),plan.resourcesAfter(),auxiliary);}
+    private OperationPlan vacancies(OperationPlan plan){if(plan.changes().stream().noneMatch(c->c.before().isPresent())||nativeHandoffs.contains(plan.id()))return plan;var after=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var auxiliary=new ArrayList<>(plan.effects());for(var c:plan.pieceCells())if(!snapshot().at(c).isEmpty()&&after.at(c).isEmpty()&&auxiliary.stream().noneMatch(e->e.key().equals(nativeKey(c)))&&nativeGoal(c).filter(net.minecraft.world.level.block.state.BlockState::isAir).isEmpty())auxiliary.add(nativeChange(c,Blocks.AIR.defaultBlockState()));return new OperationPlan(plan.id(),plan.actor(),plan.kind(),plan.changes(),plan.resourcesBefore(),plan.resourcesAfter(),auxiliary);}
     public boolean available(PieceRecord p){try{if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||adapters.require(p).occupation(p).isEmpty())return false;if(WorldFunctionals.piece(p)&&!WorldFunctionals.eligible(NativeStates.resolve(p)))return false;NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
     public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index,p->!available(p)).replicas(),fluids.at(c));}
     public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null){if(archive==null)return false;try{var stamp=archive.operation(operation);if(stamp.isEmpty())return false;if(!stamp.orElseThrow().actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
@@ -369,6 +377,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private Map<String,WorldEffectStore.Value> sectionEffects(SectionPos section){var result=new TreeMap<String,WorldEffectStore.Value>();effects.forEach((key,value)->{if(value.owner().section().equals(section))result.put(key,value);});return result;}
     private static boolean nativeImageAir(BinaryData data){try{var image=NativeStateImage.decode(data);return NativeStates.resolve(image.block(),image.properties()).isAir();}catch(IOException ex){throw new IllegalArgumentException("INVALID_DATA: native image",ex);}}
     private void validateEffects(OperationPlan plan){
+        if(plan.effects().isEmpty())return;
         for(var e:plan.effects())if(!Objects.equals(Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data),e.before())||effects.containsKey(e.key())&&!effects.get(e.key()).owner().equals(e.previousOwner()))throw new IllegalArgumentException("STALE_REVISION: world effects");
         var afterIndex=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
         for(var e:plan.effects())if(e.key().startsWith("native:")&&e.after().isPresent()&&!afterIndex.at(e.owner()).isEmpty()&&!nativeImageAir(e.after().orElseThrow()))throw new IllegalArgumentException("OVERLAP: native mechanism goal");
@@ -381,6 +390,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var e:plan.effects()){
             var current=Optional.ofNullable(effects.get(e.key())).map(WorldEffectStore.Value::data);if(!(current.equals(e.before())&&(!effects.containsKey(e.key())||effects.get(e.key()).owner().equals(e.previousOwner())))&&!(current.equals(e.after())&&(!effects.containsKey(e.key())||effects.get(e.key()).owner().equals(e.owner()))))throw new IOException("Conflicting world effect; original retained");
             if(e.after().isPresent())effects.put(e.key(),new WorldEffectStore.Value(e.owner(),e.after().orElseThrow()));else effects.remove(e.key());
+            if(e.key().matches("circuit:[0-9a-f-]{36}"))signalGeneration++;
         }
     }
     private void validateSystem(OperationPlan plan,PieceIndex before,PieceIndex after){
@@ -542,6 +552,6 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         OperationPlan plan=history.get(id);Long sequence=sequences.get(id);if(plan==null||sequence==null||!receipt(plan,sequence))return false;
         for(var c:plan.changes())for(var p:List.of(c.before(),c.after()))if(p.isPresent()&&store.read(p.orElseThrow().ownerSection()).checkpoint()<sequence)return false;for(var e:plan.effects())if(effectStore.checkpoint(e.owner().section())<sequence||effectStore.checkpoint(e.previousOwner().section())<sequence)return false;return true;
     }
-    @Override public void afterCommit(OperationPlan plan){for(var cell:plan.affectedCells()){WorldMutationHooks.changed(level,pos(cell));if(plan.effects().stream().anyMatch(e->e.key().startsWith("machine:")||e.key().matches("circuit:[0-9a-f-]{36}"))||plan.changes().stream().anyMatch(c->c.before().filter(WorldCircuits::piece).isPresent()||c.after().filter(WorldCircuits::piece).isPresent()||c.before().filter(WorldFunctionals::piece).isPresent()||c.after().filter(WorldFunctionals::piece).isPresent()||c.before().filter(WorldRails::piece).isPresent()||c.after().filter(WorldRails::piece).isPresent())){level.updateNeighborsAt(pos(cell),NmgContent.CELL.get(),null);level.updateNeighbourForOutputSignal(pos(cell),NmgContent.CELL.get());}}NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
+    @Override public void afterCommit(OperationPlan plan){boolean notify=plan.effects().stream().anyMatch(e->e.key().startsWith("machine:")||e.key().matches("circuit:[0-9a-f-]{36}"))||plan.changes().stream().anyMatch(c->c.before().filter(WorldCircuits::piece).isPresent()||c.after().filter(WorldCircuits::piece).isPresent()||c.before().filter(WorldFunctionals::piece).isPresent()||c.after().filter(WorldFunctionals::piece).isPresent()||c.before().filter(WorldRails::piece).isPresent()||c.after().filter(WorldRails::piece).isPresent());for(var cell:plan.affectedCells()){WorldMutationHooks.changed(level,pos(cell));if(notify){level.updateNeighborsAt(pos(cell),NmgContent.CELL.get(),null);level.updateNeighbourForOutputSignal(pos(cell),NmgContent.CELL.get());}}NeoForge.EVENT_BUS.post(new net.nicomar.nomoregrids.event.AfterOperationEvent(level,plan));}
     @Override public void close()throws IOException{try{compaction.close();}finally{journal.close();}}
 }

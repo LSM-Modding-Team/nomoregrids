@@ -6,6 +6,12 @@ import net.nicomar.nomoregrids.core.CellPos;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CavityRelaxationTest {
+    @Test void stableWindowFinishesAfterOnePassWithoutPublishingPartialWork(){
+        var pos=new CellPos(0,0,0);var dry=new CavityCell(new BitSet(),new byte[4096],CavityCell.Kind.EMPTY);
+        var job=new CavityRelaxation(Map.of(pos,dry),Set.of(pos),CavityCell.Kind.WATER);
+        assertFalse(job.advance(4095));assertThrows(IllegalStateException.class,job::result);
+        assertTrue(job.advance(1));assertEquals(dry,job.result().get(pos));
+    }
     @Test void persistedBoundaryDistancesFeedThenDrainAnIsolatedCorridor(){
         var left=new CellPos(-1,0,0);var right=new CellPos(0,0,0);byte[] water=new byte[4096];Arrays.fill(water,(byte)1);var source=new CavityCell(new BitSet(),water,CavityCell.Kind.WATER);
         var blocked=new BitSet(4096);blocked.set(0,4096);blocked.clear(0,16);var target=new CavityCell(blocked,new byte[4096],CavityCell.Kind.EMPTY);

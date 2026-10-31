@@ -3,6 +3,8 @@ package net.nicomar.nomoregrids.world;
 import static net.nicomar.nomoregrids.world.IndexException.Code.*;
 
 import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +34,9 @@ public final class PieceIndex {
     private final Map<CellPos, Set<UUID>> cells;
     private final Map<SectionPos, Set<UUID>> owners;
     private final Map<SectionPos, Set<UUID>> references;
+    private static final Set<String> TICKED_ADAPTERS=Set.of("nomoregrids:grouped","nomoregrids:rail","nomoregrids:circuit","nomoregrids:functional");
+    private final Map<String,List<PieceRecord>> ticked;
+    private final Map<UUID,Set<UUID>> groupMembers;
     private final java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects;
     private final net.nicomar.nomoregrids.simulation.movement.GroupRegistry groups;
 
@@ -44,8 +49,11 @@ public final class PieceIndex {
         Map<UUID, PieceRecord> byId = new HashMap<>();
         Map<CellPos, Set<UUID>> byCell = new TreeMap<>();
         Map<SectionPos, Set<UUID>> owned = new TreeMap<>(), referenced = new TreeMap<>();
+        Map<String,List<PieceRecord>> byAdapter=new HashMap<>();Map<UUID,Set<UUID>> grouped=new HashMap<>();
         for (PieceRecord p : pieces) {
             if (byId.putIfAbsent(p.pieceId(), p) != null) throw new IndexException(INVALID_DATA,"Duplicate piece UUID");
+            if(TICKED_ADAPTERS.contains(p.adapterId().value()))byAdapter.computeIfAbsent(p.adapterId().value(),ignored->new ArrayList<>()).add(p);
+            p.groupId().ifPresent(g->grouped.computeIfAbsent(g,ignored->new HashSet<>()).add(p.pieceId()));
             owned.computeIfAbsent(p.ownerSection(), ignored -> new HashSet<>()).add(p.pieceId());
             for (CellPos cell : p.worldOccupation().cells(8)) {
                 byCell.computeIfAbsent(cell, ignored -> new HashSet<>()).add(p.pieceId());
@@ -56,6 +64,16 @@ public final class PieceIndex {
         cells = freeze(byCell);
         owners = freeze(owned);
         references = freeze(referenced);
+        var ordered=new HashMap<String,List<PieceRecord>>();byAdapter.forEach((key,value)->{value.sort(Comparator.comparing(PieceRecord::pieceId));ordered.put(key,List.copyOf(value));});ticked=Map.copyOf(ordered);
+        groupMembers=freeze(grouped);
+    }
+
+    /** A changed snapshot reuses the immutable membership sets for untouched buckets. */
+    private PieceIndex(Map<UUID,PieceRecord> records,Map<CellPos,Set<UUID>> cells,Map<SectionPos,Set<UUID>> owners,
+            Map<SectionPos,Set<UUID>> references,Map<String,List<PieceRecord>> ticked,Map<UUID,Set<UUID>> groupMembers,
+            java.util.function.BiPredicate<PieceRecord,PieceRecord> intersects,net.nicomar.nomoregrids.simulation.movement.GroupRegistry groups){
+        this.records=Map.copyOf(records);this.cells=Map.copyOf(cells);this.owners=Map.copyOf(owners);this.references=Map.copyOf(references);
+        this.ticked=Map.copyOf(ticked);this.groupMembers=Map.copyOf(groupMembers);this.intersects=intersects;this.groups=groups;
     }
 
     public static PieceIndex empty() { return empty((a,b)->a.worldOccupation().overlaps(b.worldOccupation())); }
@@ -93,6 +111,9 @@ public final class PieceIndex {
     public Set<UUID> at(CellPos cell) { return cells.getOrDefault(cell, Set.of()); }
     public Set<UUID> ownedBy(SectionPos section) { return owners.getOrDefault(section, Set.of()); }
     public Set<UUID> referencedBy(SectionPos section) { return references.getOrDefault(section, Set.of()); }
+    /** Immutable UUID-ordered subsets used by tick schedulers. */
+    public List<PieceRecord> ticked(String adapter){if(!TICKED_ADAPTERS.contains(adapter))throw new IllegalArgumentException("Not a ticked adapter");return ticked.getOrDefault(adapter,List.of());}
+    public Map<UUID,Set<UUID>> groupMembers(){return groupMembers;}
 
     /**
      * Produces a new snapshot or throws without changing this one. This does not commit
@@ -104,9 +125,9 @@ public final class PieceIndex {
         Map<UUID, PieceRecord> next = new HashMap<>(records);
         Set<UUID> touched = new HashSet<>();
         Set<CellPos> affected = new HashSet<>();
+        Set<SectionPos> affectedOwners=new HashSet<>();
         Set<UUID> allIds=changes.stream().map(PieceChange::pieceId).collect(java.util.stream.Collectors.toSet());
-        var operationMembers=new HashMap<UUID,Set<UUID>>();
-        for(var p:records.values())p.groupId().ifPresent(g->operationMembers.computeIfAbsent(g,k->new HashSet<>()).add(p.pieceId()));
+        var operationMembers=new HashMap<UUID,Set<UUID>>();groupMembers.forEach((g,m)->operationMembers.put(g,new HashSet<>(m)));
         for(var c:changes)c.replacement().ifPresent(p->p.groupId().ifPresent(g->operationMembers.computeIfAbsent(g,k->new HashSet<>()).add(p.pieceId())));
         var operationGroups=new net.nicomar.nomoregrids.simulation.movement.GroupRegistry();
         operationMembers.forEach((g,m)->{if(m.size()>=2)operationGroups.register(g,m);});operationGroups.requireComplete(allIds);
@@ -121,6 +142,7 @@ public final class PieceIndex {
                 if (old.flags().contains(PieceRecord.Flag.SUBSTITUTE)) throw new IndexException(INVALID_DATA,"Substitute cannot be edited");
                 checkGroup(old,operationGroups);
                 affected.addAll(old.worldOccupation().cells(8));
+                affectedOwners.add(old.ownerSection());
             }
             if (change.replacement().isPresent()) {
                 PieceRecord replacement = change.replacement().orElseThrow();
@@ -128,19 +150,41 @@ public final class PieceIndex {
                 checkGroup(replacement,operationGroups);
                 next.put(change.pieceId(), replacement);
                 affected.addAll(replacement.worldOccupation().cells(8));
+                affectedOwners.add(replacement.ownerSection());
             } else {
                 next.remove(change.pieceId());
             }
         }
         if (affected.size() > 512) throw new IndexException(COMPLEXITY_LIMIT,"Affected cell budget exceeded");
-        PieceIndex result = new PieceIndex(next.values(),intersects,groups);
+        Map<CellPos,Set<UUID>> nextCells=new HashMap<>(cells);Map<SectionPos,Set<UUID>> nextOwners=new HashMap<>(owners),nextReferences=new HashMap<>(references);
+        Map<UUID,Set<UUID>> nextGroups=new HashMap<>(groupMembers);Set<String> changedAdapters=new HashSet<>();
+        for(var change:changes){var old=records.get(change.pieceId());if(old!=null){removeOrAdd(old,false,nextCells,nextOwners,nextReferences,nextGroups);if(TICKED_ADAPTERS.contains(old.adapterId().value()))changedAdapters.add(old.adapterId().value());}}
+        for(var change:changes)if(change.replacement().isPresent()){var replacement=change.replacement().orElseThrow();removeOrAdd(replacement,true,nextCells,nextOwners,nextReferences,nextGroups);if(TICKED_ADAPTERS.contains(replacement.adapterId().value()))changedAdapters.add(replacement.adapterId().value());}
+        Map<String,List<PieceRecord>> nextTicked=new HashMap<>(ticked);
+        for(String adapter:changedAdapters){var list=new ArrayList<PieceRecord>();for(var piece:ticked.getOrDefault(adapter,List.of()))if(!touched.contains(piece.pieceId()))list.add(piece);
+            for(var change:changes)change.replacement().filter(p->p.adapterId().value().equals(adapter)).ifPresent(list::add);
+            if(list.isEmpty())nextTicked.remove(adapter);else{list.sort(Comparator.comparing(PieceRecord::pieceId));nextTicked.put(adapter,List.copyOf(list));}}
+        PieceIndex result = new PieceIndex(next,nextCells,nextOwners,nextReferences,nextTicked,nextGroups,intersects,groups);
         for(var id:touched){var p=result.records.get(id);if(p!=null&&p.groupId().isPresent()){
-            var expected=operationGroups.members(id);var actual=result.records.values().stream().filter(q->q.groupId().equals(p.groupId())).map(PieceRecord::pieceId).collect(java.util.stream.Collectors.toSet());
+            var expected=operationGroups.members(id);var actual=result.groupMembers.getOrDefault(p.groupId().orElseThrow(),Set.of());
             if(!actual.equals(expected))throw new IndexException(INVALID_DATA,"Incomplete group after-image");
         }}
-        result.checkBudgets(limits, this);
+        result.checkBudgets(limits,this,affected,affectedOwners);
         result.checkOverlaps(touched);
         return result;
+    }
+
+    private static void removeOrAdd(PieceRecord p,boolean add,Map<CellPos,Set<UUID>> cells,Map<SectionPos,Set<UUID>> owners,
+            Map<SectionPos,Set<UUID>> references,Map<UUID,Set<UUID>> groups){
+        var shape=p.worldOccupation();var positions=shape.cells(8);var sections=new HashSet<SectionPos>();
+        for(var cell:positions){membership(cells,cell,p.pieceId(),add);sections.add(cell.section());}
+        for(var section:sections)membership(references,section,p.pieceId(),add);
+        membership(owners,shape.bounds().min().cell().section(),p.pieceId(),add);
+        p.groupId().ifPresent(group->membership(groups,group,p.pieceId(),add));
+    }
+    private static <K> void membership(Map<K,Set<UUID>> map,K key,UUID id,boolean add){
+        var values=new HashSet<>(map.getOrDefault(key,Set.of()));if(add)values.add(id);else values.remove(id);
+        if(values.isEmpty())map.remove(key);else map.put(key,Set.copyOf(values));
     }
 
     private void checkGroup(PieceRecord piece,net.nicomar.nomoregrids.simulation.movement.GroupRegistry operationGroups){
@@ -166,14 +210,16 @@ public final class PieceIndex {
         }
     }
 
-    private void checkBudgets(Limits limits, PieceIndex previous) {
-        checkCounts(cells, previous.cells, limits.perCell);
-        checkCounts(owners, previous.owners, limits.ownedPerSection);
-        checkCounts(references, previous.references, limits.referencesPerSection);
+    private void checkBudgets(Limits limits,PieceIndex previous,Set<CellPos> affected,Set<SectionPos> affectedOwners) {
+        checkCounts(cells,previous.cells,limits.perCell,affected);
+        checkCounts(owners,previous.owners,limits.ownedPerSection,affectedOwners);
+        Set<SectionPos> sections=new HashSet<>();affected.forEach(cell->sections.add(cell.section()));
+        checkCounts(references,previous.references,limits.referencesPerSection,sections);
     }
 
-    private static <K> void checkCounts(Map<K, Set<UUID>> current, Map<K, Set<UUID>> previous, int limit) {
-        current.forEach((key, value) -> {
+    private static <K> void checkCounts(Map<K, Set<UUID>> current,Map<K, Set<UUID>> previous,int limit,Set<K> keys) {
+        keys.forEach(key -> {
+            var value=current.getOrDefault(key,Set.of());
             int oldCount = previous.getOrDefault(key, Set.of()).size();
             if (value.size() > Math.max(limit, oldCount)) throw new IndexException(COMPLEXITY_LIMIT,"Index count exceeded");
         });

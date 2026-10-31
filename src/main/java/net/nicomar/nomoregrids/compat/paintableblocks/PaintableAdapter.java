@@ -14,6 +14,8 @@ import net.nicomar.nomoregrids.geometry.*;
 public final class PaintableAdapter implements PieceAdapter {
     public static final String REFERENCE_COMMIT="e93bc03f350dfb03b4031f1e479f4a37f28b556e";
     private static final net.nicomar.nomoregrids.diagnostic.WeightedLru<BinaryData,List<ConvexVolume>> OCCUPATION=new net.nicomar.nomoregrids.diagnostic.WeightedLru<>(16*1024*1024);
+    private static final net.nicomar.nomoregrids.diagnostic.WeightedLru<BinaryData,List<Primitive>> PRIMITIVES=new net.nicomar.nomoregrids.diagnostic.WeightedLru<>(16*1024*1024);
+    private static final net.nicomar.nomoregrids.diagnostic.WeightedLru<BinaryData,ConvexPointIndex> SURFACES=new net.nicomar.nomoregrids.diagnostic.WeightedLru<>(8*1024*1024);
     public static net.nicomar.nomoregrids.diagnostic.WeightedLru.Stats cacheStats(){return OCCUPATION.stats();}
     private final Class<?> designClass;
     private final Codec<Object> codec;
@@ -37,9 +39,11 @@ public final class PaintableAdapter implements PieceAdapter {
     }
     public Object restore(BinaryData data){return codec.parse(JsonOps.INSTANCE,JsonParser.parseString(new String(data.copy(),StandardCharsets.UTF_8))).getOrThrow();}
     public record Primitive(int cell,ConvexVolume geometry,Map<Integer,Integer> paint){public Primitive{paint=Map.copyOf(paint);}}
+    public ConvexPointIndex surfaceIndex(BinaryData data){var cached=SURFACES.get(data);if(cached.isPresent())return cached.orElseThrow();var built=new ConvexPointIndex(primitives(data).stream().map(Primitive::geometry).toList());SURFACES.put(data,built,built.estimatedBytes()+data.size());return built;}
     /** physical() applies PB's own orientation exactly once. NMG applies only its external transform. */
     @SuppressWarnings("unchecked")
     public List<Primitive> primitives(BinaryData data){
+        var cached=PRIMITIVES.get(data);if(cached.isPresent())return cached.orElseThrow();
         try{
             Object design=physical.invoke(restore(data));int n=(int)resolution.invoke(design);
             if(n<1||n>16||16%n!=0)throw new IllegalArgumentException("Unsupported PB resolution");
@@ -54,7 +58,7 @@ public final class PaintableAdapter implements PieceAdapter {
                 Map<Integer,Integer> surfaces=new HashMap<>();for(int face=0;face<6;face++)if(paint.containsKey(cell*6+face))surfaces.put(face,paint.get(cell*6+face));
                 if(paint.containsKey(24576+cell))surfaces.put(6,paint.get(24576+cell));result.add(new Primitive(cell,volume,surfaces));
             }
-            if(result.isEmpty()||result.size()>16384)throw new IllegalArgumentException("PB geometry budget");return List.copyOf(result);
+            if(result.isEmpty()||result.size()>16384)throw new IllegalArgumentException("PB geometry budget");var value=List.copyOf(result);long weight=128L+data.size();for(var primitive:value)weight+=192L+primitive.paint().size()*64L+primitive.geometry().planes().size()*64L+primitive.geometry().vertices().size()*48L;PRIMITIVES.put(data,value,weight);return value;
         }catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB API mismatch; original payload retained",ex);}
     }
     @Override public List<ConvexVolume> occupation(PieceRecord piece){var key=piece.geometryPayload();var cached=OCCUPATION.get(key);if(cached.isPresent())return cached.orElseThrow();try{Object design=physical.invoke(restore(key));int n=(int)resolution.invoke(design);if(n<1||n>16||16%n!=0)throw new IllegalArgumentException("Unsupported PB resolution");int scale=16/n;var mask=new BitSet(4096);for(int i=0;i<n*n*n;i++)if((boolean)occupied.invoke(design,i)){int x=i%n*scale,y=i/n%n*scale,z=i/(n*n)*scale;for(int a=x;a<x+scale;a++)for(int b=y;b<y+scale;b++)for(int c=z;c<z+scale;c++)mask.set(a+16*(b+16*c));}Object slopeData=slope.invoke(design);ConvexVolume.Plane plane=null;if(slopeData!=null){var type=slopeData.getClass();plane=new ConvexVolume.Plane(new ConvexVolume.Vec((int)type.getMethod("a").invoke(slopeData),(int)type.getMethod("b").invoke(slopeData),(int)type.getMethod("c").invoke(slopeData)),16.0*(int)type.getMethod("offset").invoke(slopeData));}var volumes=new ArrayList<ConvexVolume>();for(var b:net.nicomar.nomoregrids.geometry.MicroBoxes.pack(mask).boxes()){var v=ConvexVolume.box(b.min().x(),b.min().y(),b.min().z(),b.max().x(),b.max().y(),b.max().z());if(plane!=null)v=v.clipped(plane);if(v.hasVolume())volumes.add(v);}if(volumes.isEmpty())throw new IllegalArgumentException("Empty PB design");var result=List.copyOf(volumes);long weight=128L+key.size();for(var v:result)weight+=128+v.planes().size()*64L+v.vertices().size()*48L;OCCUPATION.put(key,result,weight);return result;}catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB API mismatch",ex);}}

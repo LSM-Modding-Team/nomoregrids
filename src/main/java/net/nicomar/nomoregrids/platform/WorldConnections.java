@@ -23,7 +23,9 @@ public final class WorldConnections {
     public static void complete(ServerLevel level,PieceIndex before,ArrayList<OperationPlan.Change> changes,VanillaCatalog catalog,Set<CellPos> observed){
         // External notifications on plain solids cannot change family topology. Avoid
         // rebuilding the whole authority; support and fluid observers run separately.
-        if(changes.isEmpty()&&WorldSupport.nearby(before,observed).stream().map(before.records()::get).noneMatch(p->FamilyPorts.family(p)!=Family.NONE))return;
+        Set<CellPos> relevant=new HashSet<>(observed);boolean changedFamily=false;
+        for(var change:changes){change.nativeSource().ifPresent(relevant::add);for(var side:List.of(change.before(),change.after()))if(side.isPresent()){var p=side.orElseThrow();relevant.addAll(p.worldOccupation().cells(8));changedFamily|=FamilyPorts.family(p)!=Family.NONE;}}
+        if(!changedFamily&&WorldSupport.nearby(before,relevant).stream().map(before.records()::get).noneMatch(p->FamilyPorts.family(p)!=Family.NONE))return;
         UUID primary=changes.reversed().stream().flatMap(c->c.after().stream()).map(PieceRecord::pieceId).findFirst().orElse(null);
         Map<UUID,PieceRecord> work=new HashMap<>(before.records());for(var c:changes){if(c.after().isPresent())work.put(c.id(),c.after().orElseThrow());else work.remove(c.id());}
         Set<CellPos> touched=new HashSet<>();for(var c:changes){c.nativeSource().ifPresent(touched::add);c.before().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));c.after().ifPresent(p->touched.addAll(p.worldOccupation().cells(8)));}

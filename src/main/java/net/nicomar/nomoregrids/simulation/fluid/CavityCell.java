@@ -10,13 +10,14 @@ public final class CavityCell {
     private final byte[] fluid;
     private final Kind source;
     private final byte[] distance;
+    private final int waterAmount,lavaAmount;
     public CavityCell(BitSet blocked,byte[] fluid,Kind source){this(blocked,fluid,source,defaults(fluid));}
     private static byte[] defaults(byte[] fluid){byte[] result=new byte[fluid.length];for(int i=0;i<result.length;i++)result[i]=fluid[i]==0?(byte)127:0;return result;}
     public CavityCell(BitSet blocked,byte[] fluid,Kind source,byte[] distance){
         if(blocked.length()>4096||fluid.length!=4096||distance.length!=4096)throw new IllegalArgumentException("Invalid cavity cell");
         this.blocked=(BitSet)blocked.clone();this.fluid=fluid.clone();this.source=Objects.requireNonNull(source);this.distance=distance.clone();
         for(int i=0;i<4096;i++)if(distance[i]<0||distance[i]>127||fluid[i]==0&&distance[i]!=127||fluid[i]!=0&&distance[i]>(fluid[i]==1?112:48)||source!=Kind.EMPTY&&distance[i]!=0)throw new IllegalArgumentException("Fluid distance invariant");
-        for(int i=0;i<4096;i++)if(fluid[i]<0||fluid[i]>2||blocked.get(i)&&fluid[i]!=0)throw new IllegalArgumentException("Fluid intersects solid");
+        int water=0,lava=0;for(int i=0;i<4096;i++){if(fluid[i]<0||fluid[i]>2||blocked.get(i)&&fluid[i]!=0)throw new IllegalArgumentException("Fluid intersects solid");if(fluid[i]==1)water++;else if(fluid[i]==2)lava++;}waterAmount=water;lavaAmount=lava;
         if(source!=Kind.EMPTY){if(!blocked.isEmpty())throw new IllegalArgumentException("Fractional source");for(byte b:fluid)if(b!=code(source))throw new IllegalArgumentException("Incomplete source");}
     }
     public static byte code(Kind kind){return switch(kind){case EMPTY->0;case WATER->1;case LAVA->2;};}
@@ -39,7 +40,7 @@ public final class CavityCell {
     public byte[] fluids(){return fluid.clone();}
     @Override public boolean equals(Object other){return other instanceof CavityCell cell&&source==cell.source&&blocked.equals(cell.blocked)&&Arrays.equals(fluid,cell.fluid)&&Arrays.equals(distance,cell.distance);}
     @Override public int hashCode(){return Objects.hash(blocked,source,Arrays.hashCode(fluid),Arrays.hashCode(distance));}
-    public int amount(Kind kind){int n=0;for(byte b:fluid)if(b==code(kind))n++;return n;}
+    public int amount(Kind kind){return switch(kind){case WATER->waterAmount;case LAVA->lavaAmount;case EMPTY->4096-waterAmount-lavaAmount;};}
     public CavityCell bucket(Kind kind,boolean collect){
         if(kind==Kind.EMPTY||!blocked.isEmpty())throw new IllegalArgumentException("Bucket needs a full cavity");
         if(collect){if(source!=kind||amount(kind)!=4096)throw new IllegalArgumentException("Not an accessible complete source");return new CavityCell(blocked,new byte[4096],Kind.EMPTY);}

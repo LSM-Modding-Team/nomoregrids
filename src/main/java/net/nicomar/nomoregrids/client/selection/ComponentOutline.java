@@ -22,15 +22,15 @@ public final class ComponentOutline {
     private static List<Edge> build(PieceRecord p){
         if(!p.adapterId().value().equals("nomoregrids:paintableblocks")||PaintableBridge.available().isEmpty())return BoxOutline.extract(p.geometry().selection().transform(Rotation.of(p.orientation()),p.pivot16(),p.origin16()),16384).stream().map(e->new Edge(vec(e.a()),vec(e.b()))).toList();
         try{
-            var adapter=new PaintableAdapter(ComponentOutline.class.getClassLoader());var primitives=adapter.primitives(p.geometryPayload());var result=new ArrayList<Edge>();
-            for(var primitive:primitives)for(var plane:primitive.geometry().planes()){
+            var adapter=new PaintableAdapter(ComponentOutline.class.getClassLoader());var primitives=adapter.primitives(p.geometryPayload());var result=new ArrayList<Edge>();var pointIndex=adapter.surfaceIndex(p.geometryPayload());
+            for(int primitiveIndex=0;primitiveIndex<primitives.size();primitiveIndex++){var primitive=primitives.get(primitiveIndex);for(var plane:primitive.geometry().planes()){
                 var vertices=primitive.geometry().vertices().stream().filter(v->Math.abs(plane.normal().dot(v)-plane.distance())<ConvexVolume.EPS).toList();if(vertices.size()<3)continue;
                 var center=new ConvexVolume.Vec(0,0,0);for(var v:vertices)center=center.add(v.scale(1.0/vertices.size()));var outside=center.add(plane.normal().scale(ConvexVolume.EPS*4));
-                if(primitives.stream().anyMatch(other->other!=primitive&&other.geometry().planes().stream().allMatch(f->f.normal().dot(outside)<=f.distance())))continue;
+                if(pointIndex.covered(outside,primitiveIndex))continue;
                 var n=plane.normal();var u=n.cross(Math.abs(n.x())<0.8?new ConvexVolume.Vec(1,0,0):new ConvexVolume.Vec(0,1,0));var v=n.cross(u);var c=center;
                 var sorted=vertices.stream().sorted(Comparator.comparingDouble(x->Math.atan2(x.sub(c).dot(v),x.sub(c).dot(u)))).toList();
                 for(int i=0;i<sorted.size();i++){result.add(new Edge(transform(p,sorted.get(i)),transform(p,sorted.get((i+1)%sorted.size()))));if(result.size()>16384)throw new IllegalArgumentException("Outline budget");}
-            }return List.copyOf(result);
+            }}return List.copyOf(result);
         }catch(ReflectiveOperationException ex){throw new IllegalArgumentException("PB contour API",ex);}
     }
     private static Vec3 vec(GridPoint p){return new Vec3(p.x()/16.0,p.y()/16.0,p.z()/16.0);}
