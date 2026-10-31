@@ -50,4 +50,4 @@ sin compilar ni ejecutar Java/Minecraft. Los resultados están registrados en
 
 ## Alcance de esta entrega
 
-En la entrega documental inicial se creó documentación original y se validaron archivos/enlaces/ZIP, con un esqueleto mínimo. La implementación posterior está descrita en `docs/ESTADO_DESARROLLO.md` y `docs/evidence/IMPLEMENTACION_FASES.md`; no se ha compilado ni ejecutado No More Grids. Tampoco se probó Paintable Blocks ni se modificó su repositorio. No se incluyeron sus fuentes o recursos en el ZIP.
+En la entrega documental inicial se creó documentación original y se validaron archivos/enlaces/ZIP, con un esqueleto mínimo. La implementación posterior está descrita en `docs/ESTADO_DESARROLLO.md` y `docs/evidence/IMPLEMENTACION_FASES.md`; la validación puntual posterior está en `docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md`: compilación, tests y escena real pequeña con PB, sin certificación completa. No se modificó el repositorio PB. No se incluyeron sus fuentes o recursos en el ZIP.

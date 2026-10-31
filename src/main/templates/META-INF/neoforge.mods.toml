@@ -8,7 +8,7 @@ authors="Nicolás Marquina Díaz"
 description='''
 Implementación experimental de No More Grids.
 El diseño permite piezas independientes que comparten casillas y colocación precisa.
-Perfiles avanzados experimentales; pendientes de compilación y validación en juego.
+Perfiles avanzados experimentales; compilación y validación parcial, sin certificación.
 '''
 
 [[dependencies.${mod_id}]]

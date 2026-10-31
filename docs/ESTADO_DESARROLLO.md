@@ -4,16 +4,18 @@ Se ha escrito y conectado al host el trabajo de implementación pendiente de
 esta edición: recuperación de adaptadores, decoración con datos, simulación de
 fluidos por ventanas, herramientas PB mixtas, funcionales con menús/capacidades,
 grupos, redstone, raíles, pistones mixtos y compactación automática.
-El alcance son los perfiles explícitos descritos abajo. **Ninguna fase está
-aceptada:** faltan compilación, pruebas Java, arranque e integración en Minecraft,
-expresamente no autorizados en esta entrega. La revisión estática no acredita
-que el código compile o que los hooks se apliquen correctamente.
+El alcance son los perfiles explícitos descritos abajo. **La validación puntual
+pasó compilación, 106 tests, arranques, conexión de dos clientes, regresión de activación de fluidos y recuperación
+tras SIGKILL de dos piezas (una PB), sin usar pantalla.** Ninguna fase queda
+aceptada globalmente: falta recorrer la matriz de mecánicas, interacción/visual,
+fallos y rendimiento a escala. La autorización de esta entrega no se extiende
+a futuras ejecuciones. Ver [resultados y límites](evidence/VALIDACION_EJECUTADA_2026-10-30.md).
 
 ## Código disponible por fase
 
 | Fase | Implementación conectada | Validación pendiente |
 |---|---|---|
-| F0 — Base | Minecraft 26.2, NeoForge 26.2.0.88, Java 25, Gradle 9.2.1 y ModDevGradle 2.0.148 fijados; wrapper, registros, metadatos y licencia | Resolución de dependencias, tipos, carga de mixins, cliente y dedicado |
+| F0 — Base | Minecraft 26.2, NeoForge 26.2.0.88, Java 25, Gradle 9.2.1 y ModDevGradle 2.0.148 fijados; wrapper, registros, metadatos y licencia | Perfiles no ejercitados, Windows y aceptación final; resolución, compilación y arranque pasaron en Linux |
 | F1 — Identidad y guardado | UUID/revisiones, geometría, índices, contenedor/BE, captura nativa, diario, recibos, secciones, reparación, snapshots/deltas fragmentados, sustitutos recuperables y representación nativa por igualdad exacta | Fallos entre inventario/diario/chunks, migraciones, retirada/reinstalación de mods y Windows |
 | F2 — Construcción | Solver compartido, 24 rotaciones, composición, selección, minería, reemplazo, controles, preview validado y contorno fino por componente | Matriz geométrica/visual, recursos, alcance y multijugador |
 | F3 — Conexiones | Fragmentos/recetas, recortes, paneles/barrotes/vallas/muros, puertos geométricos, escaleras 3D y observación de vecinos nativos | Extremos, tapas, modelos y estabilidad tras cambios externos |
@@ -54,6 +56,8 @@ que el código compile o que los hooks se apliquen correctamente.
   comprobar revisiones. No se limita toda una red a 256 celdas. La redistribución
   de una construcción sí limita su región local a 256 celdas. El presupuesto de
   avance actual es 65536 pasos de microcavidad por turno, sin forzar chunks.
+  Los cambios nativos lejanos no activan NMG: debe existir autoridad en la celda
+  o una vecina. Se conservan las cavidades ya guardadas.
   Las ranuras inferiores a 1/16 pueden quedar cerradas por la máscara, sin
   cambiar el sólido original. Solo una fuente completa llena/consume un cubo.
 - Herramientas de volumen PB: hasta 16 bloques por eje y 128 componentes,
@@ -110,33 +114,37 @@ atómicos. Falta contrastar la recuperación real en Windows.
 
 ## Evidencia disponible y trabajo que sigue pendiente
 
-Comprobaciones realizadas, sin compilación ni ejecución de Java:
+La validación ejecutada está en
+[evidence/VALIDACION_EJECUTADA_2026-10-30.md](evidence/VALIDACION_EJECUTADA_2026-10-30.md):
 
-- Tree-sitter: **240 fuentes Java** sin errores sintácticos, incluidas 42 fuentes
-  de pruebas escritas. No resuelve tipos ni inyecciones.
-- `python tools/check_repository.py`: JSON, TOML, licencia, wrapper, enlaces wiki
-  e independencia del núcleo.
-- `python tools/check_api_imports.py`: **92 imports explícitos** Minecraft/NeoForge
-  presentes en los artefactos consultados. No comprueba miembros, comodines,
-  genéricos ni firmas parcheadas.
-- Lectura de fuentes/parches NeoForge 26.2.0.88, jars oficiales 26.2 y firmas con
-  `javap`; contraste del API PB con su rama 26.2, commit
-  `e93bc03f350dfb03b4031f1e479f4a37f28b556e`.
-- `git diff --check`: whitespace. Commits publicados en GitHub, rama `26.2`;
-  sin force push, workflows, builds o cambios de versiones.
+- `compileJava` correcto con Java 25.0.2 y plataforma fijada; avisos de deprecación.
+- `test`: **106 tests en 42 suites, 0 fallos/errores/omitidos**. Se corrigió Gson
+  ausente del classpath de tests con la misma versión 2.14.0 de Minecraft.
+- JAR generado en `build/libs/nomoregrids-0.1.0-SNAPSHOT.jar`; tests y sonda
+  manual excluidos. Los arranques usaron clases ModDev, no instalación de producción.
+- Dedicado sin PB y con PB; PB compilado desde
+  `e93bc03f350dfb03b4031f1e479f4a37f28b556e`, sin alterar su repositorio.
+- Dos clientes de desarrollo simultáneos por Quick Play, Xvfb/llvmpipe, sin
+  observar ni controlar pantalla. Autenticación offline solo en loopback.
+- Piedra multicelda movida y PB multicelda reconstruidos tras SIGKILL del
+  dedicado: 2 piezas, 4 réplicas, 0 conflictos/cuarentena; inspección por jugador
+  identifica sus UUID correctos después de reconectar.
+- Se corrigió la activación NMG por agua vanilla lejana. Mundo nuevo: 120 ticks
+  con agua alejada, cero cavidades NMG; entrada local positiva de 2048 microvolúmenes,
+  sin fuente de cubo. El código final pasó de nuevo compilación y los 106 tests.
+- Las muestras de rendimiento están en la evidencia, distinguiendo antes/después
+  de esa corrección. Muestra final: 1301 ticks/65,01 s (20,01 TPS); últimas 100
+  muestras, media 3,1 ms/p95 10,3 ms/p99 13,7 ms. No certifica F9 ni gran escala.
+- Revisión estática complementaria: sintaxis de 241 fuentes bajo `src`, recursos,
+  imports explícitos de plataforma y whitespace. No sustituye la ejecución.
 
-No se han ejecutado Gradle, compiladores, tests Java, GameTests, cliente,
-servidor dedicado, PB, inyección de fallos ni benchmarks. No se ha generado un
-JAR del mod. No se presenta la implementación como aprobada por estas lecturas.
+Sigue pendiente la matriz completa: mecánicas y economía de jugador, controles,
+render visual, menús/automatización/XP/producción PB, fluidos, redstone/raíles/
+pistones, concurrencia y permisos entre mods. Faltan autenticación online,
+Windows, fallos en todas las ventanas de persistencia/transferencia y escenarios
+grandes F9. Los tests puros y la sonda pequeña no acreditan estos casos.
 
-El siguiente trabajo requiere autorización de ejecución: compilar y resolver
-los fallos de tipos/API que revele; ejecutar las pruebas escritas; arrancar
-cliente y dedicado; recorrer la matriz de aceptación, incluidos cortes de
-escritura, Windows, multijugador, automatización y PB; medir las escenas F9.
-También deberán corregirse los defectos que aparezcan. No queda como módulo
-algorítmico aislado ninguno de los pendientes de implementación enumerados al
-iniciar esta entrega; sí queda toda esa validación y sus eventuales correcciones.
-
-La cronología de cambios, fuentes, decisiones y límites está en
-[evidence/IMPLEMENTACION_FASES.md](evidence/IMPLEMENTACION_FASES.md). Las primeras
-secciones de ese documento describen entregas históricas, no carencias vigentes.
+Las nuevas ejecuciones necesitan autorización posterior. La cronología de código
+está en [evidence/IMPLEMENTACION_FASES.md](evidence/IMPLEMENTACION_FASES.md);
+sus primeras secciones describen entregas históricas. La nueva evidencia distingue
+claramente resultados ejecutados, incidentes del entorno y casos no comprobados.

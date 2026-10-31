@@ -1046,3 +1046,25 @@ floorDiv (también en negativos); variable de slot sin sombrear el JSON. El colo
 de tinte usa DataComponents.DYE y tolera ausencia, contrastado con bytecode 26.2
 de DyeItem. PaintableBridge usa Optional<?> en lugar de un cast genérico no
 comprobable. Revisión estática, sin compilar ni ejecutar Java/Minecraft.
+
+## Validación ejecutada con autorización puntual
+
+Se resolvieron dependencias y compiló el mod. El primer compileTestJava reveló
+Gson ausente en tests; se añadió 2.14.0 (misma versión del manifiesto 26.2)
+solo al classpath de pruebas. Pasaron 106 tests, incluida una JVM escritora
+terminada forzosamente. Se generó JAR, arrancaron dedicado/cliente y dos clientes
+locales con PB compilado en copia aislada. Una sonda manual real creó/movió
+piedra y colocó PB multicelda: tras SIGKILL se reconstruyeron 2 piezas/4 celdas,
+sin conflictos; ambos jugadores volvieron a conectar y seleccionaron sus UUID.
+La escena pequeña sostuvo 20,01 TPS en 59,67 s; no certifica F9. Detalles,
+incidentes y límites en [la evidencia ejecutada](VALIDACION_EJECUTADA_2026-10-30.md).
+No se usó pantalla, modificó PB ni se autorizaron ejecuciones futuras.
+
+La revisión del primer informe reveló activación de cavidades por cambios de agua
+vanilla lejanos (2056 posiciones en el diario de la escena). Se restringió
+WorldFluids.changed a autoridad NMG propia/vecina, preservando efectos existentes.
+Compilación y 106 tests pasaron otra vez. En un mundo nuevo, agua nativa alejada
+y 120 ticks mantuvieron cero cavidades; tras otro SIGKILL se reconstruyeron las
+dos piezas y sus cuatro celdas. Entrada positiva local: 2048 microvolúmenes sin
+fuente de cubo. Ambos clientes volvieron a conectar e inspeccionaron los UUID.
+La evidencia distingue las mediciones previas de las del código final.

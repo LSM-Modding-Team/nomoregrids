@@ -10,7 +10,9 @@ protocolo, operaciones durables, servidor, controles y render. Los módulos de
 apoyo, decoración, fluidos, funcionales, grupos y mecanismos tienen puentes al
 mundo para perfiles explícitos. Paintable Blocks se consulta opcionalmente para
 diseños, herramientas y máquinas; no es una dependencia obligatoria.
-No se ha compilado ni ejecutado Java/Minecraft ni se acredita compatibilidad.
+Se ejecutaron compilación, 106 tests, cliente/dedicado y una sonda pequeña
+con PB, multijugador local y recuperación tras corte. No acredita la matriz
+completa ni compatibilidad general. Ver `docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md`.
 
 El estado vigente por fase, perfiles, límites y validación está centralizado en
 `docs/ESTADO_DESARROLLO.md`; la evidencia está en `docs/evidence`.

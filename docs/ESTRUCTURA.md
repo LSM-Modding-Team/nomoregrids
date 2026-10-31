@@ -18,9 +18,10 @@ Los metadatos se expanden desde `src/main/templates/META-INF/neoforge.mods.toml`
 Los recursos contienen perfiles vanilla explícitos, modelos, idiomas y recetas
 de fragmentos. No existe ítem del contenedor técnico.
 
-`src/test/java` contiene casos JUnit escritos, no ejecutados. `src/gametest`
-continúa reservado y no está conectado como source set. `tools` contiene solo
-comprobaciones estáticas de estructura, parser e imports, sin compilación. `docs/evidence`
+`src/test/java` contiene casos JUnit: 106 tests ejecutados sin fallos en la validación puntual. `src/gametest`
+continúa reservado y no está conectado como source set. `tools` contiene
+comprobaciones estáticas y una sonda manual de mundo en `tools/validation`,
+excluida del build normal y sujeta a autorización de ejecución. `docs/evidence`
 distingue fuentes inspeccionadas de resultados ejecutados.
 
 El único JAR versionado es el wrapper oficial de Gradle. No se incluyen binarios

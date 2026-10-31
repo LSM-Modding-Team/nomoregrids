@@ -2,7 +2,7 @@
 
 ## Mandato actual
 
-El usuario autorizó implementar F0–F9, dejando pendientes compilación y ejecución. Se avanza código posterior sin confundir implementación parcial con aceptación. No se heredan restricciones de commits/ejecución del repositorio de referencia. Consultar también AGENTS.md en la raíz del proyecto.
+El usuario autorizó implementar F0–F9. Una validación ejecutada puntual está registrada en `docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md`; su permiso no se extiende a nuevas tareas. Se avanza código posterior sin confundir implementación parcial con aceptación. No se heredan restricciones de commits/ejecución del repositorio de referencia. Consultar también AGENTS.md en la raíz del proyecto.
 
 ## Antes de implementar
 

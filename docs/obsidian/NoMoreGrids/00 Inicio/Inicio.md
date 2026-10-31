@@ -6,7 +6,7 @@ Minecraft Java 26.2 · NeoForge 26.2.0.88 · documentación en español.
 
 No More Grids elimina la exclusividad de las casillas: varias piezas pueden compartir una casilla y una pieza puede extenderse entre varias. Cada componente conserva su identidad y sus propiedades. El ajuste de posición es de 1/16 de bloque; la geometría puede ser más precisa.
 
-> Estado: implementación experimental en F0–F9, con perfiles de construcción e integraciones avanzadas conectados al mundo, pendientes de validación. Sin compilación, pruebas Java ni Minecraft ejecutados. El estado consolidado está en `docs/ESTADO_DESARROLLO.md`; ninguna fase está aceptada.
+> Estado: implementación experimental en F0–F9, con perfiles de construcción e integraciones avanzadas conectados al mundo, pendientes de validación. Validación puntual con compilación, 106 tests, cliente/dedicado, dos clientes locales y recuperación de una escena pequeña ejecutados; sin revisión visual ni aceptación completa. El estado consolidado está en `docs/ESTADO_DESARROLLO.md`; ninguna fase está aceptada.
 
 ## Leer primero
 

@@ -51,3 +51,10 @@ Recuperación mediante guantes/tenazas u otra herramienta respeta las reglas del
 F6a: captura/restauración y render. F6b: geometría, desplazamiento y composición. F6c: herramientas/pintura y edición validada. F6d: conservación, red, fronteras y recuperación. Las máquinas y cubos de producción no se incluyen por el adaptador de diseños: tienen un perfil funcional separado en F7, con autoridad privada, menús nativos, ticking y transferencias preparados. Su presencia tampoco acredita el ciclo completo de ejecución.
 
 No declarar «compatible con Paintable Blocks» hasta completar F6d en cliente y servidor dedicado con versiones fijadas.
+
+## Validación puntual posterior
+
+PB en el hash fijado compiló y cargó junto con NMG. Una pieza PB desplazada entre
+dos celdas se guardó, reconstruyó tras SIGKILL y seleccionó desde un cliente local.
+Los menús, producción, herramientas y economía completos siguen sin verificarse.
+Ver `docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md`; no es certificación F6d.

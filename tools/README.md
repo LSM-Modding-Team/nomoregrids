@@ -17,3 +17,7 @@ Herramientas propias de desarrollo y diagnóstico. No contiene scripts de instal
 proporcionados localmente. Solo lee ZIP y texto; no descarga, resuelve dependencias,
 compila ni ejecuta Java. No valida métodos, comodines ni extensiones parcheadas.
 Los artefactos inspeccionados se mantienen fuera de Git.
+
+`tools/validation/RuntimeProbe.java` es una sonda manual para un servidor real
+y un mundo desechable. No se ejecuta automáticamente ni entra en el JAR.
+Requiere autorización explícita; consultar [sus instrucciones](validation/README.md).

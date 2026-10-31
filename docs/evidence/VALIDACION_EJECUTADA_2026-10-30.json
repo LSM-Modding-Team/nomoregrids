@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-30",
+  "timezone": "America/Lima",
+  "authorization": "one validation delivery only",
+  "versions": {
+    "minecraft": "26.2",
+    "neoforge": "26.2.0.88",
+    "java": "25.0.2",
+    "gradle": "9.2.1",
+    "moddev": "2.0.148"
+  },
+  "tests": {
+    "tests": 106,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": 42,
+  "jar": {
+    "file": "nomoregrids-0.1.0-SNAPSHOT.jar",
+    "sha256": "1046599253f85427f5f019a2d97b7e7f896cc38af293f2c48ebdcd6571496857",
+    "probe_tests_and_shaded_gson_absent": true
+  },
+  "pb": {
+    "commit": "e93bc03f350dfb03b4031f1e479f4a37f28b556e",
+    "version": "1.0.0",
+    "sha256": "89ba1e0d2b17f0e7eb3a28a8b652870a554f403afed882c1eaba94d161b659a9"
+  },
+  "world_probe": {
+    "pieces": 2,
+    "replica_cells": 4,
+    "after_sigkill_recovered": true,
+    "conflicts": 0,
+    "unloaded_references": 0,
+    "quarantined": false,
+    "unrelated_water_ticks": 120,
+    "cavity_effects_after_unrelated_water": 0,
+    "local_water_microvolumes": 2048,
+    "local_water_source": "EMPTY",
+    "connected_local_clients": 2,
+    "authentication": "offline, loopback only"
+  },
+  "performance": {
+    "scene": "two pieces, two real software-rendered local clients; after local water probe",
+    "seconds": 65.01,
+    "ticks": 1301,
+    "tps": 20.01,
+    "tick_query_last_samples": 100,
+    "mean_ms": 3.1,
+    "p50_ms": 1.8,
+    "p95_ms": 10.3,
+    "p99_ms": 13.7,
+    "certified": false
+  },
+  "server_report": {
+    "schema": 1,
+    "kind": "report",
+    "minecraft": "26.2",
+    "neoforge": "26.2.0.88",
+    "dimension": "minecraft:overworld",
+    "quarantined": false,
+    "pieces": 2,
+    "adapterPieceCounts": {
+      "nomoregrids:box": 1,
+      "nomoregrids:paintableblocks": 1
+    },
+    "perCell": 64,
+    "ownersPerSection": 4096,
+    "referencesPerSection": 16384,
+    "journalCompaction": true,
+    "journalBytes": 704566,
+    "checkpoint": {
+      "running": false,
+      "copiedSequence": 0,
+      "failures": 0,
+      "lastFailure": ""
+    },
+    "timings": {
+      "checkpoint": {
+        "samples": 1024,
+        "p50Nanos": 9995,
+        "p95Nanos": 19529,
+        "p99Nanos": 114481
+      },
+      "circuit": {
+        "samples": 1024,
+        "p50Nanos": 163355,
+        "p95Nanos": 1562612,
+        "p99Nanos": 7367864
+      },
+      "fluid": {
+        "samples": 1024,
+        "p50Nanos": 8462079,
+        "p95Nanos": 36104660,
+        "p99Nanos": 69846683
+      },
+      "functional": {
+        "samples": 1024,
+        "p50Nanos": 12579,
+        "p95Nanos": 31968,
+        "p99Nanos": 93230
+      },
+      "group": {
+        "samples": 1024,
+        "p50Nanos": 3986,
+        "p95Nanos": 6820,
+        "p99Nanos": 24146
+      },
+      "operation": {
+        "samples": 17,
+        "p50Nanos": 7399608,
+        "p95Nanos": 135524916,
+        "p99Nanos": 135524916
+      },
+      "rail": {
+        "samples": 1024,
+        "p50Nanos": 5318,
+        "p95Nanos": 13150,
+        "p99Nanos": 26140
+      }
+    },
+    "geometryCacheBytes": 0,
+    "geometryCacheHits": 0,
+    "paintableCacheBytes": 1095,
+    "circuitCacheBytes": 0,
+    "javaValidated": false
+  },
+  "not_validated": [
+    "visual fidelity and GUI interaction",
+    "full mechanic acceptance matrix",
+    "online authentication",
+    "Windows",
+    "every crash window and intermod transfers",
+    "F9 large-scale scenes and comparative baseline"
+  ]
+}

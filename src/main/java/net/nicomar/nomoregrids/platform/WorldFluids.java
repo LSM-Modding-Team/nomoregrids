@@ -95,7 +95,10 @@ public final class WorldFluids {
         if(!player.isCreative()){slots.get(slot).shrink(1);NativeInventory.insert(slots,new ItemStack(collect?(type==Kind.WATER?Items.WATER_BUCKET:Items.LAVA_BUCKET):Items.BUCKET));}
         var changes=new ArrayList<OperationPlan.Effect>();addEffect(c,next,changes);service.executePrepared(new OperationPlan(operation,player.getUUID(),OperationPlan.Kind.CLAIM,List.of(),before,NativeInventory.encode(player,slots),changes));
     }
-    public void changed(CellPos c){for(var kind:List.of(Kind.WATER,Kind.LAVA)){schedule(c,kind,level.getGameTime()+delay(kind));for(var d:Direction6.values())schedule(new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z),kind,level.getGameTime()+delay(kind));}}
+    private boolean authority(CellPos c){return !service.snapshot().at(c).isEmpty()||service.effects().containsKey(key(c));}
+    private boolean adjacentAuthority(CellPos c){if(authority(c))return true;for(var d:Direction6.values())if(authority(new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z)))return true;return false;}
+    /** Native changes far from NMG are boundary observations, never a reason to claim vanilla fluids. */
+    public void changed(CellPos c){if(!adjacentAuthority(c))return;for(var kind:List.of(Kind.WATER,Kind.LAVA)){schedule(c,kind,level.getGameTime()+delay(kind));for(var d:Direction6.values())schedule(new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z),kind,level.getGameTime()+delay(kind));}}
     private int delay(Kind kind){return (kind==Kind.WATER?Fluids.WATER:Fluids.LAVA).getTickDelay(level);}
     private String ticket(CellPos c,Kind kind){return key(c)+":"+kind;}
     private void schedule(CellPos c,Kind kind,long time){if(!level.isLoaded(WorldService.pos(c)))return;String k=ticket(c,kind);Long old=scheduled.get(k);if(old!=null&&old<=time)return;scheduled.put(k,time);due.add(new Due(c,kind,time));}
