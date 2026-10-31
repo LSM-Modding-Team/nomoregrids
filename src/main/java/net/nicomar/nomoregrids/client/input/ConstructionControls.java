@@ -89,6 +89,8 @@ public final class ConstructionControls {
     private static void tick(ClientTickEvent.Post event){
         var mc=Minecraft.getInstance();if(mc.player==null||mc.level==null){preview=null;paintableSelection=null;ENABLED.clear();lastSent=null;lastDimension=null;net.nicomar.nomoregrids.client.selection.ClientCellReplication.reset();return;}
         if(!mc.level.dimension().equals(lastDimension)){MODES.changedDimension();lengthSelection=0;lastDimension=mc.level.dimension();}
+        net.nicomar.nomoregrids.platform.ComponentSelection.clientCandidate(MODES.candidate());
+        net.nicomar.nomoregrids.client.selection.ClientCellReplication.tick();
         if(mc.gui.screen()!=null){preview=null;var p=packet();var inactive=new ModePayload(p.precise(),p.expanded(),p.adjusted(),false,false,p.axis(),p.offset(),p.candidate(),p.aligned(),p.alignmentAxis(),p.alignmentSign(),p.alignmentPlane(),p.alignmentRotation(),p.length(),p.alignmentProperties());if(!inactive.equals(lastSent)){ClientPacketDistributor.sendToServer(inactive);lastSent=inactive;}return;}
         while(PRECISE.consumeClick())MODES.precise=!MODES.precise;while(EXPANDED.consumeClick())MODES.expanded=!MODES.expanded;while(ADJUSTED.consumeClick())MODES.adjusted=!MODES.adjusted;
         while(ALIGN.consumeClick())if(mc.hitResult instanceof BlockHitResult hit&&(preview!=null||MODES.alignment().isPresent())){
@@ -124,7 +126,7 @@ public final class ConstructionControls {
         }
         if(mc.hasAltDown()||mc.hasControlDown()){
             int steps=event.getScrollDeltaY()>0?1:event.getScrollDeltaY()<0?-1:0;
-            try{MODES.scroll(steps,mc.hasAltDown(),mc.hasControlDown(),false);}catch(ArithmeticException ignored){}event.setCanceled(true);
+            try{int candidates=64;if(mc.level!=null&&mc.hitResult instanceof BlockHitResult hit&&mc.level.getBlockEntity(hit.getBlockPos()) instanceof net.nicomar.nomoregrids.world.CompositeCellEntity cell)candidates=net.nicomar.nomoregrids.platform.ComponentSelection.accessibleCount(mc.player,cell.view());MODES.scroll(steps,mc.hasAltDown(),mc.hasControlDown(),false,candidates);net.nicomar.nomoregrids.platform.ComponentSelection.clientCandidate(MODES.candidate());}catch(RuntimeException ignored){}event.setCanceled(true);
         }
     }
     private static void middle(InputEvent.MouseButton.Pre event){var mc=Minecraft.getInstance();if(mc.player==null||mc.gui.screen()!=null||event.getButton()!=GLFW.GLFW_MOUSE_BUTTON_MIDDLE||event.getAction()!=GLFW.GLFW_PRESS)return;

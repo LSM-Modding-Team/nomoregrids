@@ -165,3 +165,21 @@ Las nuevas ejecuciones necesitan autorización posterior. La cronología de cód
 está en [evidence/IMPLEMENTACION_FASES.md](evidence/IMPLEMENTACION_FASES.md);
 sus primeras secciones describen entregas históricas. La nueva evidencia distingue
 compilación actual, ejecución histórica y casos todavía no comprobados.
+
+### Revisión de contenedores, selección y apoyo (2026-10-31)
+
+Se ha corregido la recuperación de instantáneas públicas cuando llegan antes que
+el bloque entidad del cliente o no se pueden ensamblar. La resincronización se
+limita y espera a que exista el contenedor; incluye las cavidades. La selección
+con cubo de una celda solo de fluido vuelve a tener una forma alcanzable. La
+selección de decoración con datos inválidos conserva la forma aproximada como
+barrera y no impide consultar el resto de la celda. La rotura y el índice de
+candidato usan la misma selección en cliente y servidor. Las operaciones rechazan
+piezas cuya geometría o adaptador no están disponibles, también al retirarlas.
+La consulta de apoyo nativo usa su forma de apoyo y el contenedor expone las
+piezas funcionales de acuerdo con la validación de NMG.
+
+Estas correcciones se han revisado estáticamente; la compilación y las pruebas
+que se realicen se registran por separado en `docs/evidence/REVISION_2026-10-31.md`.
+Quedan pendientes la inspección visual, la interacción real con cubos, la rotura
+y los casos de apoyo en cliente/servidor; no se declara aceptación de fases.

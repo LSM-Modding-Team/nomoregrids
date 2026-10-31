@@ -57,7 +57,8 @@ public final class CompositeCellEntity extends BlockEntity {
         long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
         for(var piece:view.replicas()){
             if(net.nicomar.nomoregrids.platform.WorldDecorations.piece(piece)&&!piece.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)){
-                for(var volume:net.nicomar.nomoregrids.compat.vanilla.DecorationAdapter.boxes(piece,collision?"collision":"selection")){var world=volume.transformed(piece.orientation(),piece.pivot16(),piece.origin16());double x0=Double.POSITIVE_INFINITY,y0=x0,z0=x0,x1=Double.NEGATIVE_INFINITY,y1=x1,z1=x1;for(var v:world.vertices()){x0=Math.min(x0,v.x());y0=Math.min(y0,v.y());z0=Math.min(z0,v.z());x1=Math.max(x1,v.x());y1=Math.max(y1,v.y());z1=Math.max(z1,v.z());}shape=Shapes.or(shape,Block.box(x0-bx,y0-by,z0-bz,x1-bx,y1-by,z1-bz));}continue;
+                try{VoxelShape exact=Shapes.empty();var volumes=net.nicomar.nomoregrids.compat.vanilla.DecorationAdapter.boxes(piece,collision?"collision":"selection");if(!collision&&volumes.isEmpty())throw new IllegalArgumentException("Empty decoration selection");for(var volume:volumes){var world=volume.transformed(piece.orientation(),piece.pivot16(),piece.origin16());double x0=Double.POSITIVE_INFINITY,y0=x0,z0=x0,x1=Double.NEGATIVE_INFINITY,y1=x1,z1=x1;for(var v:world.vertices()){x0=Math.min(x0,v.x());y0=Math.min(y0,v.y());z0=Math.min(z0,v.z());x1=Math.max(x1,v.x());y1=Math.max(y1,v.y());z1=Math.max(z1,v.z());}exact=Shapes.or(exact,Block.box(x0-bx,y0-by,z0-bz,x1-bx,y1-by,z1-bz));}shape=Shapes.or(shape,exact);continue;}
+                catch(RuntimeException invalid){/* Keep the conservative persisted shape as a barrier. */}
             }
             BoxUnion local=collision?piece.geometry().collision():piece.geometry().selection();
             for(var box:local.transform(Rotation.of(piece.orientation()),piece.pivot16(),piece.origin16()).boxes())
@@ -84,7 +85,7 @@ public final class CompositeCellEntity extends BlockEntity {
         long bx=worldPosition.getX()*16L,by=worldPosition.getY()*16L,bz=worldPosition.getZ()*16L;
         for(var p:view.replicas()){
             if(p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)||!net.nicomar.nomoregrids.simulation.support.SupportPatches.required(p).isEmpty())continue;BoxUnion support;
-            if(p.adapterId().value().equals("nomoregrids:box"))support=p.geometry().occupation();
+            if(p.adapterId().value().equals("nomoregrids:box")||net.nicomar.nomoregrids.platform.WorldFunctionals.piece(p))support=p.geometry().occupation();
             else if(p.adapterId().value().equals("nomoregrids:paintableblocks")){
                 var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available();if(bridge.isEmpty())continue;try{support=bridge.orElseThrow().support(p.geometryPayload());}catch(RuntimeException ex){continue;}
             }else continue;

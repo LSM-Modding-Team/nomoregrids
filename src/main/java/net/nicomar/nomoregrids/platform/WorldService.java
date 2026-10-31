@@ -153,7 +153,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}}
     }
     private OperationPlan vacancies(OperationPlan plan){if(plan.changes().isEmpty()||nativeHandoffs.contains(plan.id()))return plan;var after=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var auxiliary=new ArrayList<>(plan.effects());for(var c:plan.pieceCells())if(!snapshot().at(c).isEmpty()&&after.at(c).isEmpty()&&auxiliary.stream().noneMatch(e->e.key().equals(nativeKey(c)))&&nativeGoal(c).filter(net.minecraft.world.level.block.state.BlockState::isAir).isEmpty())auxiliary.add(nativeChange(c,Blocks.AIR.defaultBlockState()));return new OperationPlan(plan.id(),plan.actor(),plan.kind(),plan.changes(),plan.resourcesBefore(),plan.resourcesAfter(),auxiliary);}
-    public boolean available(PieceRecord p){try{adapters.require(p).occupation(p);if(WorldFunctionals.piece(p)&&!WorldFunctionals.eligible(NativeStates.resolve(p)))return false;NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
+    public boolean available(PieceRecord p){try{if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||adapters.require(p).occupation(p).isEmpty())return false;if(WorldFunctionals.piece(p)&&!WorldFunctionals.eligible(NativeStates.resolve(p)))return false;NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
     public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index,p->!available(p)).replicas(),fluids.at(c));}
     public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null){if(archive==null)return false;try{var stamp=archive.operation(operation);if(stamp.isEmpty())return false;if(!stamp.orElseThrow().actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
     private boolean repeated(UUID id,ServerPlayer actor,OperationPlan.Kind kind){
@@ -286,6 +286,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             if(ray.getType()!=HitResult.Type.MISS&&ray.getLocation().distanceToSqr(destination)>1e-10)throw new IllegalArgumentException("Placement surface is occluded");
         }
         for(var c:plan.changes()){
+            c.before().ifPresent(p->{if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");});
             c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");});
             for(var p:List.of(c.before(),c.after()))if(p.isPresent()){
                 PieceRecord piece=p.orElseThrow();BlockPos owner=pos(new CellPos(piece.ownerSection().x()*16,piece.ownerSection().y()*16,piece.ownerSection().z()*16));
@@ -385,7 +386,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     private void validateSystem(OperationPlan plan,PieceIndex before,PieceIndex after){
         if(plan.kind()!=OperationPlan.Kind.SYSTEM)throw new IllegalArgumentException("Invalid world operation");
         for(var cell:plan.affectedCells()){var at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION");}
-        for(var c:plan.changes())c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");if(!WorldSupport.supported(level,after,plan.affectedCells(),p,catalog))throw new IllegalArgumentException("NO_SUPPORT");});
+        for(var c:plan.changes()){c.before().ifPresent(p->{if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");});c.after().ifPresent(p->{adapters.require(p);if(!available(p))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: retained original");if(!WorldSupport.supported(level,after,plan.affectedCells(),p,catalog))throw new IllegalArgumentException("NO_SUPPORT");});}
         try{for(var cell:plan.pieceCells()){
             CellView.from(cell,after).encode();int boxes=0;for(UUID id:after.at(cell))boxes+=after.records().get(id).geometry().collision().boxes().size();if(boxes>512)throw new IllegalArgumentException("COMPLEXITY_LIMIT: world collision");
         }for(var section:plan.pieceCells().stream().map(CellPos::section).distinct().toList())SectionStore.encode(section,0,after.ownedBy(section).stream().map(after.records()::get).toList());}

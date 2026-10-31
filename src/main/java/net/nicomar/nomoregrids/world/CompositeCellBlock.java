@@ -81,6 +81,6 @@ public final class CompositeCellBlock extends BaseEntityBlock implements LiquidB
     @Override protected int getLightDampening(BlockState state){return state.getValue(ATTENUATION);}
     @Override protected float getDestroyProgress(BlockState state,net.minecraft.world.entity.player.Player player,BlockGetter world,BlockPos pos){
         if(!(world.getBlockEntity(pos) instanceof CompositeCellEntity cell)||!cell.valid())return 0;
-        try{return net.nicomar.nomoregrids.platform.ComponentSelection.select(player,cell.view(),0).filter(p->!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getDestroyProgress(player,world,pos)).orElse(0f);}catch(RuntimeException ex){return 0;}
+        try{return net.nicomar.nomoregrids.platform.ComponentSelection.select(player,cell.view(),net.nicomar.nomoregrids.platform.ComponentSelection.candidate(player)).filter(p->!p.flags().contains(net.nicomar.nomoregrids.core.PieceRecord.Flag.SUBSTITUTE)).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getDestroyProgress(player,world,pos)).orElse(0f);}catch(RuntimeException ex){return 0;}
     }
 }

@@ -18,6 +18,9 @@ public final class CompositeOutlineShape extends VoxelShape {
     @Override public java.util.List<AABB> toAabbs(){return snapshot.toAabbs();}
     @Override public AABB bounds(){return snapshot.bounds();}
     @Override public BlockHitResult clip(Vec3 start,Vec3 end,BlockPos cell){
+        // A fluid-only container has no component ray to intersect. Its full-cell
+        // outline is still needed to target it with a bucket.
+        if(view.replicas().isEmpty()&&view.cavity().isPresent())return snapshot.clip(start,end,cell);
         PieceQueries.Hit closest=null;
         for(var piece:view.replicas()){
             var result=PieceQueries.ray(piece,start,end);if(result.isEmpty())continue;var hit=result.orElseThrow();var p=hit.point();
