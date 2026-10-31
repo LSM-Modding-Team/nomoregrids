@@ -10,6 +10,9 @@ import net.nicomar.nomoregrids.world.*;
 
 /** Native chunk tracking supplies snapshots; live edits use deltas and divergence requests a fresh snapshot. */
 public final class CellReplication {
+    private static final Map<ServerLevel,net.nicomar.nomoregrids.diagnostic.TrafficMeter> TRAFFIC=Collections.synchronizedMap(new WeakHashMap<>());
+    private static net.nicomar.nomoregrids.diagnostic.TrafficMeter meter(ServerLevel level){return TRAFFIC.computeIfAbsent(level,k->new net.nicomar.nomoregrids.diagnostic.TrafficMeter());}
+    public static net.nicomar.nomoregrids.diagnostic.TrafficMeter.Snapshot traffic(ServerLevel level){return meter(level).snapshot();}
     private CellReplication(){}
     public static void register(){NeoForge.EVENT_BUS.addListener(CellReplication::sent);}
     private static void sent(net.neoforged.neoforge.event.level.ChunkWatchEvent.Sent event){
@@ -26,9 +29,12 @@ public final class CellReplication {
         catch(IOException ex){throw new IllegalStateException("Cannot encode public cell",ex);}
     }
     private static void send(ServerLevel level,BlockPos pos,boolean delta,byte[] bytes,ServerPlayer player){
+        var recipients=player==null?level.getChunkSource().chunkMap.getPlayers(new net.minecraft.world.level.ChunkPos(Math.floorDiv(pos.getX(),16),Math.floorDiv(pos.getZ(),16)),false).size():1;
+        var metrics=meter(level);metrics.prepared(bytes.length,delta);
         for(var fragment:SnapshotAssembler.split(UUID.randomUUID(),bytes)){
             var packet=new CellFragmentPayload(level.dimension().identifier().toString(),pos,delta,fragment);
             if(player!=null)PacketDistributor.sendToPlayer(player,packet);else PacketDistributor.sendToPlayersTrackingChunk(level,new net.minecraft.world.level.ChunkPos(Math.floorDiv(pos.getX(),16),Math.floorDiv(pos.getZ(),16)),packet);
+            metrics.enqueued(Math.min(SnapshotAssembler.CHUNK,bytes.length-fragment.index()*SnapshotAssembler.CHUNK),recipients);
         }
     }
 }

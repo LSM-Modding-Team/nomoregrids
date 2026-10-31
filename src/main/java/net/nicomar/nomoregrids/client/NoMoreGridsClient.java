@@ -14,6 +14,8 @@ public final class NoMoreGridsClient {
         modEventBus.addListener(NoMoreGridsClient::models);
         modEventBus.addListener(NoMoreGridsClient::renderers);
         net.nicomar.nomoregrids.client.input.ConstructionControls.register(modEventBus);
+        ClientMeasurements.register();
+        ClientIntentLoad.register();
     }
     private static void renderers(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event){event.registerBlockEntityRenderer(net.nicomar.nomoregrids.registry.NmgContent.CELL_ENTITY.get(),context->new net.nicomar.nomoregrids.client.render.ComponentEntityRenderer());}
     private static void models(net.neoforged.neoforge.client.event.RegisterBlockStateModels event){
