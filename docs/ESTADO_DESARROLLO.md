@@ -1,15 +1,26 @@
 # Estado de desarrollo — 2026-10-30 (America/Lima)
 
-Se ha escrito y conectado al host el trabajo de implementación pendiente de
-esta edición: recuperación de adaptadores, decoración con datos, simulación de
-fluidos por ventanas, herramientas PB mixtas, funcionales con menús/capacidades,
-grupos, redstone, raíles, pistones mixtos y compactación automática.
-El alcance son los perfiles explícitos descritos abajo. **La validación puntual
-pasó compilación, 106 tests, arranques, conexión de dos clientes, regresión de activación de fluidos y recuperación
-tras SIGKILL de dos piezas (una PB), sin usar pantalla.** Ninguna fase queda
-aceptada globalmente: falta recorrer la matriz de mecánicas, interacción/visual,
-fallos y rendimiento a escala. La autorización de esta entrega no se extiende
-a futuras ejecuciones. Ver [resultados y límites](evidence/VALIDACION_EJECUTADA_2026-10-30.md).
+La continuación de la edición `cc63061` añade trazabilidad de los **72 casos**
+de la matriz, sondas parciales de mundo real y el arnés de F9 con escenas/control
+nativo, ventanas finitas, cuatro conexiones, guardado y comparación de informes.
+También añade caché de cavidades y evita reconstrucciones de conexiones en
+notificaciones externas sin familias afectadas. Se conserva la implementación
+F0–F9 y los perfiles explícitos descritos abajo.
+
+**Entrega actual: `compileJava`, `compileTestJava` y `compileValidationJava`
+correctos.** Hay 115 métodos JUnit en 45 clases de pruebas compilados; no se
+ejecutaron. La excepción actual autoriza compilar Java, no ejecutar tests,
+clientes, servidor, benchmarks, fallos ni generar un JAR. La matriz trazable
+incluye procedimientos manuales y fuentes de cobertura parcial: no son 72 casos
+automatizados ni resultados aprobados. Ver [entrega y decisiones](evidence/MATRIZ_F9_COMPILACION.md),
+[matriz](acceptance/MATRIZ_TRAZABLE.md) y [F9](acceptance/F9.md).
+
+La validación **histórica**, anterior a estas ampliaciones, pasó compilación,
+106 tests, arranques, dos clientes locales, regresión de fluidos y recuperación
+tras SIGKILL de dos piezas (una PB), sin usar pantalla. Sus resultados no se
+atribuyen al código nuevo. Ninguna fase está aceptada globalmente: hacen falta
+las ejecuciones y comprobaciones visuales de la matriz. Ver
+[resultados históricos y límites](evidence/VALIDACION_EJECUTADA_2026-10-30.md).
 
 ## Código disponible por fase
 
@@ -24,7 +35,7 @@ a futuras ejecuciones. Ver [resultados y límites](evidence/VALIDACION_EJECUTADA
 | F6 — Paintable Blocks | API/datos versionados, captura/colocación, convexos/render, pintura por áreas, herramientas, volúmenes y pendientes; selección/lotes mixtos nativos y NMG, creación creativa y costes/loot del origen | Ciclo completo con PB fijado, geometría/pintura, economía, red y dedicado |
 | F7 — Funcionales y grupos | Autoridad única privada; barril/hornos y estaciones/máquinas/cubos PB; menús nativos con cursor, drag, autofill y XP preparados por recibo; ticks/recetas, puertos, transferencias/energía transaccionales; puertas/camas/trampillas con cierre de grupo y barrido | Automatización entre mods, menús completos, XP, producción, guardado/cortes, cambio de dueño, dormir/respawn y grupos movidos |
 | F8 — Mecanismos | Redstone por puertos con retardos y checkpoints, entradas/salidas nativas, continuidad de raíles y vagones, detectores/activadores, empujes mixtos nativos/NMG/PB/grupos con barrido y metas nativas en el mismo plan | Pulsos/carga/burnout, raíles y física de vagones, slime/miel, pistones, entidades y mecanismos combinados |
-| F9 — Optimización | Presupuestos, cachés LRU por peso, trabajo diferido, métricas conectadas, compactación automática con preparación I/O y copia incremental de cola, ledgers de deduplicación en disco | Recuperación de checkpoints, carga sostenida, memoria, tiempos y escenas de certificación |
+| F9 — Optimización | Presupuestos, cachés LRU por peso, trabajo diferido, métricas conectadas, compactación automática con preparación I/O y copia incremental de cola, ledgers de deduplicación en disco; caché de cavidades, ventanas finitas y arnés de escenas/control, cuatro conexiones y comparación | Ejecución de las sondas nuevas, recuperación de checkpoints, carga sostenida, memoria, tráfico de socket, tiempos y aceptación de escenas |
 
 ## Perfiles y límites de esta edición
 
@@ -112,7 +123,7 @@ vanilla universal. En Windows NIO se omite únicamente el fsync de directorios
 no admitido por el proveedor; se mantienen force de archivos y reemplazos
 atómicos. Falta contrastar la recuperación real en Windows.
 
-## Evidencia disponible y trabajo que sigue pendiente
+## Evidencia histórica y validación que sigue pendiente
 
 La validación ejecutada está en
 [evidence/VALIDACION_EJECUTADA_2026-10-30.md](evidence/VALIDACION_EJECUTADA_2026-10-30.md):
@@ -138,13 +149,19 @@ La validación ejecutada está en
 - Revisión estática complementaria: sintaxis de 241 fuentes bajo `src`, recursos,
   imports explícitos de plataforma y whitespace. No sustituye la ejecución.
 
-Sigue pendiente la matriz completa: mecánicas y economía de jugador, controles,
-render visual, menús/automatización/XP/producción PB, fluidos, redstone/raíles/
-pistones, concurrencia y permisos entre mods. Faltan autenticación online,
-Windows, fallos en todas las ventanas de persistencia/transferencia y escenarios
-grandes F9. Los tests puros y la sonda pequeña no acreditan estos casos.
+El catálogo nuevo cubre los 72 IDs con expectativas originales, procedimientos,
+fuentes y evidencia requerida, comprobados estáticamente por
+`python tools/check_acceptance.py`. Las sondas de mundo cubren subconjuntos
+explícitos; el resto necesita acciones de jugador, revisión visual, integración
+externa o cortes de proceso. **Sigue pendiente ejecutar y evaluar la matriz**:
+economía, controles/render, menús/automatización/XP/producción PB, fluidos,
+redstone/raíles/pistones, concurrencia y permisos entre mods. También faltan
+autenticación online, Windows y cortes en todas las ventanas de persistencia y
+transferencia. Los escenarios grandes F9 y sus controles están implementados y
+compilados; no se midieron. No se afirma mejora temporal ni cumplimiento de sus
+umbrales por inspeccionar el código.
 
 Las nuevas ejecuciones necesitan autorización posterior. La cronología de código
 está en [evidence/IMPLEMENTACION_FASES.md](evidence/IMPLEMENTACION_FASES.md);
 sus primeras secciones describen entregas históricas. La nueva evidencia distingue
-claramente resultados ejecutados, incidentes del entorno y casos no comprobados.
+compilación actual, ejecución histórica y casos todavía no comprobados.

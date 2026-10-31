@@ -41,3 +41,13 @@ adaptadores, cavidades, funcionales, mecanismos, checkpoints y herramientas de
 presupuesto/diagnóstico. Integraciones avanzadas todavía parciales. Sin compilar,
 ejecutar Java ni arrancar Minecraft. El estado consolidado, decisiones por commit
 y carencias están en `docs/ESTADO_DESARROLLO.md` y `docs/evidence`.
+
+
+## Continuación de matriz y F9 — compilación autorizada
+
+Trazabilidad de los 72 casos con procedimientos y evidencia requerida; sondas
+reales de mundo, compactación y decodificación. Escenas F9 grandes con controles
+nativos, ventanas completas, hardware/perfil, cuatro conexiones y comparación
+estricta de informes. Caché de cavidades y eliminación de reconstrucciones de
+conexiones sin familias afectadas. Main, pruebas y validación compilados; no se
+ejecutan las ampliaciones ni se declara aceptación. Ver `docs/ESTADO_DESARROLLO.md`.

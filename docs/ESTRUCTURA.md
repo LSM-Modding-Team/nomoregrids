@@ -18,11 +18,17 @@ Los metadatos se expanden desde `src/main/templates/META-INF/neoforge.mods.toml`
 Los recursos contienen perfiles vanilla explícitos, modelos, idiomas y recetas
 de fragmentos. No existe ítem del contenedor técnico.
 
-`src/test/java` contiene casos JUnit: 106 tests ejecutados sin fallos en la validación puntual. `src/gametest`
-continúa reservado y no está conectado como source set. `tools` contiene
-comprobaciones estáticas y una sonda manual de mundo en `tools/validation`,
-excluida del build normal y sujeta a autorización de ejecución. `docs/evidence`
-distingue fuentes inspeccionadas de resultados ejecutados.
+`src/test/java` contiene 115 métodos JUnit compilados (45 clases); 106 casos de
+la edición anterior se ejecutaron en la validación histórica. Los nueve nuevos
+no se ejecutaron. `src/gametest` continúa reservado y sin source set.
+`tools/validation` es el source set aislado `validation`: operaciones/capacidades
+reales, casos de mundo y escenas F9. `compileValidationJava` solo compila;
+`-PnmgValidation` conecta la sonda a perfiles desechables con permiso de ejecución.
+No entra en el JAR normal ni ejecuta casos con `test`/`build`.
+`docs/acceptance` conserva el catálogo de 72 casos y las instrucciones de F9;
+`tools/check_acceptance.py` comprueba su trazabilidad y `tools/compare_profiles.py`
+lee informes de ventanas completas. `docs/evidence` separa código inspeccionado,
+compilación y resultados ejecutados.
 
 El único JAR versionado es el wrapper oficial de Gradle. No se incluyen binarios
 del mod, dependencias descargadas, JDK, cachés ni credenciales. El estado vigente

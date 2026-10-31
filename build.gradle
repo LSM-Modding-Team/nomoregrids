@@ -108,3 +108,46 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// Isolated compile target. No tests, game process or probe JAR runs as a dependency.
+sourceSets {
+    validation {
+        java.srcDir('tools/validation')
+        resources.srcDir('tools/validation/resources')
+        compileClasspath = files(sourceSets.main.output.classesDirs, sourceSets.main.compileClasspath)
+        runtimeClasspath = files(output, compileClasspath)
+    }
+}
+tasks.named('compileValidationJava', JavaCompile).configure {
+    dependsOn tasks.named('compileJava')
+}
+tasks.register('validationJar', Jar) {
+    group = 'verification'
+    description = 'Packages the optional runtime probe; never part of build/test. Requires execution authorization.'
+    archiveClassifier = 'validation-only'
+    from sourceSets.validation.output
+}
+if (providers.gradleProperty('nmgValidation').isPresent()) {
+    def profile = providers.gradleProperty('nmgValidationProfile').getOrElse('default')
+    if (!(profile ==~ /[A-Za-z0-9_-]{1,48}/)) throw new GradleException('Invalid validation profile name')
+    neoForge {
+        runs.configureEach {
+            gameDirectory = layout.projectDirectory.dir("run/validation-${profile}-${name}")
+            systemProperty 'nomoregrids.validation', 'true'
+            systemProperty 'nomoregrids.profileFrames', 'true'
+            systemProperty 'nomoregrids.profileHardware', providers.gradleProperty('nmgHardwareId').getOrElse('')
+            systemProperty 'nomoregrids.profileRevision', providers.gradleProperty('nmgRevision').getOrElse('')
+        }
+        mods {
+            nmg_validation_probe { sourceSet(sourceSets.validation) }
+        }
+        runs {
+            validationServer {
+                server()
+                programArgument '--nogui'
+                systemProperty 'nomoregrids.experimental', 'true'
+                systemProperty 'nomoregrids.validation', 'true'
+            }
+        }
+    }
+}

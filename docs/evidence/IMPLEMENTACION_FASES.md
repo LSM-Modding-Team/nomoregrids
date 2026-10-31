@@ -1068,3 +1068,21 @@ y 120 ticks mantuvieron cero cavidades; tras otro SIGKILL se reconstruyeron las
 dos piezas y sus cuatro celdas. Entrada positiva local: 2048 microvolúmenes sin
 fuente de cubo. Ambos clientes volvieron a conectar e inspeccionaron los UUID.
 La evidencia distingue las mediciones previas de las del código final.
+
+
+## Continuación de matriz y F9 — compilación autorizada
+
+Partiendo de `cc63061`, caché global de cavidades, ventanas finitas de medida,
+contadores públicos, metadatos de hardware/perfil y herramientas opt-in de
+cliente. La continuación añade source set aislado de validación, casos reales
+de mundo/compactación/protocolo, seis escenas F9 y sus seis controles nativos,
+limpieza con identidad/imágenes, comparación de informes y trazabilidad completa
+de los 72 IDs. Notificaciones de sólidos sin familias cercanas evitan reconstruir
+conexiones innecesariamente. No se atribuye una mejora temporal sin medirla.
+
+`compileJava`, `compileTestJava` y `compileValidationJava` correctos; 115 métodos
+JUnit compilados, sin ejecución. No se generó JAR, ejecutó JUnit, arrancó Minecraft
+ni midió F9 en esta continuación. Los resultados de 106 tests y dos clientes
+pertenecen a la entrega anterior. Evidencia, decisiones y límites en
+[MATRIZ_F9_COMPILACION.md](MATRIZ_F9_COMPILACION.md); procedimientos en
+[la matriz trazable](../acceptance/MATRIZ_TRAZABLE.md) y [F9](../acceptance/F9.md).

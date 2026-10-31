@@ -15,10 +15,10 @@ import net.nicomar.nomoregrids.operation.OperationPlan;
 import net.nicomar.nomoregrids.platform.*;
 import net.nicomar.nomoregrids.world.CompositeCellEntity;
 
-/** Test-only mod, compiled manually outside main. Uses an actual disposable ServerLevel. */
+/** Test-only mod in the isolated validation source set. Uses an actual disposable ServerLevel. */
 @Mod("nmg_validation_probe")
 public final class RuntimeProbe {
-    public RuntimeProbe(){NeoForge.EVENT_BUS.addListener(RuntimeProbe::register);}
+    public RuntimeProbe(){if(Boolean.getBoolean("nomoregrids.validation")){NeoForge.EVENT_BUS.addListener(RuntimeProbe::register);ServerBenchmarks.register();WorldAcceptance.register();CheckpointAcceptance.register();ProtocolAcceptance.register();}}
     private static void register(RegisterCommandsEvent event){
         event.getDispatcher().register(Commands.literal("nmg_validation_probe")
             .requires(s->s.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_OWNER))

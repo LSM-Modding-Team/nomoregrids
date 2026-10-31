@@ -1,0 +1,1165 @@
+{
+  "schema": 1,
+  "specification": "docs/obsidian/NoMoreGrids/05 Desarrollo/Matriz de aceptacion.md",
+  "policy": "Source coverage and compilation never imply execution or acceptance. Historical cc63061 evidence is kept separately.",
+  "cases": [
+    {
+      "id": "G01",
+      "case": "Origen -1/16",
+      "expected": "Casilla -1, resto 15",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#negativeCoordinatesAndSectionBoundariesUseFloor"
+      ],
+      "world_sources": [],
+      "procedure": "Colocar/serializar origen (-1,-17,15) en q; comprobar casillas (-1,-2,0), restos (15,15,15) y dueño por floorDiv.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "G02",
+      "case": "Cara exactamente en límite",
+      "expected": "No ocupa casilla de volumen cero",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#cubeOnSlabTouchesTwoCellsAndDoesNotIntersectSupport"
+      ],
+      "world_sources": [],
+      "procedure": "Enumerar un cubo [0,16) y otro [16,32); comprobar una sola casilla por cubo y que una cara en 16 no crea ocupación adicional.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "G03",
+      "case": "Todas las rotaciones y sus inversas",
+      "expected": "Recuperan geometría/datos exactos",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#allRotationsAreUniqueProperAndClosedUnderComposition",
+        "src/test/java/net/nicomar/nomoregrids/persistence/BoxPieceCodecTest.java#allOrientationsRetainIdentityAndExactOrigin"
+      ],
+      "world_sources": [],
+      "procedure": "Para las 24 orientaciones, componer inversa y volver a codificar pieza con pivote no nulo, coordenadas negativas y payload; comparar todos los campos.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "G04",
+      "case": "Dos sólidos tocándose",
+      "expected": "Permitido sin vibración/solapamiento",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#touchingIsAllowedButOneUnitOfPenetrationIsNot"
+      ],
+      "world_sources": [],
+      "procedure": "Colocar dos cubos tocando exactamente una cara; mover una entidad sobre la unión y comprobar colisión continua sin penetración ni vibración.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "G05",
+      "case": "Intersección pequeña positiva",
+      "expected": "Rechazo consistente cliente/servidor",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/PieceIndexTest.java#componentsRemainIndependentAndInvalidChangesLeaveOriginalUntouched"
+      ],
+      "world_sources": [],
+      "procedure": "Invadir una pieza por 1 q; repetir con cliente/revisión obsoletos y comprobar rechazo, inventario y diario sin segundo commit.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "G06",
+      "case": "Rayo a través de hueco",
+      "expected": "Alcanza superficie real posterior accesible",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/BoxRaycastTest.java#rayPassesThroughStairVoidAndStopsAtActualSurface",
+        "src/test/java/net/nicomar/nomoregrids/geometry/ConvexRaycastTest.java#realGapKeepsFirstVisibleSurfaceAndReachIsEnforced"
+      ],
+      "world_sources": [],
+      "procedure": "Mirar una pieza detrás del hueco de una escalera; contrastar selección con un rayo que atraviesa sólido y con alcance excedido.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "O01",
+      "case": "Seis losas canónicas",
+      "expected": "Mitades correctas y sin pérdida",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#slabHasSixDistinctHalvesAndPivotSurvivesRoundTrip"
+      ],
+      "world_sources": [],
+      "procedure": "Colocar las seis mitades de losa, romper cada una y volver a colocar su loot; comprobar forma, orientación y cantidad.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "O02",
+      "case": "Escalera vertical y esquina",
+      "expected": "Geometría y conexiones locales correctas",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/connection/FamilyPortsTest.java#rotatedPortsMaintainContactInEveryFrame"
+      ],
+      "world_sources": [],
+      "procedure": "Crear escalera vertical y dos vecinos para esquinas interiores/exteriores; girar el marco y cambiar un vecino nativo.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "O03",
+      "case": "Modo ampliado apagado/encendido",
+      "expected": "Otras familias cambian solo cuando corresponde",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Con modo ampliado apagado/encendido colocar cubo, tronco, losa y escalera; comprobar seis frentes frente a modos específicos de losas/escaleras.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "P01",
+      "case": "Cubo sobre losa",
+      "expected": "Base 8/16, techo 24/16",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#cubeOnSlabTouchesTwoCellsAndDoesNotIntersectSupport"
+      ],
+      "world_sources": [],
+      "procedure": "Colocar cubo sobre losa inferior y apuntar a ambas piezas; comprobar límites verticales 8..24 q y contacto sin intersección.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "P02",
+      "case": "Superficie 1,5/16",
+      "expected": "Base 2/16 y hueco visible",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#outwardQuantizationLeavesRealGapAndTiesGoPositive"
+      ],
+      "world_sources": [],
+      "procedure": "Usar superficie PB inclinada a 1,5 q; colocar cubo con precisión y medir origen 2 q, hueco de 0,5 q y techo 18 q.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "P03",
+      "case": "Normal negativa",
+      "expected": "Redondeo hacia fuera correcto",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#outwardQuantizationLeavesRealGapAndTiesGoPositive"
+      ],
+      "world_sources": [],
+      "procedure": "Repetir contacto desde caras negativas y coordenadas negativas, incluidos empates tangenciales; comprobar redondeo hacia fuera.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "P04",
+      "case": "Pieza en 8 casillas",
+      "expected": "Una identidad y un loot",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/GeometryTest.java#offsetAtNegativeSectionCornerTouchesEightSections",
+        "src/test/java/net/nicomar/nomoregrids/world/PieceIndexTest.java#multicellPieceHasOneAuthorityAndRemovingItClearsAllReferences"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run eight_cells <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Desplazar cubo 8 q en los tres ejes; guardar/recargar, romper una referencia y comprobar UUID único, ocho referencias retiradas y loot único.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "P05",
+      "case": "Región sin cargar",
+      "expected": "Rechazo sin forzar carga",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Situar candidato cruzando chunk descargado; registrar chunks cargados antes/después y comprobar rechazo sin consumo ni ticket nuevo.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "P06",
+      "case": "Borde/altura del mundo",
+      "expected": "Rechazo de cualquier parte exterior",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Intentar colocar una pieza parcialmente fuera de altura y worldborder; repetir en negativo y con orientación multicelda.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "C01",
+      "case": "Dos losas de materiales distintos",
+      "expected": "Dos componentes seleccionables",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/PieceIndexTest.java#componentsRemainIndependentAndInvalidChangesLeaveOriginalUntouched"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run mixed_slabs <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Colocar losa inferior de piedra y superior de madera en la misma casilla; seleccionar y retirar una conservando la otra y su material.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "C02",
+      "case": "Losas perpendiculares invasivas",
+      "expected": "Rechazo sin consumo",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/PieceIndexTest.java#componentsRemainIndependentAndInvalidChangesLeaveOriginalUntouched"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run mixed_slabs <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Intentar losas perpendiculares con volumen común; comparar inventarios, UUID y revisiones antes/después del rechazo.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "C03",
+      "case": "Escalera + pieza en hueco",
+      "expected": "Valida volumen real",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/BoxRaycastTest.java#rayPassesThroughStairVoidAndStopsAtActualSurface"
+      ],
+      "world_sources": [],
+      "procedure": "Colocar una pieza pequeña dentro del hueco real de escalera; probar otra que invada la parte sólida por 1 q.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "R01",
+      "case": "Corte 16→6+10",
+      "expected": "Conservación exacta",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/material/ConstructionRulesTest.java#cuttingConservesLengthAndRejectsMissingRemainderSpace"
+      ],
+      "world_sources": [],
+      "procedure": "Cortar fragmento de longitud 16 a 6 y comprobar sobrante 10; juntar ambos con datos idénticos y recuperar 16.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "R02",
+      "case": "Inventario sin lugar para sobrante",
+      "expected": "Corte rechazado",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/material/ConstructionRulesTest.java#cuttingConservesLengthAndRejectsMissingRemainderSpace"
+      ],
+      "world_sources": [],
+      "procedure": "Llenar inventario y cortar un stack cuyo sobrante necesita slot; comprobar rechazo total y ausencia de entidades/drops.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "R03",
+      "case": "Unión de fragmentos incompatibles",
+      "expected": "Rechazo",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/material/ConstructionRulesTest.java#incompatibleFragmentsNeverJoinOrChangeTheirSourceStacks"
+      ],
+      "world_sources": [],
+      "procedure": "Intentar unir fragmentos de distinto material, orientación, pintura o payload; comprobar rechazo sin alterar slots.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "R04",
+      "case": "Cristal sin recuperación",
+      "expected": "No produce fragmento prohibido",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Romper cristal/barrotes de cristal con herramienta sin recuperación y con Silk Touch; comprobar que solo el caso permitido produce fragmento.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "I01",
+      "case": "Rotura de pieza compartida",
+      "expected": "Vecina intacta y un loot",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Componer dos piezas, romper una y repetir la intención de red; contar loot una vez y comprobar vecina/revisiones.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "I02",
+      "case": "Reemplazo inválido",
+      "expected": "Sin consumo ni eliminación",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Reemplazar una pieza por otra que invade un vecino o carece de soporte; comparar inventario/cursor y ambas identidades.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "I03",
+      "case": "Reemplazo supervivencia",
+      "expected": "Respeta herramienta/tiempo",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "En supervivencia, reemplazar antes de completar minería y luego con herramienta y duración correctas; repetir cambiando herramienta a mitad.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "I04",
+      "case": "Candidatos detrás de pared",
+      "expected": "No seleccionables",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Intentar elegir candidato detrás de pared opaca y a través de un hueco real; solo el segundo debe ser accesible.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "S01",
+      "case": "Apoyo por punto para base completa",
+      "expected": "Rechazo",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/material/ConstructionRulesTest.java#supportNeedsCompleteCoverageAtActualPlane",
+        "src/test/java/net/nicomar/nomoregrids/simulation/support/SupportPatchesTest.java#carpetCanSpanTwoSupportsButNotOneQuantumGap"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run support <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Poner alfombra de huella completa sobre apoyo de media huella/punto y luego sobre dos apoyos que cubren toda la base.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "S02",
+      "case": "Pérdida de apoyo",
+      "expected": "Solo dependientes afectados",
+      "unit_sources": [],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run support <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Retirar por Level.setBlock un apoyo nativo de alfombra multicelda; avanzar ticks y comprobar solo dependientes retirados y recibo durable de loot.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "S03",
+      "case": "Ciclo de apoyos sin base estable",
+      "expected": "Rechazo",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/material/ConstructionRulesTest.java#supportNeedsCompleteCoverageAtActualPlane"
+      ],
+      "world_sources": [],
+      "procedure": "Construir cadena de apoyos con raíz estable, quitar raíz y probar ciclo sin raíz; repetir con carteles colgantes.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "S04",
+      "case": "Conexiones que no convergen",
+      "expected": "Aborto sin estados alternantes",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Construir una cadena de 129 vallas nativas y una edición que requiera capturar todo el cierre; comprobar rechazo por límite sin consumo y originales intactos. Para una topología que oscile, registrar estados y verificar aborto en 16 pasadas, sin publicar estados intermedios.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "L01",
+      "case": "Dos emisores en una casilla",
+      "expected": "Máximo, no suma",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/light/CellLightingTest.java#emittersUseMaximumAndTwoHalvesSealOnlyTheirUnion"
+      ],
+      "world_sources": [],
+      "procedure": "Componer dos emisores de niveles distintos; comprobar emisión máxima, no suma, antes/después de recargar.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "L02",
+      "case": "Caras internas ocultas",
+      "expected": "No borran datos de material",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/material/ConstructionRulesTest.java#internalBoxFacesAreRemovedWithoutChangingGeometry"
+      ],
+      "world_sources": [],
+      "procedure": "Pintar dos caras que queden ocultas al componer; separar piezas y comprobar que la pintura reaparece y la geometría persistente no cambió.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "F01",
+      "case": "Composición con fluido/perfil no disponible",
+      "expected": "Rechazo antes de consumir",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Intentar composición con fluido de un mod sin adaptador y con datos sustitutos; comprobar mensaje/rechazo y conservar agua/material.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "F02",
+      "case": "Agua en cavidad",
+      "expected": "Conservación y conectividad",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityTest.java#redistributionConservesVolumeAndLeavesCallerUntouched",
+        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityRelaxationTest.java#persistedBoundaryDistancesFeedThenDrainAnIsolatedCorridor"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/RuntimeProbe.java",
+          "command": "nmg_validation_probe wet_check",
+          "scope": "partial: immediate half cavity and no bucket source"
+        }
+      ],
+      "procedure": "Introducir agua en media cavidad, seguir flujo, guardar/recargar y cerrar un paso; comprobar máscaras, conectividad y ausencia de invasión sólida.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "F03",
+      "case": "Cubos y fuentes parciales",
+      "expected": "Sin duplicación de cubos",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityTest.java#bucketCannotRecoverPartialWater",
+        "src/test/java/net/nicomar/nomoregrids/persistence/CavityCodecTest.java#neverTurnsPartialFlowIntoABucketSource"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/RuntimeProbe.java",
+          "command": "nmg_validation_probe wet_check",
+          "scope": "partial: immediate half cavity and no bucket source"
+        }
+      ],
+      "procedure": "Recoger y vaciar cubo en fuente completa y cavidad parcial; probar inventario lleno, repetición de paquete y creativo.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "F04",
+      "case": "Reacción en hueco insuficiente",
+      "expected": "Conserva estado, no invade sólido",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Hacer contactar agua/lava en hueco que no admite bloque de reacción y luego en uno completo; comprobar conservación o producto representable.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "F05",
+      "case": "Red de fluido de más de 256 celdas",
+      "expected": "Ventanas progresan con fronteras/revisiones sin publicar trabajo incompleto",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityTest.java#spentBudgetDoesNotPublishPartialDrain"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/ServerBenchmarks.java",
+          "command": "nmg_bench start fluids320 <anchor>",
+          "scope": "320 cells with native boundary sources; no assumed success"
+        }
+      ],
+      "procedure": "Preparar fluids320 con fuentes y cerramiento; medir avance de ventanas y checkpoints, descargar/cargar fronteras y comprobar progreso de más de 256 celdas.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "F06",
+      "case": "Entidad con envolvente de más de 512 celdas",
+      "expected": "Consulta dispersa conserva contactos corporales/ojos y corrientes por tipo",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityContactsTest.java#negativeCoordinatesAndMixedFluidsKeepEyeIdentity"
+      ],
+      "world_sources": [],
+      "procedure": "Usar una entidad con envolvente superior a 512 casillas y contactos agua/lava; contrastar cuerpo, ojos y corrientes con geometría dispersa.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M01",
+      "case": "Dos contenedores funcionales",
+      "expected": "Inventarios independientes",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/functional/FunctionalStoreTest.java#referencesResolveToOneAuthorityAndStaleEditsAreRejected",
+        "src/test/java/net/nicomar/nomoregrids/simulation/functional/FunctionalStoreTest.java#multiplePortsAtSameContactDoNotMergeInventories"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run barrels <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Componer dos barriles que comparten host; transferir a un puerto expuesto, abortar/confirmar y comprobar slots independientes y host ambiguo rechazado.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M02",
+      "case": "Pistón toca pieza multicelda",
+      "expected": "Una pieza movida, no fragmentada",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/movement/MechanismTest.java#pistonMovesWholeOffsetPieceAndRejectsSweepObstruction"
+      ],
+      "world_sources": [],
+      "procedure": "Empujar componente que ocupa varias casillas; comprobar UUID/revisión, referencias, barrido y vuelta del pistón pegajoso.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M03",
+      "case": "13 componentes en empuje",
+      "expected": "Movimiento bloqueado",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/movement/MechanismTest.java#thirteenComponentsDoNotBecomeTwelveCells"
+      ],
+      "world_sources": [],
+      "procedure": "Preparar cadena de 12 y 13 componentes, incluidos miembros de puerta; solo el cierre dentro de 12 puede moverse.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M04",
+      "case": "Trayectoria obstruida",
+      "expected": "Bloqueo aunque destino esté vacío",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/ConvexSweepTest.java#extrusionRetainsSlopeAndNewEdgeFacets"
+      ],
+      "world_sources": [],
+      "procedure": "Obstruir el volumen barrido intermedio dejando destino libre; repetir con PB convexo, entidades y slime/miel.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M05",
+      "case": "Redstone compartiendo casilla",
+      "expected": "Sin conexión accidental",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Poner polvo y fuentes en una casilla con puertos separados; mover hasta contacto exacto y comprobar que solo entonces hay señal.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M06",
+      "case": "Menú con cursor/drag/autofill/XP y cierre durante movimiento",
+      "expected": "Recibo único; contenidos, cursor y experiencia conservados",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/functional/ExperienceProgressTest.java#preservesFractionAcrossLevelBoundary"
+      ],
+      "world_sources": [],
+      "procedure": "En cada menú soportado usar clic, drag, shift-click, autofill y extracción con XP; cerrar/desconectar/mover mientras hay cursor y verificar slots/XP/recibo.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M07",
+      "case": "Transferencia NeoForge abortada/confirmada y entre dimensiones",
+      "expected": "Rollback o un commit; conexión entre dimensiones rechazada",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/functional/FunctionalStoreTest.java#multiplePortsAtSameContactDoNotMergeInventories"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run barrels <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Con ResourceHandler real probar commit, abort y transacción anidada; repetir con energía soportada y otro nivel para comprobar rechazo entre dimensiones.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M08",
+      "case": "Puerta/cama compartida movida/reemplazada/ocupada",
+      "expected": "Dos miembros coherentes y barrido seguro; dormir/respawn solo en marco válido",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/GroupAuthorityTest.java#completeGroupCanBeCreatedAndMovedButNeverSplit"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run doors <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Colocar, abrir, reemplazar y retirar puertas/camas/trampillas; bloquear barrido con entidad; dormir, ocupar, despertar y respawn con marco válido/inválido.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M09",
+      "case": "Vagón entre raíl nativo y convertido, curva/pendiente",
+      "expected": "Extremos/tangentes continuos; detectores/activadores y colisiones correctos",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/movement/RailPathTest.java#matchingEndpointsAllowARealTurnAndAOneQuantumGapDoesNot",
+        "src/test/java/net/nicomar/nomoregrids/simulation/movement/RailPathTest.java#ascendingEndpointMatchesTheNextBlockAndDistanceRoundTrips"
+      ],
+      "world_sources": [],
+      "procedure": "Recorrer con vagón recta, curva y pendiente nativa/NMG; añadir hueco de 1 q, ambigüedad, propulsor, detector y activador.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "M10",
+      "case": "Pulso corto de repetidor y descarga/carga de la red",
+      "expected": "Flancos/retardos persistidos, sin conducción por compartir host",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/simulation/redstone/CircuitTimingTest.java#deferredShortPulseCompletesBothObservableRepeaterEdges",
+        "src/test/java/net/nicomar/nomoregrids/simulation/redstone/CircuitTimingTest.java#torchInvertsAfterTwoTicksAndLockedRepeaterHoldsItsOutput"
+      ],
+      "world_sources": [],
+      "procedure": "Enviar pulso corto a repetidor, bloquearlo lateralmente y probar antorcha/burnout; descargar y recargar chunk con eventos pendientes.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B01",
+      "case": "PB forma losa horizontal/vertical",
+      "expected": "Apoyo real, identidad PB",
+      "unit_sources": [],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run pb_quarter <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Crear PB con altura/anchura mitad, desplazarlo y apoyar bloque sobre su cara real; verificar identidad y loot PB.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B02",
+      "case": "PB altura 4/16",
+      "expected": "Cubo a 4/16–20/16",
+      "unit_sources": [],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run pb_quarter <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Crear PB de altura 4 q y colocar cubo encima; comprobar contacto 4 q, techo 20 q y selección de ambas piezas.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B03",
+      "case": "PB pintura en diseño desplazado",
+      "expected": "Superficie correcta",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Pintar una superficie de PB desplazado y una región mixta nativa/NMG; comprobar coordenadas locales y costes reales de pigmento.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B04",
+      "case": "PB pendiente y giro",
+      "expected": "Geometría/pintura no se rotan dos veces",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/geometry/ConvexVolumeTest.java#slopeUsesActualVolumeInsteadOfBoundingBox"
+      ],
+      "world_sources": [],
+      "procedure": "Aplicar pendiente, orientación nativa PB y giro NMG; comprobar colisión, render y pintura sin doble rotación tras guardar.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B05",
+      "case": "PB edición invade pieza",
+      "expected": "Rechazo antes de coste",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Ampliar diseño PB hacia otra pieza; comprobar rechazo antes de pigmento/material y revisión sin cambiar.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B06",
+      "case": "PB herramienta de recuperación",
+      "expected": "Datos/loot del origen",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Recuperar PB con herramienta del origen; comparar diseño, orientación, pinturas, cantidades y datos del ítem.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B07",
+      "case": "Volumen/pintura PB mixtos nativos y NMG",
+      "expected": "Selección fijada; coste/loot y geometría validados en un plan",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Seleccionar volumen con PB nativo y convertido; editar, cambiar revisión/hash antes de confirmar y comprobar commit único o rechazo completo.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "B08",
+      "case": "Estación/máquina/cubo PB con menú y automatización",
+      "expected": "Producción y contenidos privados únicos, guardado y recuperación",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Usar estaciones, máquina y cubo PB con menú/recetas/automatización; mover, guardar y recuperar sin duplicar inventarios/producción.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "N01",
+      "case": "Dos jugadores misma revisión",
+      "expected": "Un commit; otro desactualizado",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/PieceIndexTest.java#staleRevisionAndDuplicateIdentityAreRejected"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run stale_revision <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Dos jugadores apuntan a la misma revisión y envían ediciones incompatibles; comprobar un único ganador y respuesta obsoleta al otro.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "N02",
+      "case": "Repetir paquete de operación",
+      "expected": "Sin segundo consumo/loot",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/operation/OperationEngineTest.java#duplicateIntentDoesNotConsumeTwice"
+      ],
+      "world_sources": [],
+      "procedure": "Reenviar exactamente la intención de colocación/rotura ya confirmada; comprobar mismo resultado sin segundo cobro o loot, incluso tras checkpoint.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "N03",
+      "case": "Delta fuera de orden",
+      "expected": "Resync sin corrupción",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/network/CellDeltaTest.java#replacementRemovalAndNewIdentityRequireTheExactBase"
+      ],
+      "world_sources": [],
+      "procedure": "Reordenar/perder delta y cambiar hash base; comprobar snapshot de resync, límites de ensamblado y réplica final igual al servidor.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "N04",
+      "case": "Payload excesivo",
+      "expected": "Rechazo antes de asignación grande",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/network/SnapshotAssemblerTest.java#budgetAndHashAreEnforced"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/ProtocolAcceptance.java",
+          "command": "nmg_protocol_test",
+          "scope": "real registry-aware codec only; socket stability is a separate procedure"
+        }
+      ],
+      "procedure": "Enviar frames/payloads excesivos y cabeceras inconsistentes mediante fixture de protocolo; comprobar rechazo previo a asignación grande y conexión estable.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D01",
+      "case": "Guardar/cargar fronteras",
+      "expected": "Referencias y piezas idénticas",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/persistence/SectionStoreTest.java#authoritativeSectionRoundTripAndCorruptionRetention"
+      ],
+      "world_sources": [],
+      "procedure": "Guardar piezas con ocho referencias y límites negativos; descargar/cargar chunks en distinto orden y verificar dueño/referencias/revisiones.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D02",
+      "case": "Crash antes/después de commit",
+      "expected": "Descartar/reproducir según diario",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/persistence/DurableJournalProcessTest.java#committedOperationSurvivesForciblyKilledWriterWithoutDoubleCommit",
+        "src/test/java/net/nicomar/nomoregrids/persistence/DurableJournalTest.java#tornTailIsRetainedRatherThanOverwritten"
+      ],
+      "world_sources": [],
+      "procedure": "Terminar escritor antes del commit y después del ack durable en mundo desechable; reiniciar y comparar autoridad con el último commit probado.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D03",
+      "case": "Crash entre inventario y chunk",
+      "expected": "Recibo o cuarentena; nunca replay ciego",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/operation/OperationEngineTest.java#postCommitFailureQuarantinesAndRecoveryUsesReceiptImage"
+      ],
+      "world_sources": [],
+      "procedure": "Cortar entre recibo de inventario y chunk; reconectar actor y comprobar aplicación única o cuarentena conservando originales.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D04",
+      "case": "Falta mod/adaptador",
+      "expected": "Sustitución conservada y recuperable",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/persistence/WorldRulesTest.java#missingAdapterKeepsItsVersionAndChangedVersionNeedsMigration"
+      ],
+      "world_sources": [],
+      "procedure": "Guardar PB/funcionales, quitar adaptador y cargar copia; reinstalar versión exacta y comprobar diseño/slots sin sustituto persistido como original.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D05",
+      "case": "Versión de datos futura",
+      "expected": "No sobrescribe ni rebaja",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/persistence/BoxPieceCodecTest.java#unknownVersionIsPreservedVerbatimWithoutInterpretingBody",
+        "src/test/java/net/nicomar/nomoregrids/persistence/WorldRulesTest.java#unknownSchemaIsRetained"
+      ],
+      "world_sources": [],
+      "procedure": "Inyectar schema futuro en copia de diario/sección/BE; comprobar rechazo/protección y archivos originales byte-idénticos.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D06",
+      "case": "Chunk nativo antiguo después de transferir/mover máquina",
+      "expected": "Reparación o cuarentena antes de ticks/acceso; sin drops/XP duplicados",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/persistence/NativeCaptureStampTest.java#operationPersistsTheOriginalCellOfAnAlreadyMovedNativeCapture"
+      ],
+      "world_sources": [],
+      "procedure": "Restaurar chunk nativo anterior a captura/movimiento de máquina; intentar tick, hopper y menú antes de reparación; sin segunda autoridad, drops o XP.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D07",
+      "case": "Corte después del commit del mod externo y antes del recibo propio",
+      "expected": "Intent conservado; reconciliar prueba externa sin replay ciego",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Cortar después del commit del mod externo antes del propio; comprobar intent conservado y exigir prueba externa, sin replay ni devolución ciega.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "D08",
+      "case": "Compactación automática con escrituras simultáneas y corte de publicación",
+      "expected": "Prefijo/cola y deduplicación recuperados desde generación durable",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/persistence/JournalArchiveTest.java#sealedCheckpointCanReceiveAnIncrementalTailBeforePublication",
+        "src/test/java/net/nicomar/nomoregrids/persistence/JournalArchiveTest.java#aDamagedPreparedCheckpointCannotReplaceTheManifest"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/CheckpointAcceptance.java",
+          "command": "nmg_checkpoint_test <anchor>",
+          "scope": "worker + live movement tail; forced-stop publication still separate"
+        }
+      ],
+      "procedure": "Ejecutar checkpoint automático con movimientos mientras worker prepara prefijo/cola; verificar deduplicación y réplica, y cortar también publicación en copia.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "Q01",
+      "case": "Permiso denegado en una casilla",
+      "expected": "Toda operación rechazada",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/operation/OperationEngineTest.java#rejectionHasNoDurableCommitOrResourceChange"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/WorldAcceptance.java",
+          "command": "nmg_accept run protection <anchor>",
+          "scope": "partial: only assertions in that case; procedure remains required"
+        }
+      ],
+      "procedure": "Cancelar BeforeOperationEvent cuando solo una celda del plan esté protegida; comprobar plan completo rechazado y recibos/journal intactos.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "Q02",
+      "case": "Límite reducido con piezas existentes",
+      "expected": "No borra; permite reducir",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/PieceIndexTest.java#loweringLimitsAllowsRemovalAndDoesNotEraseExistingPieces"
+      ],
+      "world_sources": [],
+      "procedure": "Cargar construcción bajo límite anterior y reducir máximo; permitir retirada/reducción y rechazar crecimiento sin borrar existentes.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "Q03",
+      "case": "Servidor dedicado",
+      "expected": "Sin cargar clases de cliente",
+      "unit_sources": [],
+      "world_sources": [],
+      "procedure": "Arrancar dedicado sin librerías de cliente activadas y con/sin PB; revisar mezcla de clases, registro y carga de datos.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    },
+    {
+      "id": "Q04",
+      "case": "Escenas de rendimiento",
+      "expected": "Métricas y hardware documentados",
+      "unit_sources": [
+        "src/test/java/net/nicomar/nomoregrids/world/LargeSceneIndexTest.java#tenThousandPieceWallBuildsAndRemovesInBoundedTransactions",
+        "src/test/java/net/nicomar/nomoregrids/world/LargeSceneIndexTest.java#denseSectionChecksTheRealUncompressedCodecBudget",
+        "src/test/java/net/nicomar/nomoregrids/diagnostic/MeasurementWindowTest.java#warmupAndLaterFramesCannotAlterTheMeasuredInterval"
+      ],
+      "world_sources": [
+        {
+          "file": "tools/validation/ServerBenchmarks.java",
+          "command": "nmg_bench start <scene> <anchor>",
+          "scope": "paired native controls + full tick windows; client windows and four actors are additional inputs"
+        }
+      ],
+      "procedure": "Ejecutar escenas F9 y controles nativos equivalentes, cuatro clientes para carga, ventanas cliente/servidor completas y comparación con hardware/revisión idénticos.",
+      "required_evidence": [
+        "revision/platform + setup + observed result + artifact",
+        "full procedure (unit or world subset is not full-case acceptance)"
+      ],
+      "status": "PENDING_EXECUTION_OR_REVIEW"
+    }
+  ]
+}

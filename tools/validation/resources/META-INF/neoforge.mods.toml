@@ -1,0 +1,5 @@
+license="MIT"
+[[mods]]
+modId="nmg_validation_probe"
+version="1.0"
+displayName="NMG Runtime Validation Probe (test worlds only)"

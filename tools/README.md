@@ -18,6 +18,13 @@ proporcionados localmente. Solo lee ZIP y texto; no descarga, resuelve dependenc
 compila ni ejecuta Java. No valida métodos, comodines ni extensiones parcheadas.
 Los artefactos inspeccionados se mantienen fuera de Git.
 
-`tools/validation/RuntimeProbe.java` es una sonda manual para un servidor real
-y un mundo desechable. No se ejecuta automáticamente ni entra en el JAR.
+`python tools/check_acceptance.py` comprueba los 72 IDs contra la especificación,
+sus expectativas y las referencias a métodos/fuentes. No ejecuta los casos ni
+concede aceptación. `python tools/compare_profiles.py` lee informes reales para
+comparar escenas F9 equivalentes; rechaza ventanas incompletas y perfiles distintos.
+Ver [procedimiento F9](../docs/acceptance/F9.md).
+
+`tools/validation` contiene sondas de un servidor real y escenas F9 en un mundo
+desechable. El source set `validation` se compila con `compileValidationJava`,
+sin ejecutar tests ni runs. No entra en el JAR normal.
 Requiere autorización explícita; consultar [sus instrucciones](validation/README.md).

@@ -82,3 +82,14 @@ Estado inicial de todos los casos: NO EJECUTADO. Esta tabla especifica pruebas f
 Pruebas unitarias del núcleo geométrico; integración con mundo y adaptadores; pruebas en cliente y servidor dedicado; inyección de fallos de guardado; sesiones manuales para controles/render. No basta con pruebas que repitan las constantes de la implementación.
 
 Cada resultado debe registrar versión, pasos, esperado, observado y evidencia. Las pruebas visuales incluyen capturas internas cuando sean útiles, sin incorporarlas automáticamente como recursos del mod.
+
+## Continuación con compilación autorizada
+
+Los 72 IDs se mantienen sin alterar expectativas. El catálogo
+`docs/acceptance/catalog.json` y su vista `docs/acceptance/MATRIZ_TRAZABLE.md`
+conectan cada caso con procedimientos, fuentes y evidencia requerida.
+`python tools/check_acceptance.py` comprueba trazabilidad, sin ejecutar casos.
+Las fuentes JVM y sondas reales cubren subconjuntos; no equivalen a 72 pruebas
+automatizadas. Las escenas de Q04 y el procedimiento de F9 están en
+`docs/acceptance/F9.md`. La entrega actual compila Java principal, tests y sondas;
+no ejecuta las ampliaciones ni concede aceptación.

@@ -19,6 +19,12 @@ class ConstructionRulesTest {
         assertThrows(IllegalArgumentException.class,()->FragmentEconomy.take(List.of(Optional.of(new FragmentEconomy.Stack(key,16,2))),key,6,false));
         assertEquals(16,FragmentEconomy.join(cut.placed(),cut.inventory().getFirst().orElseThrow()).length());
     }
+    @Test void incompatibleFragmentsNeverJoinOrChangeTheirSourceStacks(){
+        var block=new ResourceId("minecraft:glass");var family=new ResourceId("nomoregrids:panel");var key=new FragmentEconomy.Key(block,family,0,BinaryData.EMPTY);var left=new FragmentEconomy.Stack(key,6,1);
+        for(var other:List.of(new FragmentEconomy.Key(new ResourceId("minecraft:stone"),family,0,BinaryData.EMPTY),new FragmentEconomy.Key(block,new ResourceId("nomoregrids:bars"),0,BinaryData.EMPTY),new FragmentEconomy.Key(block,family,1,BinaryData.EMPTY),new FragmentEconomy.Key(block,family,0,new BinaryData(new byte[]{1})))){
+            var right=new FragmentEconomy.Stack(other,10,1);assertThrows(IllegalArgumentException.class,()->FragmentEconomy.join(left,right));assertEquals(6,left.length());assertEquals(10,right.length());
+        }
+    }
     @Test void supportNeedsCompleteCoverageAtActualPlane(){
         var required=new Patch(Direction6.DOWN,8,0,0,16,16);
         var left=new Patch(Direction6.UP,8,0,0,8,16);var right=new Patch(Direction6.UP,8,8,0,16,16);

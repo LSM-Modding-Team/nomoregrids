@@ -6,7 +6,7 @@ Minecraft Java 26.2 · NeoForge 26.2.0.88 · documentación en español.
 
 No More Grids elimina la exclusividad de las casillas: varias piezas pueden compartir una casilla y una pieza puede extenderse entre varias. Cada componente conserva su identidad y sus propiedades. El ajuste de posición es de 1/16 de bloque; la geometría puede ser más precisa.
 
-> Estado: implementación experimental en F0–F9, con perfiles de construcción e integraciones avanzadas conectados al mundo, pendientes de validación. Validación puntual con compilación, 106 tests, cliente/dedicado, dos clientes locales y recuperación de una escena pequeña ejecutados; sin revisión visual ni aceptación completa. El estado consolidado está en `docs/ESTADO_DESARROLLO.md`; ninguna fase está aceptada.
+> Estado: implementación experimental en F0–F9, con perfiles de construcción e integraciones avanzadas conectados al mundo, pendientes de validación. Validación puntual con compilación, 106 tests, cliente/dedicado, dos clientes locales y recuperación de una escena pequeña ejecutados; sin revisión visual ni aceptación completa. La matriz tiene 72 procedimientos trazados y F9 dispone de escenas/control e instrumentación compilados, pendientes de ejecución. El estado consolidado está en `docs/ESTADO_DESARROLLO.md`; ninguna fase está aceptada.
 
 ## Leer primero
 
@@ -29,7 +29,7 @@ No More Grids elimina la exclusividad de las casillas: varias piezas pueden comp
 
 ## Cómo abrir
 
-Extraer el proyecto y abrir docs/obsidian/NoMoreGrids como bóveda en Obsidian. No se necesitan complementos comunitarios. Los enlaces internos son wikilinks con nombres únicos. Esta bóveda ya está ubicada en docs/obsidian/NoMoreGrids dentro del proyecto Gradle. La base contiene núcleo geométrico, registros técnicos y host experimental; todavía no ha sido compilada.
+Extraer el proyecto y abrir docs/obsidian/NoMoreGrids como bóveda en Obsidian. No se necesitan complementos comunitarios. Los enlaces internos son wikilinks con nombres únicos. Esta bóveda ya está ubicada en docs/obsidian/NoMoreGrids dentro del proyecto Gradle. La base contiene núcleo geométrico, registros técnicos y host experimental; la compilación actual y los resultados históricos están separados en `docs/ESTADO_DESARROLLO.md`.
 
 Las propuestas del chat están aceptadas por defecto, salvo rechazo explícito del usuario. Las decisiones de esta edición precisan las ambigüedades restantes. Consultar [[Decisiones tecnicas]] para conocer sus consecuencias.
 

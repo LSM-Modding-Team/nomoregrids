@@ -12,7 +12,7 @@ except ImportError:
 root = Path(__file__).resolve().parents[1]
 parser = Parser(Language(tree_sitter_java.language()))
 failed = False
-paths = sorted((root / "src").rglob("*.java"))
+paths = sorted([*(root / "src").rglob("*.java"), *(root / "tools/validation").rglob("*.java")])
 for path in paths:
     tree = parser.parse(path.read_bytes())
     if not tree.root_node.has_error:

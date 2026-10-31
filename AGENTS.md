@@ -9,7 +9,7 @@
 - Gradle 9.2.1; ModDevGradle 2.0.148
 
 ## Estado y alcance
-El usuario autorizó implementar F0–F9. Hubo una autorización puntual de validación ejecutada, documentada en docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md; no se hereda para tareas posteriores. La falta de aceptación no bloquea escribir las fases posteriores. No declarar aceptación, compatibilidad ni rendimiento medido sin evidencia. No crear registros ficticios, bloques de ejemplo ni pruebas que simulen funciones ausentes.
+El usuario autorizó implementar F0–F9. Hubo una autorización puntual de validación ejecutada, documentada en docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md; no se hereda para tareas posteriores. La continuación de matriz/F9 está compilada (main/test/validation); esa excepción puntual solo permitió compilar Java, sin ejecutar ampliaciones ni generar JAR. Consultar docs/evidence/MATRIZ_F9_COMPILACION.md y docs/acceptance. No se hereda autorización de compilación para tareas futuras. La falta de aceptación no bloquea escribir las fases posteriores. No declarar aceptación, compatibilidad ni rendimiento medido sin evidencia. No crear registros ficticios, bloques de ejemplo ni pruebas que simulen funciones ausentes.
 
 Leer docs/obsidian/NoMoreGrids/00 Inicio/Inicio.md, Reglas fundamentales, Decisiones tecnicas, Guia para el agente y Plan de fases antes de implementar. Resolver decisiones rutinarias sin preguntar y explicarlas después del commit. Se conserva la restricción de ejecución de abajo.
 
