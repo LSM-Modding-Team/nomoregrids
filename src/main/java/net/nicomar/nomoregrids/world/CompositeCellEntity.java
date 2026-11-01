@@ -26,7 +26,7 @@ public final class CompositeCellEntity extends BlockEntity {
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     @Override public void onLoad(){super.onLoad();LoadedCells.add(this);}
     @Override public void setRemoved(){LoadedCells.remove(this);super.setRemoved();if(view.cavity().isPresent())invalidateNeighborMeshes();}
-    private void invalidateNeighborMeshes(){if(level!=null&&level.isClientSide())for(var direction:Direction.values()){var neighbor=worldPosition.relative(direction);if(level.isLoaded(neighbor)&&level.getBlockEntity(neighbor) instanceof CompositeCellEntity){var state=level.getBlockState(neighbor);level.sendBlockUpdated(neighbor,state,state,Block.UPDATE_CLIENTS);}}}
+    private void invalidateNeighborMeshes(){if(level!=null&&level.isClientSide()){var positions=new ArrayList<BlockPos>();for(var direction:Direction.values())positions.add(worldPosition.relative(direction));for(int x:new int[]{-1,1})for(int z:new int[]{-1,1})positions.add(worldPosition.offset(x,0,z));for(var neighbor:positions)if(level.isLoaded(neighbor)&&level.getBlockEntity(neighbor) instanceof CompositeCellEntity){var state=level.getBlockState(neighbor);level.sendBlockUpdated(neighbor,state,state,Block.UPDATE_CLIENTS);}}}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(!view.occupied())throw new IllegalArgumentException("Empty cells must be restored to air");

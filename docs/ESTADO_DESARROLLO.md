@@ -209,3 +209,11 @@ Las cavidades sin piezas que coinciden exactamente con una fuente o un nivel
 nativo pueden transferirse a Minecraft junto con la eliminación transaccional de
 la autoridad NMG. Los patrones parciales no representables siguen en cavidades.
 El puente y sus limitaciones están en `docs/evidence/TRANSICION_FLUIDOS_2026-10-31.md`.
+
+### Superficies y fronteras de fluido (2026-10-31)
+
+Las columnas de fluido sin obstáculos y conectadas al fondo disponen de una
+superficie visual interpolada a partir de sus vecinos, incluidos líquidos nativos.
+Las cavidades con sólidos, mezclas o huecos internos conservan la malla exacta.
+Las fronteras completamente cubiertas por líquido nativo se ocultan de forma
+conservadora. Véase `docs/evidence/SUPERFICIES_FLUIDO_2026-10-31.md`.
