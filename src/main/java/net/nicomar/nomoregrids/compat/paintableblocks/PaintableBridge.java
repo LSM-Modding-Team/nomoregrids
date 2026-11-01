@@ -92,7 +92,7 @@ public final class PaintableBridge {
                 if(x0< -ConvexVolume.EPS||y0< -ConvexVolume.EPS||z0< -ConvexVolume.EPS||x1>16+ConvexVolume.EPS||y1>16+ConvexVolume.EPS||z1>16+ConvexVolume.EPS)throw new IllegalArgumentException("PB atomic geometry outside its frame");
                 conservative.add(Box16.of(Math.max(0,(long)Math.floor(x0)),Math.max(0,(long)Math.floor(y0)),Math.max(0,(long)Math.floor(z0)),Math.min(16,(long)Math.ceil(x1)),Math.min(16,(long)Math.ceil(y1)),Math.min(16,(long)Math.ceil(z1))));
             }
-            var mask=net.nicomar.nomoregrids.simulation.fluid.CavityCell.blocked(new BoxUnion(conservative));var occupation=MicroBoxes.pack(mask);return new BoxGeometrySnapshot(occupation,collision,occupation);
+            var mask=net.nicomar.nomoregrids.geometry.MicroBoxes.mask(new BoxUnion(conservative));var occupation=MicroBoxes.pack(mask);return new BoxGeometrySnapshot(occupation,collision,occupation);
         }catch(ReflectiveOperationException ex){throw mismatch(ex);}
     }
     public BoxUnion support(BinaryData payload){try{return NativeStates.boxes((VoxelShape)geometry.getMethod("supportShape",design).invoke(null,adapter.restore(payload)));}catch(ReflectiveOperationException ex){throw mismatch(ex);}}

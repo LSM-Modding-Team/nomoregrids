@@ -22,7 +22,7 @@ public final class WorldConnections {
     }
     public static void complete(ServerLevel level,PieceIndex before,ArrayList<OperationPlan.Change> changes,VanillaCatalog catalog,Set<CellPos> observed){
         // External notifications on plain solids cannot change family topology. Avoid
-        // rebuilding the whole authority; support and fluid observers run separately.
+        // rebuilding the whole authority; support observers run separately.
         Set<CellPos> relevant=new HashSet<>(observed);boolean changedFamily=false;
         for(var change:changes){change.nativeSource().ifPresent(relevant::add);for(var side:List.of(change.before(),change.after()))if(side.isPresent()){var p=side.orElseThrow();relevant.addAll(p.worldOccupation().cells(8));changedFamily|=FamilyPorts.family(p)!=Family.NONE;}}
         if(!changedFamily&&WorldSupport.nearby(before,relevant).stream().map(before.records()::get).noneMatch(p->FamilyPorts.family(p)!=Family.NONE))return;

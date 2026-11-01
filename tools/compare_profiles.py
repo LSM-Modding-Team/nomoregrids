@@ -3,7 +3,7 @@
 import argparse,json,math,re
 from pathlib import Path
 
-COUNTS={'wall10000':10000,'dense4096':4096,'pb256':256,'boundary8':512,'fluids256':256,'fluids320':320}
+COUNTS={'wall10000':10000,'dense4096':4096,'pb256':256,'boundary8':512}
 def require(condition,message):
     if not condition:raise ValueError(message)
 def finite(value):return isinstance(value,(int,float)) and not isinstance(value,bool) and math.isfinite(value)
@@ -33,7 +33,6 @@ def compare(base,scene,base_client,scene_client,loads):
     require(base.get('players')==scene.get('players'),'Player count differs')
     for key in ['profileHash','minecraft','neoforge','anchor','mods']:require(key in scene and base.get(key)==scene[key],key+' differs or is missing')
     require(base['tickWindow']['warmupSamples']==scene['tickWindow']['warmupSamples'],'Warmup differs')
-    if name.startswith('fluids'):require(scene.get('activeCavitiesAtEnd',0)>=COUNTS[name],'Fluid scene lost its active cavity workload')
     result={'schema':1,'scene':name,'comparableServer':True,'serverP95Ms':scene['tickWindow']['p95Nanos']/1e6,'serverThresholdPass':scene['tickWindow']['p95Nanos']<=50e6,'clientComparison':None,'fourActorLoad':None,'f9Certified':False}
     if base_client is not None or scene_client is not None:
         require(base_client is not None and scene_client is not None,'Provide both client reports')
@@ -46,7 +45,7 @@ def compare(base,scene,base_client,scene_client,loads):
             window(client.get('frameInterval',{}),600);window(client.get('cpuRender',{}),600)
             sa,sb=interval(server);ca,cb=interval(client);require(sa-1000<=ca<cb<=sb+1000,'Client window is outside its server measurement (synchronize clocks)')
         for key in ['gpu','graphicsBackend','gpuDriver','options','yaw','pitch','mods']:require(key in base_client and base_client[key]==scene_client.get(key),key+' differs')
-        offset=0 if name.startswith('fluids') else .5
+        offset=.5
         a,b=base_client.get('camera'),scene_client.get('camera');require(isinstance(a,list) and isinstance(b,list) and len(a)==len(b)==3,'Camera metadata')
         require(all(finite(x) for x in a+b),'Camera values')
         require(abs(b[0]-a[0]-offset)<.011 and abs(b[1]-a[1])<.011 and abs(b[2]-a[2])<.011,'Camera must compensate the scene offset')

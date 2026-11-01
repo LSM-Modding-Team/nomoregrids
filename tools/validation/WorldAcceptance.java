@@ -48,7 +48,7 @@ final class WorldAcceptance {
         Fixture(ServerLevel level,BlockPos at)throws Exception{
             this.level=level;this.at=at;service=NmgRuntime.require(level);
             require((at.getX()&15)==0&&(at.getY()&15)==0&&(at.getZ()&15)==0,"Case anchor must be section aligned (owner migration case)");
-            require(service.snapshot().records().isEmpty()&&service.fluids().snapshot().isEmpty(),"Use a fresh empty authority per case");
+            require(service.snapshot().records().isEmpty(),"Use a fresh empty authority per case");
             for(int x=-2;x<=7;x++)for(int y=-1;y<=4;y++)for(int z=-2;z<=7;z++){var p=at.offset(x,y,z);BenchmarkScenes.requirePosition(level,p);require(level.getBlockState(p).isAir(),"Load/clear fixture area first: "+p);}
         }
         PieceRecord box(Block block,BlockPos pos){return NativeStates.capture(block.defaultBlockState(),level,pos,UUID.randomUUID());}

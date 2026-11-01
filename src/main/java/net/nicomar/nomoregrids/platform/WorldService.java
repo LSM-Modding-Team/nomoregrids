@@ -53,9 +53,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public FunctionalTransfers transfers(){return transfers;}
     private final WorldFunctionals functionals;
     public WorldFunctionals functionals(){return functionals;}
-    private final WorldFluids fluids;
     private final Map<UUID,Map<BlockPos,net.minecraft.world.level.block.state.BlockState>> nativeImages=new HashMap<>();
-    public WorldFluids fluids(){return fluids;}
     public PieceAdapter adapter(PieceRecord p){return adapters.require(p);}
     private static final ThreadLocal<ArrayDeque<WorldService>> WRITE_CONTEXT=ThreadLocal.withInitial(ArrayDeque::new);
     public static WorldService writingService(ServerLevel level){for(var service:WRITE_CONTEXT.get())if(service.level==level&&service.writing())return service;return null;}
@@ -84,7 +82,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public boolean operationBusy(){return engine==null||engine.busy();}
 
     public WorldService(ServerLevel level,AdapterRegistry adapters)throws IOException{
-        this.level=level;this.circuits=new WorldCircuits(this);this.adapters=adapters;fluids=new WorldFluids(level,this);functionals=new WorldFunctionals(level,this);transfers=new FunctionalTransfers(level,this);
+        this.level=level;this.circuits=new WorldCircuits(this);this.adapters=adapters;functionals=new WorldFunctionals(level,this);transfers=new FunctionalTransfers(level,this);
         String dimension=level.dimension().identifier().toString();
         String hash=java.util.HexFormat.of().formatHex(SnapshotAssembler.sha256(dimension.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         receiptKey="nmg_applied_"+hash;root=level.getServer().getWorldPath(LevelResource.ROOT).resolve("nomoregrids").resolve(hash);
@@ -154,15 +152,15 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         if(repeated(operation,player,OperationPlan.Kind.PLACE))return;executePrepared(placementPlan(player,hand,hit,mode,operation,false));
     }
     public boolean probe(ServerPlayer player,InteractionHand hand,BlockHitResult hit,ModePayload mode)throws IOException{
-        var plan=fluids.prepare(WorldGroups.prepare(this,level,placementPlan(player,hand,hit,mode,UUID.randomUUID(),true)));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
+        var plan=WorldGroups.prepare(this,level,placementPlan(player,hand,hit,mode,UUID.randomUUID(),true));var before=snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);validate(plan,before,after,true);return plan.changes().stream().noneMatch(c->c.before().isPresent()&&c.after().isEmpty());
     }
     public void executePrepared(OperationPlan original)throws IOException{
-        try(var nativeView=new WorldNativeView(original.effects())){var plan=vacancies(fluids.prepare(functionals.prepare(circuits.prepare(WorldRails.prepare(this,WorldGroups.prepare(this,level,original))))));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
+        try(var nativeView=new WorldNativeView(original.effects())){var plan=vacancies(functionals.prepare(circuits.prepare(WorldRails.prepare(this,WorldGroups.prepare(this,level,original)))));var images=new HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();for(var c:plan.affectedCells())images.put(pos(c),level.getBlockState(pos(c)));nativeImages.put(plan.id(),images);
         try{engine.execute(plan);}finally{nativeImages.remove(plan.id());}}
     }
     private OperationPlan vacancies(OperationPlan plan){if(plan.changes().stream().noneMatch(c->c.before().isPresent())||nativeHandoffs.contains(plan.id()))return plan;var after=snapshot().changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);var auxiliary=new ArrayList<>(plan.effects());for(var c:plan.pieceCells())if(!snapshot().at(c).isEmpty()&&after.at(c).isEmpty()&&auxiliary.stream().noneMatch(e->e.key().equals(nativeKey(c)))&&nativeGoal(c).filter(net.minecraft.world.level.block.state.BlockState::isAir).isEmpty())auxiliary.add(nativeChange(c,Blocks.AIR.defaultBlockState()));return new OperationPlan(plan.id(),plan.actor(),plan.kind(),plan.changes(),plan.resourcesBefore(),plan.resourcesAfter(),auxiliary);}
     public boolean available(PieceRecord p){try{if(p.flags().contains(PieceRecord.Flag.SUBSTITUTE)||adapters.require(p).occupation(p).isEmpty())return false;if(WorldFunctionals.piece(p)&&!WorldFunctionals.eligible(NativeStates.resolve(p)))return false;NativeStates.resolve(p);NativeStates.original(p);return true;}catch(RuntimeException|LinkageError ex){return false;}}
-    public CellView cellView(CellPos c,PieceIndex index){return new CellView(CellView.from(c,index,p->!available(p)).replicas(),fluids.at(c));}
+    public CellView cellView(CellPos c,PieceIndex index){return CellView.from(c,index,p->!available(p));}
     public boolean hasOperation(UUID operation,UUID actor){var old=history.get(operation);if(old==null){if(archive==null)return false;try{var stamp=archive.operation(operation);if(stamp.isEmpty())return false;if(!stamp.orElseThrow().actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor))throw new IllegalArgumentException("Operation ID conflict");return true;}
     private boolean repeated(UUID id,ServerPlayer actor,OperationPlan.Kind kind){
         var old=history.get(id);if(old==null){if(!hasOperation(id,actor.getUUID()))return false;try{if(archive.operation(id).orElseThrow().kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;}catch(IOException ex){throw new UncheckedIOException(ex);}}if(!old.actor().equals(actor.getUUID())||old.kind()!=kind)throw new IllegalArgumentException("Operation ID conflict");return true;
@@ -277,6 +275,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     private void validate(OperationPlan plan,PieceIndex before,PieceIndex after,boolean preview){
         if(compactionFault)throw new IllegalStateException("Recovery required after checkpoint publication");
+        for(var change:plan.changes())if(change.after().isPresent()){var piece=change.after().orElseThrow();if(!NativeStates.resolve(piece).getFluidState().isEmpty())throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: waterlogged component");for(var cell:piece.worldOccupation().cells(8)){var at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");if(!level.getFluidState(at).isEmpty())throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: fluid in affected cell");}}
         validateEffects(plan);
         if(plan.actor().equals(OperationPlan.WORLD_ACTOR)){validateSystem(plan,before,after);return;}
         ServerPlayer player=level.getServer().getPlayerList().getPlayer(plan.actor());if(player==null||player.level()!=level||player.isSpectator()&&!(plan.kind()==OperationPlan.Kind.TRANSFER&&plan.changes().isEmpty()))throw new IllegalArgumentException("Invalid actor");
@@ -305,7 +304,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             BlockPos at=pos(cell);if(!level.isLoaded(at)||level.isOutsideBuildHeight(at)||!level.getWorldBorder().isWithinBounds(at))throw new IllegalArgumentException("UNLOADED_REGION or world boundary");
             if((!level.mayInteract(player,at)||!player.getAbilities().mayBuild)&&plan.kind()!=OperationPlan.Kind.TRANSFER)throw new IllegalArgumentException("PROTECTED");
             if(!plan.pieceCells().contains(cell))continue;
-            if(!level.getFluidState(at).isEmpty())WorldFluids.kind(level.getFluidState(at));
+            if(!level.getFluidState(at).isEmpty())throw new IllegalArgumentException("UNSUPPORTED_ADAPTER: fluid in affected cell");
             var state=level.getBlockState(at);
             if(state.getBlock()==NmgContent.CELL.get()){
                 if(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid())throw new IllegalArgumentException("INVALID_DATA");
@@ -345,10 +344,10 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     private void validateWorldImages(OperationPlan plan,PieceIndex before){
         for(var image:nativeImages.getOrDefault(plan.id(),Map.of()).entrySet())if(!level.isLoaded(image.getKey())||!level.getBlockState(image.getKey()).equals(image.getValue()))throw new IllegalArgumentException("STALE_REVISION: native image");
-        var checked=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")).forEach(e->checked.add(e.owner()));
+        var checked=new HashSet<>(plan.pieceCells());
         for(var cell:checked){
             var at=pos(cell);if(!level.isLoaded(at))throw new IllegalArgumentException("UNLOADED_REGION");var state=level.getBlockState(at);
-            if(!before.at(cell).isEmpty()||fluids.at(cell).isPresent()){
+            if(!before.at(cell).isEmpty()){
                 if(nativeProjection(cell,before).filter(state::equals).isEmpty()&&(!(level.getBlockEntity(at) instanceof CompositeCellEntity entity)||!entity.valid()||!entity.view().equals(cellView(cell,before))))throw new IllegalArgumentException("STALE_REVISION: replica requires recovery");
             }else if(state.getBlock()==NmgContent.CELL.get())throw new IllegalArgumentException("INVALID_DATA: unrecognized cell is retained");
             else if(!state.isAir()&&!(state.getBlock() instanceof LiquidBlock)){
@@ -368,7 +367,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(var c:plan.changes())knownIds.add(c.id());
         reconcileResources(plan,sequence);
         applyEffects(plan);
-        beginWrite();try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("fluid:")||e.key().startsWith("native:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{endWrite();}
+        beginWrite();try{var cells=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("native:")).forEach(e->cells.add(e.owner()));for(var cell:cells)syncCell(cell,after);}finally{endWrite();}
         Set<SectionPos> effectSections=new HashSet<>();plan.effects().forEach(e->{effectSections.add(e.owner().section());effectSections.add(e.previousOwner().section());});
         for(var section:effectSections)effectStore.write(section,sequence,sectionEffects(section));
         Set<SectionPos> sections=new HashSet<>();for(var c:plan.changes()){c.before().ifPresent(p->sections.add(p.ownerSection()));c.after().ifPresent(p->sections.add(p.ownerSection()));}
@@ -431,13 +430,13 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     public void releaseNativeGoal(CellPos cell)throws IOException{var old=effects.get(nativeKey(cell));if(old!=null)executePrepared(new OperationPlan(UUID.randomUUID(),OperationPlan.WORLD_ACTOR,OperationPlan.Kind.SYSTEM,List.of(),BinaryData.EMPTY,BinaryData.EMPTY,List.of(new OperationPlan.Effect(nativeKey(cell),cell,Optional.of(old.data()),Optional.empty()))));}
     private void syncCell(CellPos cell,PieceIndex index)throws IOException{
         BlockPos at=pos(cell);if(!level.isLoaded(at))throw new IOException("Region unloaded during commit");var previous=level.getBlockEntity(at);if(previous!=null&&!(previous instanceof CompositeCellEntity)&&effects.containsKey(nativeCaptureKey(cell))&&!capturedNative(previous))throw new IOException("Native image changed after capture; original entity retained at "+cell);
-        var goal=nativeGoal(cell);if(goal.isPresent()&&(!goal.orElseThrow().isAir()||index.at(cell).isEmpty()&&fluids.at(cell).isEmpty())){
-            if(!index.at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native goal conflicts with component authority");if(!level.getBlockState(at).equals(goal.orElseThrow())&&!level.setBlock(at,goal.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native mechanism projection rejected");return;
+        var goal=nativeGoal(cell);if(goal.isPresent()&&(!goal.orElseThrow().isAir()||index.at(cell).isEmpty())){
+            if(!index.at(cell).isEmpty())throw new IOException("Native goal conflicts with component authority");if(!level.getBlockState(at).equals(goal.orElseThrow())&&!level.setBlock(at,goal.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native mechanism projection rejected");return;
         }
-        var nativeState=fluids.at(cell).isEmpty()?nativeProjection(cell,index):Optional.<net.minecraft.world.level.block.state.BlockState>empty();if(nativeState.isPresent()){
+        var nativeState=nativeProjection(cell,index);if(nativeState.isPresent()){
             if(!level.getBlockState(at).equals(nativeState.orElseThrow())&&!level.setBlock(at,nativeState.orElseThrow(),Block.UPDATE_ALL))throw new IOException("Native restoration rejected");return;
         }
-        if(index.at(cell).isEmpty()&&fluids.at(cell).isEmpty()){
+        if(index.at(cell).isEmpty()){
             if(level.getBlockState(at).getBlock()==NmgContent.CELL.get())level.setBlock(at,Blocks.AIR.defaultBlockState(),Block.UPDATE_ALL);return;
         }
         if(level.getBlockState(at).getBlock()!=NmgContent.CELL.get()&&!level.setBlock(at,NmgContent.CELL.get().defaultBlockState(),Block.UPDATE_ALL))throw new IOException("Container placement rejected");
@@ -445,7 +444,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
     }
     public Optional<net.minecraft.world.level.block.state.BlockState> nativeProjection(CellPos cell){return nativeProjection(cell,snapshot());}
     private Optional<net.minecraft.world.level.block.state.BlockState> nativeProjection(CellPos cell,PieceIndex index){
-        if(fluids.at(cell).isPresent()||index.at(cell).size()!=1)return Optional.empty();var p=index.records().get(index.at(cell).iterator().next());
+        if(index.at(cell).size()!=1)return Optional.empty();var p=index.records().get(index.at(cell).iterator().next());
         if(!available(p))return Optional.empty();return NativeRepresentation.restore(p,cell,level);
     }
     public void releaseNative(CellPos cell)throws IOException{
@@ -464,7 +463,7 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
             boolean expectedNative=nativeProjection(cell,snapshot()).filter(state::equals).isPresent()||snapshot().at(cell).stream().map(snapshot().records()::get).anyMatch(p->p.orientation()==0&&p.origin16().equals(new GridPoint(cell.x()*16,cell.y()*16,cell.z()*16))&&!p.flags().contains(PieceRecord.Flag.SUBSTITUTE)&&matchesOriginalWorld(p,pos(cell),state));
             retainNativeCapture(cell,snapshot());
             if(nativeGoal(cell).isPresent()||state.isAir()||state.getBlock()==NmgContent.CELL.get()||state.getBlock() instanceof LiquidBlock||expectedNative){syncCell(cell,snapshot());level.updateNeighborsAt(pos(cell),NmgContent.CELL.get(),null);level.updateNeighbourForOutputSignal(pos(cell),NmgContent.CELL.get());}
-            else if(!snapshot().at(cell).isEmpty()||fluids.at(cell).isPresent())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
+            else if(!snapshot().at(cell).isEmpty())throw new IOException("Native block conflicts with committed NMG authority at "+cell);
         }
     }
     public Set<BlockPos> cellsInChunk(net.minecraft.world.level.chunk.LevelChunk chunk){
@@ -473,7 +472,6 @@ public final class WorldService implements OperationEngine.Host,AutoCloseable {
         for(int y=level.getMinSectionY();y<level.getMaxSectionY();y++)for(UUID id:snapshot().referencedBy(new SectionPos(chunkPos.x(),y,chunkPos.z())))
             for(var cell:snapshot().records().get(id).worldOccupation().cells(8))if(Math.floorDiv(cell.x(),16)==chunkPos.x()&&Math.floorDiv(cell.z(),16)==chunkPos.z())cells.add(pos(cell));
         for(var e:effects.entrySet())if(e.getKey().startsWith("native:")){var c=e.getValue().owner();if(Math.floorDiv(c.x(),16)==chunkPos.x()&&Math.floorDiv(c.z(),16)==chunkPos.z())cells.add(pos(c));}
-        for(var c:fluids.snapshot().keySet())if(Math.floorDiv(c.x(),16)==chunkPos.x()&&Math.floorDiv(c.z(),16)==chunkPos.z())cells.add(pos(c));
         return Set.copyOf(cells);
     }
     public void repairChunk(net.minecraft.world.level.chunk.LevelChunk chunk)throws IOException{

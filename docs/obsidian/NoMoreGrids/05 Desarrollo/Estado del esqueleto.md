@@ -7,7 +7,7 @@ Gradle 9.2.1 y ModDevGradle 2.0.148.
 
 Existen registros reales de contenedor, block entity, fragmentos y recetas;
 protocolo, operaciones durables, servidor, controles y render. Los módulos de
-apoyo, decoración, fluidos, funcionales, grupos y mecanismos tienen puentes al
+apoyo, decoración, funcionales, grupos y mecanismos tienen puentes al
 mundo para perfiles explícitos. Paintable Blocks se consulta opcionalmente para
 diseños, herramientas y máquinas; no es una dependencia obligatoria.
 Se ejecutaron compilación, 106 tests, cliente/dedicado y una sonda pequeña

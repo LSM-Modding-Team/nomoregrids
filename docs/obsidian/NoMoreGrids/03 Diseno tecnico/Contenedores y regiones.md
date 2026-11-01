@@ -27,7 +27,7 @@ Una frontera no cargada no es aire para colocar ni simular. El jugador ve el rec
 5. Instalar contenedores y réplicas.
 6. Emitir consecuencias deduplicadas.
 
-Si desaparece el último componente, restaurar fluido permitido o aire según estado persistente. Si queda una única representación nativa exacta, simplificar mediante transacción sin cambiar identidad lógica de una operación en curso.
+Si desaparece el último componente, restaurar aire. Si queda una única representación nativa exacta, simplificar mediante transacción sin cambiar identidad lógica de una operación en curso.
 
 ## Chunk y descarga
 

@@ -10,7 +10,7 @@ Implementación experimental de construcción por componentes para Minecraft Jav
 | Versión | 0.1.0-SNAPSHOT |
 | Herramientas fijadas | Gradle 9.2.1 / ModDevGradle 2.0.148 |
 
-El código de F0–F9 conecta construcción, diario/recibos, recuperación, red fragmentada y render con los perfiles de decoración, fluidos, herramientas Paintable Blocks, funcionales/menús/capacidades, grupos, redstone, raíles y pistones mixtos. Incluye compactación automática por generaciones, cachés y métricas. **Compilación y validación parcial ejecutadas; ninguna fase está aceptada globalmente.** El alcance, los perfiles y las comprobaciones pendientes están en [docs/ESTADO_DESARROLLO.md](docs/ESTADO_DESARROLLO.md).
+El código de F0–F9 conecta construcción, diario/recibos, recuperación, red fragmentada y render con los perfiles de decoración, herramientas Paintable Blocks, funcionales/menús/capacidades, grupos, redstone, raíles y pistones mixtos. Las celdas compuestas no admiten fluidos. Incluye compactación automática por generaciones, cachés y métricas. **Compilación y validación parcial ejecutadas; ninguna fase está aceptada globalmente.** El alcance, los perfiles y las comprobaciones pendientes están en [docs/ESTADO_DESARROLLO.md](docs/ESTADO_DESARROLLO.md).
 
 **Entrega actual:** matriz de 72 casos trazada, sondas de mundo y escenarios F9 con controles nativos implementados; `compileJava`, `compileTestJava` y `compileValidationJava` correctos. Las ampliaciones no se ejecutaron. Ver [matriz](docs/acceptance/MATRIZ_TRAZABLE.md), [F9](docs/acceptance/F9.md) y [evidencia de compilación](docs/evidence/MATRIZ_F9_COMPILACION.md).
 

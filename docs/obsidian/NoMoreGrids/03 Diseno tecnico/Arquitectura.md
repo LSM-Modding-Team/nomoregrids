@@ -29,7 +29,7 @@ flowchart TD
 | network | Protocolo, revisiones y réplica del cliente |
 | client | Controles, vista previa, selección visual y render |
 | material | Propiedades, loot y fragmentos |
-| simulation | Apoyos, conexiones, luz, fluidos y mecanismos |
+| simulation | Apoyos, conexiones, luz y mecanismos |
 | api | Contratos públicos versionados |
 | compat | Adaptadores vanilla y de otros mods |
 

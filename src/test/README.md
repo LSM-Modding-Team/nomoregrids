@@ -1,15 +1,13 @@
 # Pruebas escritas
 
 Casos JUnit Jupiter del núcleo, geometría, índices, codecs, operaciones/diario,
-red, fragmentos, apoyo, cavidades, convexos, funcionales, mecanismos, secciones
+red, fragmentos, apoyo, convexos, funcionales, mecanismos, secciones
 y presupuestos. Prueban contratos concretos; no sustituyen integración del juego.
 
 La validación histórica ejecutó 106 tests sin fallos; ver
 [su evidencia](../../docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md).
-La entrega actual contiene 115 métodos `@Test` en 45 clases, compilados mediante
-`compileTestJava`, **sin volver a ejecutar tests**. Los nueve casos nuevos cubren
-ventanas/tráfico, caché inmutable, iluminación, recortes y escenas grandes del
-índice; no son mediciones de rendimiento de Minecraft.
+Las fuentes actuales están compiladas mediante `compileTestJava`, sin volver a
+ejecutar tests. Las antiguas pruebas de cavidades se retiraron con esa función.
 
 `test` requiere petición explícita conforme a AGENTS.md. `compileTestJava`
 comprueba tipos sin ejecutar JUnit. No hay GameTests conectados. Las sondas de

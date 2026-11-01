@@ -9,18 +9,17 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.*;
 
 /** Technical, non-obtainable multipart cell. Queries use replicas even with owner section unloaded. */
-public final class CompositeCellBlock extends BaseEntityBlock implements LiquidBlockContainer {
+public final class CompositeCellBlock extends BaseEntityBlock {
     public static final net.minecraft.world.level.block.state.properties.EnumProperty<net.minecraft.core.Direction> FACING=net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING;
-    public static final net.minecraft.world.level.block.state.properties.IntegerProperty FLUID=net.minecraft.world.level.block.state.properties.IntegerProperty.create("fluid",0,2);
-    public static final net.minecraft.world.level.block.state.properties.BooleanProperty SOURCE=net.minecraft.world.level.block.state.properties.BooleanProperty.create("source");
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty EMISSION=net.minecraft.world.level.block.state.properties.IntegerProperty.create("emission",0,15);
     public static final net.minecraft.world.level.block.state.properties.IntegerProperty ATTENUATION=net.minecraft.world.level.block.state.properties.IntegerProperty.create("attenuation",0,15);
     public static final net.minecraft.world.level.block.state.properties.BooleanProperty SEALED=net.minecraft.world.level.block.state.properties.BooleanProperty.create("sealed");
     public static final MapCodec<CompositeCellBlock> CODEC=simpleCodec(CompositeCellBlock::new);
-    public CompositeCellBlock(Properties properties){super(properties);registerDefaultState(stateDefinition.any().setValue(EMISSION,0).setValue(ATTENUATION,0).setValue(SEALED,false).setValue(FLUID,0).setValue(SOURCE,false).setValue(FACING,net.minecraft.core.Direction.NORTH));}
-    @Override protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block,BlockState> builder){builder.add(FACING,EMISSION,ATTENUATION,SEALED,FLUID,SOURCE);}
+    public CompositeCellBlock(Properties properties){super(properties);registerDefaultState(stateDefinition.any().setValue(EMISSION,0).setValue(ATTENUATION,0).setValue(SEALED,false).setValue(FACING,net.minecraft.core.Direction.NORTH));}
+    @Override protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block,BlockState> builder){builder.add(FACING,EMISSION,ATTENUATION,SEALED);}
     @Override protected MapCodec<? extends BaseEntityBlock> codec(){return CODEC;}
     @Override public BlockEntity newBlockEntity(BlockPos pos,BlockState state){return new CompositeCellEntity(pos,state);}
+    @Override protected boolean canBeReplaced(BlockState state,net.minecraft.world.level.material.Fluid fluid){return false;}
     @Override protected VoxelShape getShape(BlockState state,BlockGetter world,BlockPos pos,CollisionContext context){
         return world.getBlockEntity(pos) instanceof CompositeCellEntity cell?cell.shape(false):Shapes.block();
     }
@@ -48,16 +47,6 @@ public final class CompositeCellBlock extends BaseEntityBlock implements LiquidB
     }
     @Override public SoundType getSoundType(BlockState state,LevelReader world,BlockPos pos,net.minecraft.world.entity.Entity entity){
         if(world.getBlockEntity(pos) instanceof CompositeCellEntity cell)try{return cell.ground(entity).map(p->net.nicomar.nomoregrids.platform.NativeStates.resolve(p).getSoundType()).orElse(SoundType.STONE);}catch(RuntimeException ignored){}return SoundType.STONE;
-    }
-    @Override public boolean canPlaceLiquid(net.minecraft.world.entity.LivingEntity actor,BlockGetter world,BlockPos pos,BlockState state,net.minecraft.world.level.material.Fluid fluid){
-        return actor==null&&(fluid==net.minecraft.world.level.material.Fluids.WATER||fluid==net.minecraft.world.level.material.Fluids.FLOWING_WATER||fluid==net.minecraft.world.level.material.Fluids.LAVA||fluid==net.minecraft.world.level.material.Fluids.FLOWING_LAVA)&&world.getBlockEntity(pos) instanceof CompositeCellEntity cell&&cell.valid()&&!cell.getBlockState().getValue(SEALED);
-    }
-    @Override public boolean placeLiquid(LevelAccessor world,BlockPos pos,BlockState state,net.minecraft.world.level.material.FluidState fluid){
-        if(!(world instanceof net.minecraft.server.level.ServerLevel level))return true;var service=net.nicomar.nomoregrids.platform.NmgRuntime.existing(level);if(service==null||service.quarantined())return false;try{service.fluids().incoming(new net.nicomar.nomoregrids.core.CellPos(pos.getX(),pos.getY(),pos.getZ()),fluid);return true;}catch(java.io.IOException|RuntimeException ex){if(service.quarantined())net.nicomar.nomoregrids.platform.NmgRuntime.failed(level,ex);return false;}
-    }
-    @Override protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state){
-        if(state.getValue(FLUID)==0)return net.minecraft.world.level.material.Fluids.EMPTY.defaultFluidState();
-        var fluid=state.getValue(FLUID)==1?net.minecraft.world.level.material.Fluids.WATER:net.minecraft.world.level.material.Fluids.LAVA;return state.getValue(SOURCE)?fluid.getSource(false):fluid.getFlowing(1,false);
     }
     @Override public int getFlammability(BlockState state,BlockGetter level,BlockPos pos,net.minecraft.core.Direction face){return level.getBlockEntity(pos) instanceof CompositeCellEntity cell?net.nicomar.nomoregrids.platform.WorldMaterials.fire(cell,level,pos,face,false):0;}
     @Override public int getFireSpreadSpeed(BlockState state,BlockGetter level,BlockPos pos,net.minecraft.core.Direction face){return level.getBlockEntity(pos) instanceof CompositeCellEntity cell?net.nicomar.nomoregrids.platform.WorldMaterials.fire(cell,level,pos,face,true):0;}

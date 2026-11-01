@@ -32,8 +32,8 @@ public final class CellModel implements DynamicBlockStateModel {
     private final PaintableAdapter paintable;
     public CellModel(BlockStateModelPart fallback){this.fallback=fallback;
         PaintableAdapter optional=null;try{optional=new PaintableAdapter(CellModel.class.getClassLoader());}catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){}paintable=optional;}
-    private record Key(CellView view,List<Optional<net.nicomar.nomoregrids.simulation.fluid.CavityCell>> neighbors,List<BlockState> nativeNeighbors,BlockPos cell,CellModel resourceGeneration){}
-    @Override public Object createGeometryKey(BlockAndTintGetter world,BlockPos pos,BlockState state,RandomSource random){var neighbors=new ArrayList<Optional<net.nicomar.nomoregrids.simulation.fluid.CavityCell>>();var nativeNeighbors=new ArrayList<BlockState>();for(var d:Direction.values()){var at=pos.relative(d);var view=world.getModelData(at).get(CompositeCellEntity.VIEW);neighbors.add(view==null?Optional.empty():view.cavity());nativeNeighbors.add(world.getBlockState(at));nativeNeighbors.add(world.getBlockState(at.above()));}for(int x:new int[]{-1,1})for(int z:new int[]{-1,1}){var at=pos.offset(x,0,z);var view=world.getModelData(at).get(CompositeCellEntity.VIEW);neighbors.add(view==null?Optional.empty():view.cavity());nativeNeighbors.add(world.getBlockState(at));nativeNeighbors.add(world.getBlockState(at.above()));}return new Key(world.getModelData(pos).get(CompositeCellEntity.VIEW),List.copyOf(neighbors),List.copyOf(nativeNeighbors),pos.immutable(),this);}
+    private record Key(CellView view,BlockPos cell,CellModel resourceGeneration){}
+    @Override public Object createGeometryKey(BlockAndTintGetter world,BlockPos pos,BlockState state,RandomSource random){return new Key(world.getModelData(pos).get(CompositeCellEntity.VIEW),pos.immutable(),this);}
     @Override public Material.Baked particleMaterial(){return fallback.particleMaterial();}
     @Override public int materialFlags(){return 3;}
     private record Part(List<BakedQuad> quads,Material.Baked particleMaterial,int materialFlags) implements BlockStateModelPart{
@@ -60,7 +60,6 @@ public final class CellModel implements DynamicBlockStateModel {
             if(output.size()>131072)throw new IllegalArgumentException("Section mesh triangle budget");
             }catch(RuntimeException ex){output.subList(start,output.size()).clear();placeholder(p,pos,output);}
         }
-        view.cavity().ifPresent(c->CavityMesh.append(c,world,pos,output));
         for(var q:output)flags|=q.materialInfo().flags();parts.add(new Part(List.copyOf(output),particleMaterial(),flags));
     }
     private void placeholder(PieceRecord piece,BlockPos cell,List<BakedQuad> output){

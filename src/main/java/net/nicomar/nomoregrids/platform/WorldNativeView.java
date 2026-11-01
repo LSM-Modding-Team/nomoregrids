@@ -7,7 +7,7 @@ import net.nicomar.nomoregrids.core.CellPos;
 import net.nicomar.nomoregrids.operation.OperationPlan;
 import net.nicomar.nomoregrids.persistence.NativeStateImage;
 
-/** Proposed native images for planning support/fluids. Does not intercept or mutate Minecraft queries. */
+/** Proposed native images for planning support. Does not intercept or mutate Minecraft queries. */
 public final class WorldNativeView implements AutoCloseable {
     private static final ThreadLocal<Map<CellPos,BlockState>> CURRENT=new ThreadLocal<>();
     private final Map<CellPos,BlockState> previous;

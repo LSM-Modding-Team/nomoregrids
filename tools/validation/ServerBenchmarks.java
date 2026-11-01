@@ -23,7 +23,7 @@ import net.nicomar.nomoregrids.platform.*;
 
 /** Explicit test-world benchmark controller. One bounded transaction per build/cleanup turn. No chunk forcing. */
 final class ServerBenchmarks {
-    private enum Phase { ENCLOSURE,BUILD,WET,SOURCES,WARMUP,MEASURE,COMPLETE,CLEAN_SOURCES,CLEAN,CLEAN_ENCLOSURE,FAILED,CLEANED }
+    private enum Phase { ENCLOSURE,BUILD,WARMUP,MEASURE,COMPLETE,CLEAN,CLEAN_ENCLOSURE,FAILED,CLEANED }
     private static final Map<ServerLevel,Run> RUNS=new IdentityHashMap<>();
     private static final Gson GSON=new GsonBuilder().setPrettyPrinting().create();
     private static final class Run {
@@ -49,7 +49,6 @@ final class ServerBenchmarks {
                     var plan=BenchmarkScenes.create(level,StringArgumentType.getString(ctx,"scene"),UUID.randomUUID(),BlockPosArgument.getLoadedBlockPos(ctx,"anchor"));
                     for(var p:plan.pieces()){
                         for(var c:p.worldOccupation().cells(8))if(!level.getBlockState(WorldService.pos(c)).isAir())throw new IllegalStateException("Scene must be clear native air: "+c);
-                        if(fluidScene(plan.scene())){var above=WorldService.pos(p.origin16().cell()).above();BenchmarkScenes.requirePosition(level,above);if(!level.getBlockState(above).isAir())throw new IllegalStateException("Fluid source fixture needs clear air above");}
                     }
                     for(var wall:plan.enclosure())if(!level.getBlockState(wall).isAir())throw new IllegalStateException("Enclosure must be clear air: "+wall);
                     var run=new Run(level,plan);RUNS.put(level,run);manifest(run);ctx.getSource().sendSuccess(()->Component.literal("NMG benchmark queued: "+plan.run()+". BUILD is excluded; scene-dependent warmup + 1200 measured ticks."),false);return 1;
@@ -60,10 +59,10 @@ final class ServerBenchmarks {
                 try{var level=ctx.getSource().getLevel();checkProfile(level);var run=RUNS.get(level);if(run==null||run.phase!=Phase.COMPLETE)throw new IllegalStateException("A complete measurement is required before the separate save/disk observation");disk(run);ctx.getSource().sendSuccess(()->Component.literal("Save flushed and logical disk sizes recorded outside the tick window"),false);return 1;}
                 catch(Exception ex){ctx.getSource().sendFailure(Component.literal(ex.toString()));return 0;}
             }))
-            .then(Commands.literal("clean").executes(ctx->{var run=RUNS.get(ctx.getSource().getLevel());if(run==null)return 0;run.phase=fluidScene(run.plan.scene())?Phase.CLEAN_SOURCES:Phase.CLEAN;run.cursor=0;return 1;}))
+            .then(Commands.literal("clean").executes(ctx->{var run=RUNS.get(ctx.getSource().getLevel());if(run==null)return 0;run.phase=Phase.CLEAN;run.cursor=0;return 1;}))
             .then(Commands.literal("resume_clean").then(Commands.argument("run",StringArgumentType.word()).executes(ctx->{
                 try{var level=ctx.getSource().getLevel();checkProfile(level);if(RUNS.containsKey(level))throw new IllegalStateException("Run already attached");var id=UUID.fromString(StringArgumentType.getString(ctx,"run"));var path=root(level).resolve(id+"-manifest.json");if(Files.size(path)>2*1024*1024)throw new IllegalArgumentException("Manifest size");var json=JsonParser.parseString(Files.readString(path)).getAsJsonObject();
-                    if(json.get("schema").getAsInt()!=1||!json.get("run").getAsString().equals(id.toString()))throw new IllegalArgumentException("Manifest identity/schema");var a=json.getAsJsonArray("anchor");var plan=BenchmarkScenes.create(level,json.get("scene").getAsString(),id,new BlockPos(a.get(0).getAsInt(),a.get(1).getAsInt(),a.get(2).getAsInt()));var run=new Run(level,plan);run.phase=fluidScene(plan.scene())?Phase.CLEAN_SOURCES:Phase.CLEAN;
+                    if(json.get("schema").getAsInt()!=1||!json.get("run").getAsString().equals(id.toString()))throw new IllegalArgumentException("Manifest identity/schema");var a=json.getAsJsonArray("anchor");var plan=BenchmarkScenes.create(level,json.get("scene").getAsString(),id,new BlockPos(a.get(0).getAsInt(),a.get(1).getAsInt(),a.get(2).getAsInt()));var run=new Run(level,plan);run.phase=Phase.CLEAN;
                     if(json.has("nativePbHashes"))for(var row:json.getAsJsonArray("nativePbHashes")){var v=row.getAsJsonObject();run.nativePbHashes.put(new BlockPos(v.get("x").getAsInt(),v.get("y").getAsInt(),v.get("z").getAsInt()),new BinaryData(java.util.HexFormat.of().parseHex(v.get("hash").getAsString())));}
                     RUNS.put(level,run);return 1;
                 }catch(Exception ex){ctx.getSource().sendFailure(Component.literal(ex.toString()));return 0;}
@@ -79,8 +78,6 @@ final class ServerBenchmarks {
         for(var run:List.copyOf(RUNS.values()))if(run.level.getServer()==e.getServer())try{
             if(run.phase==Phase.ENCLOSURE||run.phase==Phase.CLEAN_ENCLOSURE){enclosure(run,run.phase==Phase.CLEAN_ENCLOSURE);continue;}
             if(run.phase==Phase.BUILD){build(run);continue;}
-            if(run.phase==Phase.WET){water(run);continue;}
-            if(run.phase==Phase.SOURCES||run.phase==Phase.CLEAN_SOURCES){sources(run,run.phase==Phase.CLEAN_SOURCES);continue;}
             if(run.phase==Phase.CLEAN){clean(run);continue;}
             if(run.phase!=Phase.WARMUP&&run.phase!=Phase.MEASURE)continue;
             for(var chunk:run.plan.loadedChunks())if(!run.level.isLoaded(new BlockPos(chunk.x()*16,run.plan.anchor().getY(),chunk.z()*16)))throw new IllegalStateException("Benchmark chunk unloaded: "+chunk);
@@ -91,13 +88,12 @@ final class ServerBenchmarks {
         }catch(Exception ex){fail(run,ex);}
     }
     private static boolean nativeScene(Run run){return run.plan.scene().startsWith("native_");}
-    private static boolean fluidScene(String name){return name.contains("fluids");}
     private static void build(Run run)throws Exception{
         var changes=new ArrayList<OperationPlan.Change>();int end=Math.min(run.cursor+64,run.plan.pieces().size());
         for(int i=run.cursor;i<end;i++){
             var p=run.plan.pieces().get(i);
             if(!nativeScene(run)){changes.add(new OperationPlan.Change(p.pieceId(),Optional.empty(),Optional.of(p)));continue;}
-            var at=WorldService.pos(p.origin16().cell());var state=NativeStates.resolve(p);if(fluidScene(run.plan.scene()))state=state.setValue(net.minecraft.world.level.block.SlabBlock.WATERLOGGED,true);
+            var at=WorldService.pos(p.origin16().cell());var state=NativeStates.resolve(p);
             if(!run.level.getBlockState(at).isAir()||!run.level.setBlock(at,state,3))throw new IllegalStateException("Native fixture changed/rejected: "+at);
             if(run.plan.scene().equals("native_pb256")){
                 var be=run.level.getBlockEntity(at);var adapter=new net.nicomar.nomoregrids.compat.paintableblocks.PaintableAdapter(ServerBenchmarks.class.getClassLoader());Object design=adapter.restore(p.geometryPayload());
@@ -106,37 +102,16 @@ final class ServerBenchmarks {
         }
         if(!changes.isEmpty())run.service.executeWorld(changes,List.of());run.cursor=end;manifest(run);
         if(end==run.plan.pieces().size()){
-            run.cursor=0;run.phase=fluidScene(run.plan.scene())?(nativeScene(run)?Phase.SOURCES:Phase.WET):Phase.WARMUP;
+            run.cursor=0;run.phase=Phase.WARMUP;
             net.nicomar.nomoregrids.NoMoreGrids.LOGGER.info("NMG benchmark {} built: {} fixtures, {} chunks",run.plan.run(),end,run.plan.chunks());
         }
-    }
-    private static void water(Run run)throws Exception{
-        int end=Math.min(run.cursor+64,run.plan.pieces().size());var effects=new ArrayList<OperationPlan.Effect>();
-        for(int i=run.cursor;i<end;i++){
-            var p=run.plan.pieces().get(i);var cell=p.origin16().cell();var mask=net.nicomar.nomoregrids.simulation.fluid.CavityCell.blocked(p.geometry().occupation());var water=new byte[4096];for(int n=0;n<4096;n++)if(!mask.get(n))water[n]=1;
-            var previous=run.service.fluids().at(cell);if(previous.filter(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.LAVA)>0).isPresent())throw new IllegalStateException("Foreign lava in fixture; original retained");
-            var next=new net.nicomar.nomoregrids.simulation.fluid.CavityCell(mask,water,net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.EMPTY);
-            effects.add(new OperationPlan.Effect(WorldFluids.key(cell),cell,previous.map(net.nicomar.nomoregrids.persistence.CavityCodec::encode),Optional.of(net.nicomar.nomoregrids.persistence.CavityCodec.encode(next))));
-        }
-        run.service.executeWorld(List.of(),effects);run.cursor=end;manifest(run);if(end==run.plan.pieces().size()){run.cursor=0;run.phase=Phase.SOURCES;}
-    }
-    private static void sources(Run run,boolean clean)throws Exception{
-        int end=Math.min(run.cursor+64,run.plan.pieces().size());
-        for(int i=run.cursor;i<end;i++){
-            var at=WorldService.pos(run.plan.pieces().get(i).origin16().cell()).above();if(!run.level.isLoaded(at))throw new IllegalStateException("Source chunk unloaded");
-            if(clean&&run.level.getBlockState(at).isAir())continue;
-            var expected=clean?net.minecraft.world.level.block.Blocks.WATER.defaultBlockState():net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
-            if(!run.service.snapshot().at(new CellPos(at.getX(),at.getY(),at.getZ())).isEmpty()||!run.level.getBlockState(at).equals(expected))throw new IllegalStateException("Native source fixture changed; retained: "+at);
-            if(!run.level.setBlock(at,(clean?net.minecraft.world.level.block.Blocks.AIR:net.minecraft.world.level.block.Blocks.WATER).defaultBlockState(),3))throw new IllegalStateException("Source write rejected");
-        }
-        run.cursor=end;manifest(run);if(end==run.plan.pieces().size()){run.cursor=0;run.phase=clean?Phase.CLEAN:Phase.WARMUP;}
     }
     private static void clean(Run run)throws Exception{
         int end=Math.min(run.cursor+32,run.plan.pieces().size());var changes=new ArrayList<OperationPlan.Change>();
         for(int i=run.cursor;i<end;i++){
             var expected=run.plan.pieces().get(i);
             if(nativeScene(run)){
-                var cell=expected.origin16().cell();var at=WorldService.pos(cell);var state=NativeStates.resolve(expected);if(fluidScene(run.plan.scene()))state=state.setValue(net.minecraft.world.level.block.SlabBlock.WATERLOGGED,true);
+                var cell=expected.origin16().cell();var at=WorldService.pos(cell);var state=NativeStates.resolve(expected);
                 if(run.level.getBlockState(at).isAir())continue;
                 if(!run.service.snapshot().at(cell).isEmpty()||!run.level.getBlockState(at).equals(state))throw new IllegalStateException("Foreign native fixture edit; retained: "+at);
                 if(run.plan.scene().equals("native_pb256")){var be=run.level.getBlockEntity(at);var hash=run.nativePbHashes.get(at);if(hash==null||be==null||!WorldFunctionals.matchesDigest(run.level,be,hash))throw new IllegalStateException("PB image changed or unrecorded; retained: "+at);}
@@ -162,7 +137,7 @@ final class ServerBenchmarks {
     private static void manifest(Run run)throws Exception{var json=header(run);json.addProperty("cursor",run.cursor);var hashes=new JsonArray();for(var e:run.nativePbHashes.entrySet()){var row=new JsonObject();row.addProperty("x",e.getKey().getX());row.addProperty("y",e.getKey().getY());row.addProperty("z",e.getKey().getZ());row.addProperty("hash",java.util.HexFormat.of().formatHex(e.getValue().copy()));hashes.add(row);}json.add("nativePbHashes",hashes);SectionStore.atomic(root(run.level).resolve(run.plan.run()+"-manifest.json"),GSON.toJson(json).getBytes(StandardCharsets.UTF_8));}
     private static void result(Run run,Exception error)throws Exception{
         var json=header(run);json.add("tickWindow",GSON.toJsonTree(run.window.summary()));json.addProperty("elapsedNanos",run.started==0?0:(run.finished==0?System.nanoTime():run.finished)-run.started);json.addProperty("error",error==null?null:error.toString());json.addProperty("acceptanceCertified",false);json.addProperty("startedEpochMillis",run.startedEpochMillis);json.addProperty("finishedEpochMillis",run.finishedEpochMillis==0?System.currentTimeMillis():run.finishedEpochMillis);json.addProperty("fixturesVerified",run.fixturesVerified);json.add("hardware",GSON.toJsonTree(net.nicomar.nomoregrids.diagnostic.MeasurementContext.snapshot()));
-        json.addProperty("java",System.getProperty("java.version"));json.addProperty("os",System.getProperty("os.name"));json.addProperty("processors",Runtime.getRuntime().availableProcessors());json.addProperty("heapUsedBytes",Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory());json.addProperty("heapMaxBytes",Runtime.getRuntime().maxMemory());json.addProperty("players",run.level.getServer().getPlayerCount());json.addProperty("activeCavitiesAtEnd",run.service.fluids().snapshot().size());
+        json.addProperty("java",System.getProperty("java.version"));json.addProperty("os",System.getProperty("os.name"));json.addProperty("processors",Runtime.getRuntime().availableProcessors());json.addProperty("heapUsedBytes",Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory());json.addProperty("heapMaxBytes",Runtime.getRuntime().maxMemory());json.addProperty("players",run.level.getServer().getPlayerCount());
         json.add("publicCellTrafficStart",GSON.toJsonTree(run.trafficStart));json.add("publicCellTrafficEnd",GSON.toJsonTree(CellReplication.traffic(run.level)));json.addProperty("journalBytes",run.service.journalBytes());json.add("subsystems",run.service.metrics());json.add("checkpoint",GSON.toJsonTree(run.service.compactionStatus()));
         SectionStore.atomic(root(run.level).resolve(run.plan.run()+"-result.json"),GSON.toJson(json).getBytes(StandardCharsets.UTF_8));run.result=json;
     }
@@ -170,12 +145,11 @@ final class ServerBenchmarks {
         var records=run.service.snapshot().records();if(records.size()!=(nativeScene(run)?0:run.plan.pieces().size()))throw new IllegalStateException("Authority count changed during measurement");
         for(var expected:run.plan.pieces()){
             if(!nativeScene(run)){if(!expected.equals(records.get(expected.pieceId())))throw new IllegalStateException("Fixture identity/state changed: "+expected.pieceId());continue;}
-            var at=WorldService.pos(expected.origin16().cell());var state=NativeStates.resolve(expected);if(fluidScene(run.plan.scene()))state=state.setValue(net.minecraft.world.level.block.SlabBlock.WATERLOGGED,true);
+            var at=WorldService.pos(expected.origin16().cell());var state=NativeStates.resolve(expected);
             if(!run.level.getBlockState(at).equals(state))throw new IllegalStateException("Native fixture state changed: "+at);
             if(run.plan.scene().equals("native_pb256")){var hash=run.nativePbHashes.get(at);var be=run.level.getBlockEntity(at);if(hash==null||be==null||!WorldFunctionals.matchesDigest(run.level,be,hash))throw new IllegalStateException("Native PB fixture changed: "+at);}
         }
         for(var at:run.plan.enclosure())if(!run.level.getBlockState(at).is(net.minecraft.world.level.block.Blocks.STONE))throw new IllegalStateException("Enclosure changed: "+at);
-        if(fluidScene(run.plan.scene()))for(var p:run.plan.pieces())if(!run.level.getBlockState(WorldService.pos(p.origin16().cell()).above()).equals(net.minecraft.world.level.block.Blocks.WATER.defaultBlockState()))throw new IllegalStateException("Fluid source changed");
     }
     private static void disk(Run run)throws Exception{
         // Same save call as vanilla /save-all flush; never included in the timed interval.

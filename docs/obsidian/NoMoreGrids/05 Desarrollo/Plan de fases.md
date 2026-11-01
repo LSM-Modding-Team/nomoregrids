@@ -9,7 +9,7 @@ Cada fase requiere documentación actualizada, compilación cuando haya código 
 | F2 | Losas/escaleras/cubos, orientaciones, composición y controles | Matriz geométrica, loot, selección y preview en multijugador |
 | F3 | Paneles/barrotes/vallas/muros, conexiones y recortes | Conservación, extremos/modelos y estabilidad de conexión |
 | F4 | Decoración, apoyos, materiales y luz | Pérdida de apoyo, contactos, iluminación y efectos |
-| F5 | Fluidos parciales | Flujo/cubos/reacciones/carga sin pérdidas ni fuentes duplicadas |
+| F5 | Fluidos en celdas compuestas descartados por el usuario | Verificar rechazo sin consumo y flujo nativo fuera de celdas |
 | F6 | Paintable Blocks | Ciclo completo de herramientas/datos, dedicado y carga |
 | F7 | Funcionales y grupos | Inventarios/menús/puertos únicos y persistencia |
 | F8 | Redstone/raíles/pistones | Tiempo lógico, trayectorias y movimientos transaccionales |

@@ -1,6 +1,6 @@
 # Matriz trazable
 
-72 casos; estado actual: compilación solamente.
+67 casos; estado actual: compilación solamente.
 Las fuentes son cobertura parcial, no resultados. Los procedimientos completos
 y la evidencia requerida siguen siendo obligatorios. Consultar [F9](F9.md) y
 [las sondas reales](../../tools/validation/README.md) para preparación y límites.
@@ -39,12 +39,7 @@ y la evidencia requerida siguen siendo obligatorios. Consultar [F9](F9.md) y
 | S04 | — | — | Construir una cadena de 129 vallas nativas y una edición que requiera capturar todo el cierre; comprobar rechazo por límite sin consumo y originales intactos. Para una topología que oscile, registrar estados y verificar aborto en 16 pasadas, sin publicar estados intermedios. |
 | L01 | `CellLightingTest.java#emittersUseMaximumAndTwoHalvesSealOnlyTheirUnion` | — | Componer dos emisores de niveles distintos; comprobar emisión máxima, no suma, antes/después de recargar. |
 | L02 | `ConstructionRulesTest.java#internalBoxFacesAreRemovedWithoutChangingGeometry` | — | Pintar dos caras que queden ocultas al componer; separar piezas y comprobar que la pintura reaparece y la geometría persistente no cambió. |
-| F01 | — | — | Intentar composición con fluido de un mod sin adaptador y con datos sustitutos; comprobar mensaje/rechazo y conservar agua/material. |
-| F02 | `CavityTest.java#redistributionConservesVolumeAndLeavesCallerUntouched`<br>`CavityRelaxationTest.java#persistedBoundaryDistancesFeedThenDrainAnIsolatedCorridor` | `nmg_validation_probe wet_check` | Introducir agua en media cavidad, seguir flujo, guardar/recargar y cerrar un paso; comprobar máscaras, conectividad y ausencia de invasión sólida. |
-| F03 | `CavityTest.java#bucketCannotRecoverPartialWater`<br>`CavityCodecTest.java#neverTurnsPartialFlowIntoABucketSource` | `nmg_validation_probe wet_check` | Recoger y vaciar cubo en fuente completa y cavidad parcial; probar inventario lleno, repetición de paquete y creativo. |
-| F04 | — | — | Hacer contactar agua/lava en hueco que no admite bloque de reacción y luego en uno completo; comprobar conservación o producto representable. |
-| F05 | `CavityTest.java#spentBudgetDoesNotPublishPartialDrain` | `nmg_bench start fluids320 <anchor>` | Preparar fluids320 con fuentes y cerramiento; medir avance de ventanas y checkpoints, descargar/cargar fronteras y comprobar progreso de más de 256 celdas. |
-| F06 | `CavityContactsTest.java#negativeCoordinatesAndMixedFluidsKeepEyeIdentity` | — | Usar una entidad con envolvente superior a 512 casillas y contactos agua/lava; contrastar cuerpo, ojos y corrientes con geometría dispersa. |
+| F01 | — | — | Intentar colocar o mover piezas hacia agua, lava y bloques anegados; verificar rechazo sin consumo ni mutación. Probar cubos y flujo contra celdas compuestas y flujo nativo externo. |
 | M01 | `FunctionalStoreTest.java#referencesResolveToOneAuthorityAndStaleEditsAreRejected`<br>`FunctionalStoreTest.java#multiplePortsAtSameContactDoNotMergeInventories` | `nmg_accept run barrels <anchor>` | Componer dos barriles que comparten host; transferir a un puerto expuesto, abortar/confirmar y comprobar slots independientes y host ambiguo rechazado. |
 | M02 | `MechanismTest.java#pistonMovesWholeOffsetPieceAndRejectsSweepObstruction` | — | Empujar componente que ocupa varias casillas; comprobar UUID/revisión, referencias, barrido y vuelta del pistón pegajoso. |
 | M03 | `MechanismTest.java#thirteenComponentsDoNotBecomeTwelveCells` | — | Preparar cadena de 12 y 13 componentes, incluidos miembros de puerta; solo el cierre dentro de 12 puede moverse. |

@@ -17,7 +17,7 @@ Construir con superficies y volúmenes reales: apoyar bloques en losas, llenar e
 - Piezas independientes que comparten casillas y cruzan sus límites.
 - Desplazamiento preciso, combinaciones, recortes autorizados y alineación repetible.
 - Selección, rotura y reemplazo por componente.
-- Integración progresiva con apoyos, conexiones, materiales, fluidos y mecanismos.
+- Integración progresiva con apoyos, conexiones, materiales y mecanismos.
 - API de adaptación y Paintable Blocks como primera integración específica.
 - Cliente y servidor con las mismas reglas verificadas por el servidor.
 

@@ -16,7 +16,7 @@ El proyecto Gradle contiene núcleo, contenedor/servidor, controles/render y mó
 | src/main/java/net/nicomar/nomoregrids/network/ | Protocolo |
 | src/main/java/net/nicomar/nomoregrids/client/ | Entrada, preview y render |
 | src/main/java/net/nicomar/nomoregrids/material/ | Materiales y fragmentos |
-| src/main/java/net/nicomar/nomoregrids/simulation/ | Apoyo/conexión/fluido/mecanismos |
+| src/main/java/net/nicomar/nomoregrids/simulation/ | Apoyo/conexión/mecanismos |
 | src/main/java/net/nicomar/nomoregrids/api/ | API pública |
 | src/main/java/net/nicomar/nomoregrids/compat/vanilla/ | Perfiles/adaptadores iniciales |
 | src/main/java/net/nicomar/nomoregrids/compat/paintableblocks/ | Puente opcional |

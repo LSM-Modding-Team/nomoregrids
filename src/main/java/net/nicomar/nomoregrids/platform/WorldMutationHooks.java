@@ -16,10 +16,8 @@ public final class WorldMutationHooks {
         var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing()||level.getBlockState(pos).equals(state))return true;
         var cell=new CellPos(pos.getX(),pos.getY(),pos.getZ());
         if(service.quarantined())return false;
-        if(level.getBlockState(pos).getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock&&!state.getFluidState().isEmpty()){
-            try{service.fluids().incoming(cell,state.getFluidState());}catch(IOException|RuntimeException ex){if(service.quarantined())NmgRuntime.failed(level,ex);}return false;
-        }
-        boolean tracked=!service.snapshot().at(cell).isEmpty()||service.fluids().at(cell).isPresent();if(tracked&&service.nativeProjection(cell).isEmpty())return false;
+        if(level.getBlockState(pos).getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock&&!state.getFluidState().isEmpty())return false;
+        boolean tracked=!service.snapshot().at(cell).isEmpty();if(tracked&&service.nativeProjection(cell).isEmpty())return false;
         var goal=service.nativeGoal(cell);if(!tracked&&goal.isPresent()&&!goal.orElseThrow().equals(level.getBlockState(pos))){try{service.repairLoadedCells(List.of(pos));}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);}return false;}
         try{if(goal.isPresent())service.releaseNativeGoal(cell);if(tracked)service.releaseNative(cell);return true;}catch(IOException|RuntimeException ex){NmgRuntime.failed(level,ex);return false;}
     }
@@ -27,7 +25,7 @@ public final class WorldMutationHooks {
     public static void changed(ServerLevel level,BlockPos pos){
         if(WorldFunctionals.planningCopy())return;
         var service=NmgRuntime.existing(level);if(service==null)service=WorldService.writingService(level);if(service==null||service.writing())return;
-        service.circuits().observeNative(pos);service.fluids().changed(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
+        service.circuits().observeNative(pos);
         var dirty=DIRTY.computeIfAbsent(level,k->new LinkedHashSet<>());if(dirty.size()<4096)dirty.add(new CellPos(pos.getX(),pos.getY(),pos.getZ()));
         else SCANS.putIfAbsent(level,service.snapshot().records().values().stream().flatMap(p->p.worldOccupation().cells(8).stream()).distinct().iterator());
     }

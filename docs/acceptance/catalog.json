@@ -499,104 +499,11 @@
     },
     {
       "id": "F01",
-      "case": "Composición con fluido/perfil no disponible",
-      "expected": "Rechazo antes de consumir",
+      "case": "Composición o movimiento hacia una casilla con fluido",
+      "expected": "Rechazo antes de consumir o mutar",
       "unit_sources": [],
       "world_sources": [],
-      "procedure": "Intentar composición con fluido de un mod sin adaptador y con datos sustitutos; comprobar mensaje/rechazo y conservar agua/material.",
-      "required_evidence": [
-        "revision/platform + setup + observed result + artifact",
-        "full procedure (unit or world subset is not full-case acceptance)"
-      ],
-      "status": "PENDING_EXECUTION_OR_REVIEW"
-    },
-    {
-      "id": "F02",
-      "case": "Agua en cavidad",
-      "expected": "Conservación y conectividad",
-      "unit_sources": [
-        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityTest.java#redistributionConservesVolumeAndLeavesCallerUntouched",
-        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityRelaxationTest.java#persistedBoundaryDistancesFeedThenDrainAnIsolatedCorridor"
-      ],
-      "world_sources": [
-        {
-          "file": "tools/validation/RuntimeProbe.java",
-          "command": "nmg_validation_probe wet_check",
-          "scope": "partial: immediate half cavity and no bucket source"
-        }
-      ],
-      "procedure": "Introducir agua en media cavidad, seguir flujo, guardar/recargar y cerrar un paso; comprobar máscaras, conectividad y ausencia de invasión sólida.",
-      "required_evidence": [
-        "revision/platform + setup + observed result + artifact",
-        "full procedure (unit or world subset is not full-case acceptance)"
-      ],
-      "status": "PENDING_EXECUTION_OR_REVIEW"
-    },
-    {
-      "id": "F03",
-      "case": "Cubos y fuentes parciales",
-      "expected": "Sin duplicación de cubos",
-      "unit_sources": [
-        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityTest.java#bucketCannotRecoverPartialWater",
-        "src/test/java/net/nicomar/nomoregrids/persistence/CavityCodecTest.java#neverTurnsPartialFlowIntoABucketSource"
-      ],
-      "world_sources": [
-        {
-          "file": "tools/validation/RuntimeProbe.java",
-          "command": "nmg_validation_probe wet_check",
-          "scope": "partial: immediate half cavity and no bucket source"
-        }
-      ],
-      "procedure": "Recoger y vaciar cubo en fuente completa y cavidad parcial; probar inventario lleno, repetición de paquete y creativo.",
-      "required_evidence": [
-        "revision/platform + setup + observed result + artifact",
-        "full procedure (unit or world subset is not full-case acceptance)"
-      ],
-      "status": "PENDING_EXECUTION_OR_REVIEW"
-    },
-    {
-      "id": "F04",
-      "case": "Reacción en hueco insuficiente",
-      "expected": "Conserva estado, no invade sólido",
-      "unit_sources": [],
-      "world_sources": [],
-      "procedure": "Hacer contactar agua/lava en hueco que no admite bloque de reacción y luego en uno completo; comprobar conservación o producto representable.",
-      "required_evidence": [
-        "revision/platform + setup + observed result + artifact",
-        "full procedure (unit or world subset is not full-case acceptance)"
-      ],
-      "status": "PENDING_EXECUTION_OR_REVIEW"
-    },
-    {
-      "id": "F05",
-      "case": "Red de fluido de más de 256 celdas",
-      "expected": "Ventanas progresan con fronteras/revisiones sin publicar trabajo incompleto",
-      "unit_sources": [
-        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityTest.java#spentBudgetDoesNotPublishPartialDrain"
-      ],
-      "world_sources": [
-        {
-          "file": "tools/validation/ServerBenchmarks.java",
-          "command": "nmg_bench start fluids320 <anchor>",
-          "scope": "320 cells with native boundary sources; no assumed success"
-        }
-      ],
-      "procedure": "Preparar fluids320 con fuentes y cerramiento; medir avance de ventanas y checkpoints, descargar/cargar fronteras y comprobar progreso de más de 256 celdas.",
-      "required_evidence": [
-        "revision/platform + setup + observed result + artifact",
-        "full procedure (unit or world subset is not full-case acceptance)"
-      ],
-      "status": "PENDING_EXECUTION_OR_REVIEW"
-    },
-    {
-      "id": "F06",
-      "case": "Entidad con envolvente de más de 512 celdas",
-      "expected": "Consulta dispersa conserva contactos corporales/ojos y corrientes por tipo",
-      "unit_sources": [
-        "src/test/java/net/nicomar/nomoregrids/simulation/fluid/CavityContactsTest.java#negativeCoordinatesAndMixedFluidsKeepEyeIdentity"
-      ],
-      "world_sources": [],
-      "procedure": "Usar una entidad con envolvente superior a 512 casillas y contactos agua/lava; contrastar cuerpo, ojos y corrientes con geometría dispersa.",
+      "procedure": "Intentar colocación y movimiento hacia agua, lava y bloques waterlogged; verificar rechazo en cliente y servidor, sin consumo y con fluido intacto. Intentar introducir líquido con cubo y por flujo en una celda compuesta.",
       "required_evidence": [
         "revision/platform + setup + observed result + artifact",
         "full procedure (unit or world subset is not full-case acceptance)"

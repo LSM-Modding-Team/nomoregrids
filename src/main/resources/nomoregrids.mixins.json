@@ -7,9 +7,6 @@
     "LevelMutationMixin",
     "FunctionalMenuMixin",
     "FunctionalRecipeMixin",
-    "FluidTrackerAccess",
-    "CavityEntityFluidMixin",
-    "CavityFluidEffectMixin",
     "FunctionalPlayerMixin",
     "FunctionalDropMixin",
     "MinecartBehaviorAccess",
@@ -26,8 +23,5 @@
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "client": [
-    "FluidRendererMixin"
-  ]
+  }
 }

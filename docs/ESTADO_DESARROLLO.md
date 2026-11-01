@@ -1,4 +1,8 @@
-# Estado de desarrollo — 2026-10-30 (America/Lima)
+# Estado de desarrollo
+
+> Decisión vigente (2026-11-01): se eliminan los fluidos en celdas compuestas. Las secciones históricas sobre cavidades y F5 describen versiones anteriores y no el comportamiento actual. Ver `docs/evidence/RETIRADA_FLUIDOS_2026-11-01.md`.
+
+## Antecedentes históricos (2026-10-30)
 
 La continuación de la edición `cc63061` añade trazabilidad de los **72 casos**
 de la matriz, sondas parciales de mundo real y el arnés de F9 con escenas/control
@@ -31,11 +35,11 @@ las ejecuciones y comprobaciones visuales de la matriz. Ver
 | F2 — Construcción | Solver compartido, 24 rotaciones, composición, selección, minería, reemplazo, controles, preview validado y contorno fino por componente | Matriz geométrica/visual, recursos, alcance y multijugador |
 | F3 — Conexiones | Fragmentos/recetas, recortes, paneles/barrotes/vallas/muros, puertos geométricos, escaleras 3D y observación de vecinos nativos | Extremos, tapas, modelos y estabilidad tras cambios externos |
 | F4 — Materiales y apoyo | Apoyos exactos y cadenas, pérdida de soporte externo, contactos/fricción/rebote/velocidad/salto, decoración con NBT/render/editor de carteles, fuego y absorción de explosiones por componente | Render/datos decorativos, cadenas, contactos, fuego, explosiones e iluminación |
-| F5 — Fluidos | Cavidades 16³, persistencia/red, cubos, redistribución, ventanas con frontera, cadencias, reacciones, malla y contactos/corrientes para entidades grandes | Conservación, fuentes, carga, fronteras vanilla, agua/lava, entidades y escala |
+| F5 — Fluidos | Retirados de las celdas compuestas por decisión del usuario | Rechazo de operaciones en casillas con fluido y comprobación de cubos y flujo nativo |
 | F6 — Paintable Blocks | API/datos versionados, captura/colocación, convexos/render, pintura por áreas, herramientas, volúmenes y pendientes; selección/lotes mixtos nativos y NMG, creación creativa y costes/loot del origen | Ciclo completo con PB fijado, geometría/pintura, economía, red y dedicado |
 | F7 — Funcionales y grupos | Autoridad única privada; barril/hornos y estaciones/máquinas/cubos PB; menús nativos con cursor, drag, autofill y XP preparados por recibo; ticks/recetas, puertos, transferencias/energía transaccionales; puertas/camas/trampillas con cierre de grupo y barrido | Automatización entre mods, menús completos, XP, producción, guardado/cortes, cambio de dueño, dormir/respawn y grupos movidos |
 | F8 — Mecanismos | Redstone por puertos con retardos y checkpoints, entradas/salidas nativas, continuidad de raíles y vagones, detectores/activadores, empujes mixtos nativos/NMG/PB/grupos con barrido y metas nativas en el mismo plan | Pulsos/carga/burnout, raíles y física de vagones, slime/miel, pistones, entidades y mecanismos combinados |
-| F9 — Optimización | Presupuestos, cachés LRU por peso, trabajo diferido, métricas conectadas, compactación automática con preparación I/O y copia incremental de cola, ledgers de deduplicación en disco; caché de cavidades, ventanas finitas y arnés de escenas/control, cuatro conexiones y comparación | Ejecución de las sondas nuevas, recuperación de checkpoints, carga sostenida, memoria, tráfico de socket, tiempos y aceptación de escenas |
+| F9 — Optimización | Presupuestos, cachés LRU por peso, trabajo diferido, métricas conectadas, compactación automática con preparación I/O y copia incremental de cola, ledgers de deduplicación en disco; ventanas finitas y arnés de escenas/control, cuatro conexiones y comparación | Ejecución de las sondas nuevas, recuperación de checkpoints, carga sostenida, memoria, tráfico de socket, tiempos y aceptación de escenas |
 
 ## Perfiles y límites de esta edición
 

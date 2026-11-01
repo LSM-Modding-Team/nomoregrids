@@ -10,7 +10,7 @@ Compatibilidad por capacidad y versión. «Se ve bien» no equivale a interacci�
 2. Perfil por datos: identificación, forma estática y restricciones sin comportamiento ejecutable complejo.
 3. Adaptador específico: diseños dinámicos, entidades, herramientas, inventarios o mecanismos.
 
-Capacidades: PLACE_NATIVE, OFFSET, ROTATE, COMPOSE, RESIZE, INTERACT, MOVE, FLUID_COEXIST. Un bloque puede tener solo algunas.
+Capacidades: PLACE_NATIVE, OFFSET, ROTATE, COMPOSE, RESIZE, INTERACT, MOVE. Un bloque puede tener solo algunas.
 
 No se habilita composición por herencia de clase, nombre o mera existencia de VoxelShape. El resultado no garantiza preservar actualizaciones, propiedades ni datos.
 

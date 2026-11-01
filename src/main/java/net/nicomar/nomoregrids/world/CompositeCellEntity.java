@@ -25,15 +25,13 @@ public final class CompositeCellEntity extends BlockEntity {
     private Map<UUID,List<BoxMesh.Face>> contactFaces;
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     @Override public void onLoad(){super.onLoad();LoadedCells.add(this);}
-    @Override public void setRemoved(){LoadedCells.remove(this);super.setRemoved();if(view.cavity().isPresent())invalidateNeighborMeshes();}
-    private void invalidateNeighborMeshes(){if(level!=null&&level.isClientSide()){var positions=new ArrayList<BlockPos>();for(var direction:Direction.values())positions.add(worldPosition.relative(direction));for(int x:new int[]{-1,1})for(int z:new int[]{-1,1})positions.add(worldPosition.offset(x,0,z));for(var neighbor:positions)if(level.isLoaded(neighbor)&&level.getBlockEntity(neighbor) instanceof CompositeCellEntity){var state=level.getBlockState(neighbor);level.sendBlockUpdated(neighbor,state,state,Block.UPDATE_CLIENTS);}}}
+    @Override public void setRemoved(){LoadedCells.remove(this);super.setRemoved();}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(!view.occupied())throw new IllegalArgumentException("Empty cells must be restored to air");
         var previous=this.view;this.view=Objects.requireNonNull(view);LoadedCells.add(this);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
         if(level instanceof net.minecraft.server.level.ServerLevel server)net.nicomar.nomoregrids.network.CellReplication.changed(server,worldPosition,previous,view);
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
-        if(!previous.cavity().equals(view.cavity()))invalidateNeighborMeshes();
     }
     private void updateLight(){
         if(level.isClientSide())return;var parts=new ArrayList<net.nicomar.nomoregrids.simulation.light.CellLighting.Part>();
@@ -49,8 +47,7 @@ public final class CompositeCellEntity extends BlockEntity {
                 new net.nicomar.nomoregrids.material.MaterialProfile(source.getDestroySpeed(level,worldPosition),source.getBlock().getExplosionResistance(),source.getBlock().getFriction(),source.getBlock().getBounceRestitution(),source.getLightEmission(),source.getLightDampening(),source.canOcclude(),true,false);
             parts.add(new net.nicomar.nomoregrids.simulation.light.CellLighting.Part(clipped,profile));
         }
-        var water=view.cavity().map(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.WATER)).orElse(0);var lava=view.cavity().map(c->c.amount(net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.LAVA)).orElse(0);
-        var light=net.nicomar.nomoregrids.simulation.light.CellLighting.calculate(parts);var state=getBlockState().setValue(CompositeCellBlock.EMISSION,lava>0?15:light.emission()).setValue(CompositeCellBlock.ATTENUATION,light.attenuation()).setValue(CompositeCellBlock.SEALED,light.sealed()).setValue(CompositeCellBlock.FLUID,lava>0?2:water>0?1:0).setValue(CompositeCellBlock.SOURCE,view.cavity().map(c->c.source()!=net.nicomar.nomoregrids.simulation.fluid.CavityCell.Kind.EMPTY).orElse(false));
+        var light=net.nicomar.nomoregrids.simulation.light.CellLighting.calculate(parts);var state=getBlockState().setValue(CompositeCellBlock.EMISSION,light.emission()).setValue(CompositeCellBlock.ATTENUATION,light.attenuation()).setValue(CompositeCellBlock.SEALED,light.sealed());
         state=state.setValue(CompositeCellBlock.FACING,net.nicomar.nomoregrids.platform.WorldGroups.bedAt(level,worldPosition).map(net.nicomar.nomoregrids.platform.WorldGroups::bedDirection).orElse(Direction.NORTH));
         if(!state.equals(getBlockState()))level.setBlock(worldPosition,state,Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE);
     }
@@ -65,7 +62,7 @@ public final class CompositeCellEntity extends BlockEntity {
             BoxUnion local=collision?piece.geometry().collision():piece.geometry().selection();
             for(var box:local.transform(Rotation.of(piece.orientation()),piece.pivot16(),piece.origin16()).boxes())
                 shape=Shapes.or(shape,Block.box(box.min().x()-bx,box.min().y()-by,box.min().z()-bz,box.max().x()-bx,box.max().y()-by,box.max().z()-bz));
-        }if(collision){collisionCache=shape;return shape;}if(view.replicas().isEmpty()&&view.cavity().isPresent())shape=Shapes.block();selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
+        }if(collision){collisionCache=shape;return shape;}selectionCache=new CompositeOutlineShape(shape,view);return selectionCache;
     }
     public Optional<net.nicomar.nomoregrids.core.PieceRecord> ground(net.minecraft.world.entity.Entity entity){
         if(!valid||entity==null)return Optional.empty();var body=entity.getBoundingBox();if(contactFaces==null){

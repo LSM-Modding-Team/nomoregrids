@@ -92,8 +92,7 @@ para la siguiente escena.
 
 ## Sonda histórica
 
-`nmg_validation_probe seed`, `verify`, `unrelated_water`, `dry_verify` y
-`wet_check` conservan la escena pequeña de la validación anterior. Requieren
+`nmg_validation_probe seed`, `verify`, `unrelated_water` y `dry_verify` conservan la escena pequeña de la validación anterior. Requieren
 sus posiciones cargadas y preparadas: piezas en (40,100,84)..(46,103,85), agua
 lejana en (40,110,104), PB para `seed`. El procedimiento observado y sus límites
 están en [la evidencia histórica](../../docs/evidence/VALIDACION_EJECUTADA_2026-10-30.md).

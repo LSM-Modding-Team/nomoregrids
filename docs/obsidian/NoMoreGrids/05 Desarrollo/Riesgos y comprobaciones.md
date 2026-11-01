@@ -11,7 +11,7 @@ No quedan preguntas de producto bloqueantes. Sí existen hipótesis técnicas qu
 | Formas densas disparan coste | Presupuestos de primitivas/malla/bytes y rechazo |
 | Render parcial/transparencias | Mallas recortadas y pruebas con materiales |
 | Luz no coincide con geometría fina | Motor de casilla, política óptica y límites declarados |
-| Fluidos parciales complejos | Fase propia con puertas antes de habilitar |
+| Fluidos junto a celdas | Verificar rechazo sin consumo y comportamiento nativo exterior |
 | Bloques funcionales requieren mundo nativo | Adaptación por familia; sin emulación universal |
 | Otros mods esperan un bloque por casilla | API por componente y matriz por versión |
 | Transacciones externas fuera de control | Contratos y cuarentena ante conflicto |

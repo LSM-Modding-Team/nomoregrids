@@ -28,13 +28,13 @@ Todas son decisiones vigentes. Las comprobaciones pendientes son validación de 
 | D22 | Red por revisiones, snapshots y deltas | Resync ante divergencia |
 | D23 | Render estático por sección y cachés limitadas | Sin entidad dinámica por pieza |
 | D24 | Luz de resolución vanilla con agregación conservadora | No se promete luz subbloque |
-| D25 | Fluidos parciales F5 con máscara conservadora 16³ | Antes se bloquean composiciones mojadas |
+| D25 | Sin fluidos en celdas compuestas | Operaciones en casillas mojadas se rechazan antes de mutar |
 | D26 | Funcionales F7 y mecanismos F8 | Capacidades no listas permanecen bloqueadas |
 | D27 | Pistones: 12 componentes y volumen barrido | No 12 casillas arbitrariamente llenas |
 | D28 | Compatibilidad por capacidad y versión | Certificación granular |
 | D29 | Paintable Blocks mediante adaptador específico | Geometría/datos del origen preservados |
 | D30 | Presupuestos concretos de complejidad | Rechazo previo, nunca borrado |
-| D31 | Protocolo experimental 9; esquema/API de piezas 1 | Handshake de manifest, versiones y límites; migraciones explícitas |
+| D31 | Protocolo experimental 10; esquema/API de piezas 1 | Handshake de manifest, versiones y límites; migraciones explícitas |
 | D32 | Bóveda Markdown sin plugins comunitarios | Navegable y portable |
 | D33 | Bóveda integrada en docs/obsidian/NoMoreGrids | Esqueleto mínimo autorizado en edición 1.1 |
 | D34 | Idioma inicial es_es y en_us | Traducciones, códigos de error estables |

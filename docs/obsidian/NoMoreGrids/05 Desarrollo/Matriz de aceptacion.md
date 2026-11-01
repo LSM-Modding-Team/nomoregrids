@@ -36,12 +36,7 @@ Estado inicial de todos los casos: NO EJECUTADO. Esta tabla especifica pruebas f
 | S04 | Conexiones que no convergen | Aborto sin estados alternantes |
 | L01 | Dos emisores en una casilla | Máximo, no suma |
 | L02 | Caras internas ocultas | No borran datos de material |
-| F01 | Composición con fluido/perfil no disponible | Rechazo antes de consumir |
-| F02 | Agua en cavidad | Conservación y conectividad |
-| F03 | Cubos y fuentes parciales | Sin duplicación de cubos |
-| F04 | Reacción en hueco insuficiente | Conserva estado, no invade sólido |
-| F05 | Red de fluido de más de 256 celdas | Ventanas progresan con fronteras/revisiones sin publicar trabajo incompleto |
-| F06 | Entidad con envolvente de más de 512 celdas | Consulta dispersa conserva contactos corporales/ojos y corrientes por tipo |
+| F01 | Composición o movimiento hacia una casilla con fluido | Rechazo antes de consumir o mutar |
 | M01 | Dos contenedores funcionales | Inventarios independientes |
 | M02 | Pistón toca pieza multicelda | Una pieza movida, no fragmentada |
 | M03 | 13 componentes en empuje | Movimiento bloqueado |

@@ -6,7 +6,7 @@ import net.nicomar.nomoregrids.geometry.ConvexVolume;
 
 /** Versioned opt-in capabilities. An adapter is not certified by merely registering it. */
 public interface PieceAdapter {
-    enum Capability { OFFSET,ROTATE,COMPOSE,RESIZE,INTERACT,MOVE,FLUID_COEXIST }
+    enum Capability { OFFSET,ROTATE,COMPOSE,RESIZE,INTERACT,MOVE }
     ResourceId id();
     int dataVersion();
     Set<Capability> capabilities();

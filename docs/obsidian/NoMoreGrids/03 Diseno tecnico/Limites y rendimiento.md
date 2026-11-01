@@ -19,9 +19,6 @@ Estos números son decisiones iniciales de ingeniería, no resultados medidos. S
 | Cierre de movimiento de pistón | 12 componentes |
 | Resolución de conexiones | 16 pasadas |
 | Operación normal | Hasta 128 piezas y 512 casillas afectadas |
-| Fluido: celdas objetivo por ventana de simulación | 16 más frontera cargada |
-| Fluido: región local de redistribución al construir | 256 celdas |
-| Fluido: pasos de microcavidad por turno/dimensión | 65536 |
 | Redstone: componentes reales por red | 256, además del límite binario del checkpoint |
 | Checkpoint de archivo | 64 MiB; cola incremental de 64 operaciones |
 | Trabajo diferido de simulación | 2 ms objetivo por tick/dimensión |
@@ -42,6 +39,6 @@ Los límites de almacenamiento no se validan sobre NBT comprimido, evitando acep
 
 ## Medición de aceptación
 
-Escenas: pared de 10000 piezas simples; sección con 4096 componentes simples dentro de límites; 256 diseños distintos y pintados; frontera de 8 chunks; spam válido/inválido con 4 jugadores; fluidos parciales.
+Escenas: pared de 10000 piezas simples; sección con 4096 componentes simples dentro de límites; 256 diseños distintos y pintados; frontera de 8 chunks; spam válido/inválido con 4 jugadores.
 
 Registrar CPU/GPU, memoria, distancia de render, JVM, percentiles de frame/tick, tamaño de guardado y tráfico. Objetivo de referencia: tick p95 ≤50 ms y incremento p95 de frame ≤5 ms frente a escena comparable, en hardware documentado. Son metas de aprobación; si no se cumplen se optimiza o baja el límite por decisión registrada, sin declarar un rendimiento universal.

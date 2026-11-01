@@ -2,7 +2,7 @@
 
 ## Ámbitos
 
-Servidor: familias habilitadas, perfiles físicos, límites, permisos, adaptadores, fluidos y mecanismos. Cliente: teclas, colores, opacidad, indicadores y cachés visuales. Mundo: versión, adaptadores usados y reglas que alteran interpretación persistente.
+Servidor: familias habilitadas, perfiles físicos, límites, permisos, adaptadores y mecanismos. Cliente: teclas, colores, opacidad, indicadores y cachés visuales. Mundo: versión, adaptadores usados y reglas que alteran interpretación persistente.
 
 El cliente no cambia física ni límites del servidor. Las reglas relevantes se sincronizan y tienen hash. Cambiar un perfil físico obliga a validar piezas existentes antes de aplicarlo; los datos incompatibles se conservan.
 

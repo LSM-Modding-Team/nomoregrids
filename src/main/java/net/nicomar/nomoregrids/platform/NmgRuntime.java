@@ -75,7 +75,7 @@ public final class NmgRuntime {
                 });
             }catch(IOException|RuntimeException ex){quarantine(task.level,ex);}
         }
-        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);var service=SERVICES.get(level);advance(service,"fluid",()->service.fluids().tick());advance(service,"functional",()->service.functionals().tick());advance(service,"group",()->WorldGroups.tick(service));advance(service,"circuit",()->service.circuits().tick());advance(service,"rail",()->WorldRails.tick(service));advance(service,"checkpoint",service::maintenance);}
+        for(var level:List.copyOf(SERVICES.keySet()))if(level.getServer()==event.getServer()&&!QUARANTINE.containsKey(level)){WorldMutationHooks.tick(level);var service=SERVICES.get(level);advance(service,"functional",()->service.functionals().tick());advance(service,"group",()->WorldGroups.tick(service));advance(service,"circuit",()->service.circuits().tick());advance(service,"rail",()->WorldRails.tick(service));advance(service,"checkpoint",service::maintenance);}
         var repairs=REPAIRS.get(event.getServer());if(repairs!=null){repairs.advance(2_000_000,16,System::nanoTime);if(repairs.pending()==0)REPAIRS.remove(event.getServer());}
     }
     private static void advance(WorldService service,String phase,WorldService.TickAction action){if(service.quarantined())return;try{service.measured(phase,action);}catch(IOException|RuntimeException ex){if(service.quarantined())quarantine(service.level(),ex);else NoMoreGrids.LOGGER.debug("NMG {} update deferred: {}",phase,ex.toString());}}
@@ -94,7 +94,7 @@ public final class NmgRuntime {
             if(!player.level().isLoaded(block.getBlockPos()))throw new IllegalArgumentException("UNLOADED_REGION");
             String result="OK";var service=require(player.level());if(packet.intent()!=null)NmgNetworking.actionIntent(player.getUUID(),packet.intent());var mode=NmgNetworking.modes(player.getUUID());
             if(packet.intent()!=null){
-                if(packet.action()!=ActionPayload.Action.BUCKET&&player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var selected=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(packet.expectedPiece().isEmpty()||!packet.expectedPiece().orElseThrow().equals(selected.pieceId())||packet.expectedRevision()!=selected.revision())throw new IllegalArgumentException("STALE_REVISION");}
+                if(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var selected=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if(packet.expectedPiece().isEmpty()||!packet.expectedPiece().orElseThrow().equals(selected.pieceId())||packet.expectedRevision()!=selected.revision())throw new IllegalArgumentException("STALE_REVISION");}
                 else if(packet.expectedPiece().isPresent())throw new IllegalArgumentException("STALE_REVISION");
             }
             InteractionHand hand=packet.offhand()?InteractionHand.OFF_HAND:InteractionHand.MAIN_HAND;
@@ -117,7 +117,6 @@ public final class NmgRuntime {
                 case INTERACT->{
                     if(!(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell))throw new IllegalArgumentException("No functional component");var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();if((!WorldCircuits.piece(piece)&&!WorldGroups.piece(piece)&&!WorldFunctionals.piece(piece)&&!WorldDecorations.piece(piece))||!player.level().mayInteract(player,block.getBlockPos()))throw new IllegalArgumentException("PROTECTED");if(WorldCircuits.piece(piece))WorldCircuits.use(service,player,service.snapshot().records().get(piece.pieceId()));else if(WorldGroups.piece(piece))WorldGroups.use(service,player,service.snapshot().records().get(piece.pieceId()));else if(WorldDecorations.piece(piece))WorldDecorations.use(service,player,hand,service.snapshot().records().get(piece.pieceId()),block);else service.functionals().use(player,hand,service.snapshot().records().get(piece.pieceId()));
                 }
-                case BUCKET->{service.fluids().bucket(player,hand,new net.nicomar.nomoregrids.core.CellPos(block.getBlockPos().getX(),block.getBlockPos().getY(),block.getBlockPos().getZ()),packet.operation());}
                 case EDIT->{
                     if(player.level().getBlockEntity(block.getBlockPos()) instanceof CompositeCellEntity cell){var piece=ComponentSelection.select(player,cell.view(),mode.candidate()).orElseThrow();service.editPaintable(player,hand,piece.pieceId(),block,packet.operation(),packet.control());}
                     else{var bridge=net.nicomar.nomoregrids.compat.paintableblocks.PaintableBridge.available().orElseThrow();if(!bridge.nativeBlock(player.level().getBlockState(block.getBlockPos())))throw new IllegalArgumentException("UNSUPPORTED_ADAPTER");PaintableSelections.use(service,player,hand,bridge.nativeSelection(player.level(),block.getBlockPos()),block,packet.operation(),packet.control());}
