@@ -217,3 +217,13 @@ superficie visual interpolada a partir de sus vecinos, incluidos líquidos nativ
 Las cavidades con sólidos, mezclas o huecos internos conservan la malla exacta.
 Las fronteras completamente cubiertas por líquido nativo se ocultan de forma
 conservadora. Véase `docs/evidence/SUPERFICIES_FLUIDO_2026-10-31.md`.
+
+### Puente de salida y superficies sobre piezas (2026-10-31)
+
+El fluido que alcanza aire nuevo por una microcara abierta se proyecta como
+corriente vanilla no fuente; se prefieren las caídas y se conservan los límites
+de distancia horizontal. Las columnas mojadas sobre un suelo sólido uniforme
+pueden compartir la interpolación visual. Los perfiles con techos, suelos
+heterogéneos, huecos o mezclas mantienen la malla exacta. Sigue pendiente la
+verificación ejecutada del puente y la representación; ver
+`docs/evidence/PUENTE_FLUIDOS_2026-10-31.md`.

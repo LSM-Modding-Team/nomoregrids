@@ -49,3 +49,9 @@ Todas son decisiones vigentes. Las comprobaciones pendientes son validación de 
 - La selección de candidatos no atraviesa obstáculos.
 - Reglas de la otra documentación, como commits solo online o prohibición de compilar, no se heredan.
 - La licencia y publicación no se inventan: este diseño no realiza distribución de código ni necesita resolverlas.
+
+## Mundos de versiones anteriores
+
+Por instrucción posterior del usuario, no se requiere compatibilidad ni migración
+para mundos de versiones anteriores de No More Grids. Esto no autoriza perder ni
+duplicar datos durante operaciones o recuperación de la versión actual.

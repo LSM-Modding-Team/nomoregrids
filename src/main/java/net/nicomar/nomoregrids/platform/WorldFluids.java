@@ -126,6 +126,18 @@ public final class WorldFluids {
     private void schedule(CellPos c,Kind kind,long time){if(!level.isLoaded(WorldService.pos(c)))return;String k=ticket(c,kind);Long old=scheduled.get(k);if(old!=null&&old<=time)return;scheduled.put(k,time);due.add(new Due(c,kind,time));}
     private boolean target(CellPos c){var state=level.getBlockState(WorldService.pos(c));return at(c).isPresent()||state.isAir()||state.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock;}
     private CavityCell cell(CellPos c){return at(c).orElseGet(()->nativeCell(c,mask(c,service.snapshot(),Set.of())));}
+    /** A new empty cell is owned by vanilla; never turn a flowing edge into a source. */
+    private boolean exportNewFlow(CellPos c,CavityCell next,Map<CellPos,CavityCell> region,List<OperationPlan.Effect> effects){
+        if(!service.snapshot().at(c).isEmpty()||at(c).isPresent()||!level.getBlockState(WorldService.pos(c)).isAir()||next.amount(workingKind)==0||next.amount(workingKind==Kind.WATER?Kind.LAVA:Kind.WATER)>0||effects.stream().anyMatch(e->e.key().equals(WorldService.nativeKey(c))))return false;
+        if(service.nativeGoal(c).filter(s->!s.isAir()).isPresent())return false;CavityExport.Flow best=null;
+        for(var d:Direction6.values()){
+            var neighbor=region.get(new CellPos(c.x()+d.x,c.y()+d.y,c.z()+d.z));if(neighbor==null)continue;
+            var flow=CavityExport.flow(neighbor,workingKind,d.opposite());if(flow.isEmpty())continue;var candidate=flow.orElseThrow();
+            if(best==null||candidate.falling()&&!best.falling()||candidate.falling()==best.falling()&&candidate.amount()>best.amount())best=candidate;
+        }
+        if(best==null)return false;var fluid=best.kind()==Kind.WATER?Fluids.WATER:Fluids.LAVA;
+        effects.add(service.nativeChange(c,fluid.getFlowing(best.amount(),best.falling()).createLegacyBlock()));return true;
+    }
     public void tick()throws IOException{
         if(!initialized){for(var c:snapshot().keySet())changed(c);initialized=true;}
         long now=level.getGameTime();if(job==null){var targets=new LinkedHashSet<CellPos>();while(!due.isEmpty()&&targets.size()<16){var next=due.peek();if(next.tick>now)break;due.remove();if(!Objects.equals(scheduled.get(ticket(next.cell,next.kind)),next.tick))continue;if(!targets.isEmpty()&&workingKind!=next.kind){due.add(next);break;}scheduled.remove(ticket(next.cell,next.kind));if(!level.isLoaded(WorldService.pos(next.cell))||!target(next.cell))continue;workingKind=next.kind;targets.add(next.cell);}
@@ -136,7 +148,7 @@ public final class WorldFluids {
         if(!stale)for(var c:input.keySet())if(!Objects.equals(effectGeneration.get(key(c)),service.effects().get(key(c)))){stale=true;break;}
         if(stale){for(var c:input.keySet())schedule(c,workingKind,now+delay(workingKind));job=null;return;}
         if(!job.advance(65536))return;var result=job.result();job=null;var effects=new ArrayList<OperationPlan.Effect>();var combined=new HashMap<>(input);combined.putAll(result);var reactions=CavitySimulation.react(combined);var pieces=new ArrayList<OperationPlan.Change>();
-        for(var e:result.entrySet()){var c=e.getKey();var next=reactions.fluids().get(c);if(!reactions.products().containsKey(c)&&projectNative(c,next,service.snapshot(),effects))continue;addEffect(c,next,effects);if(e.getValue().amount(Kind.WATER)+e.getValue().amount(Kind.LAVA)>0)schedule(c,workingKind,now+delay(workingKind));}
+        for(var e:result.entrySet()){var c=e.getKey();var next=reactions.fluids().get(c);if(!reactions.products().containsKey(c)&&(projectNative(c,next,service.snapshot(),effects)||exportNewFlow(c,next,reactions.fluids(),effects)))continue;addEffect(c,next,effects);if(e.getValue().amount(Kind.WATER)+e.getValue().amount(Kind.LAVA)>0)schedule(c,workingKind,now+delay(workingKind));}
         for(var product:reactions.products().entrySet())if(result.containsKey(product.getKey())&&service.snapshot().at(product.getKey()).isEmpty()){
             var p=NativeStates.capture(NativeStates.resolve(product.getValue(),Map.of()),level,WorldService.pos(product.getKey()),UUID.randomUUID());pieces.add(new OperationPlan.Change(p.pieceId(),Optional.empty(),Optional.of(p)));addEffect(product.getKey(),reactions.fluids().get(product.getKey()),effects);
         }service.executeWorld(pieces,effects);

@@ -24,6 +24,7 @@ Leer docs/obsidian/NoMoreGrids/00 Inicio/Inicio.md, Reglas fundamentales, Decisi
 - No cambiar versiones fijadas ni publicar/crear repositorios sin una solicitud que lo autorice.
 - Actualizar documentación y estado al cambiar comportamiento.
 - Resolver decisiones rutinarias sin preguntas innecesarias; comunicarlas al entregar.
+- El usuario no requiere compatibilidad con mundos de versiones anteriores del mod; no mantener migraciones ni restringir el diseño por esos mundos. Los datos del mundo de la versión actual siguen protegidos durante las operaciones.
 
 ## Restricciones de ejecución
 
