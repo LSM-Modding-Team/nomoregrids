@@ -11,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.quad.*;
 import net.nicomar.nomoregrids.core.Direction6;
 import net.nicomar.nomoregrids.simulation.fluid.CavityCell;
+import net.nicomar.nomoregrids.world.CompositeCellEntity;
 import org.joml.Vector3f;
 
 /** Greedy surface rectangles on cavity microcells; native fluid materials and biome tint. */
@@ -21,12 +22,14 @@ public final class CavityMesh {
             if(cell.amount(kind)==0)continue;
             var fluid=kind==CavityCell.Kind.WATER?Fluids.WATER.defaultFluidState():Fluids.LAVA.defaultFluidState();var model=Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid);var source=fluid.createLegacyBlock();int tint=model.tintSource()==null?0xffffffff:0xff000000|model.tintSource().colorInWorld(source,world,pos);
             for(var face:Direction6.values()){
+                var adjacent=world.getModelData(pos.relative(Direction.valueOf(face.name()))).get(CompositeCellEntity.VIEW);
+                CavityCell neighbor=adjacent==null?null:adjacent.cavity().orElse(null);
                 var material=face==Direction6.UP||face==Direction6.DOWN?model.stillMaterial():model.flowingMaterial();var sprite=material.sprite();var info=BakedQuad.MaterialInfo.of(material,kind==CavityCell.Kind.WATER?com.mojang.blaze3d.platform.Transparency.TRANSLUCENT:com.mojang.blaze3d.platform.Transparency.NONE,-1,true,kind==CavityCell.Kind.LAVA?15:0);boolean[] visible=new boolean[256];
                 for(int plane=face.sign()>0?1:0;plane<=(face.sign()>0?16:15);plane++){
                 Arrays.fill(visible,false);for(int v=0;v<16;v++)for(int u=0;u<16;u++){
                     int c=plane-(face.sign()>0?1:0);if(c<0||c>=16)continue;int x=face.axis()==0?c:u,y=face.axis()==1?c:v,z=face.axis()==0?u:face.axis()==1?v:c;
-                    if(cell.at(x+16*(y+16*z))!=kind)continue;int nx=x+face.x,ny=y+face.y,nz=z+face.z;
-                    visible[v*16+u]=nx<0||nx>=16||ny<0||ny>=16||nz<0||nz>=16||cell.at(nx+16*(ny+16*nz))!=kind;
+                    if(cell.at(x+16*(y+16*z))!=kind)continue;
+                    visible[v*16+u]=net.nicomar.nomoregrids.simulation.fluid.CavityBoundary.visible(cell,neighbor,kind,x,y,z,face.x,face.y,face.z);
                 }
                 for(int v=0;v<16;v++)for(int u=0;u<16;u++)if(visible[v*16+u]){
                     int width=1;while(u+width<16&&visible[v*16+u+width])width++;int height=1;outer:while(v+height<16){for(int i=0;i<width;i++)if(!visible[(v+height)*16+u+i])break outer;height++;}

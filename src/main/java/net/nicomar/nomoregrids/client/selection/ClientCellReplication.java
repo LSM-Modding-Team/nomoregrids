@@ -28,7 +28,7 @@ public final class ClientCellReplication {
         if(now-lastRequest<100_000_000L)return;
         var entries=RESYNC.entrySet().iterator();while(entries.hasNext()){
             var entry=entries.next();var pos=entry.getKey();
-            var retry=entry.getValue();if(!mc.level.isLoaded(pos)){entries.remove();continue;}
+            var retry=entry.getValue();if(!mc.level.isLoaded(pos)){if(now-retry.created>60_000_000_000L)entries.remove();continue;}
             if(!(mc.level.getBlockEntity(pos) instanceof CompositeCellEntity)){if(now-retry.created>60_000_000_000L)entries.remove();continue;}
             if(retry.sent!=0&&now-retry.sent<1_000_000_000L)continue;
             ClientPacketDistributor.sendToServer(new CellResyncPayload(pos));entry.setValue(new Retry(retry.created,now));lastRequest=now;break;
@@ -44,7 +44,7 @@ public final class ClientCellReplication {
         if(old==null){if(HEADERS.size()>=SnapshotAssembler.IN_FLIGHT){resync(packet.position());return;}HEADERS.put(f.message(),header);}
         try{
             var assembled=ASSEMBLER.accept(f,now);if(assembled.isEmpty())return;HEADERS.remove(f.message());
-            if(!mc.level.isLoaded(packet.position()))return;
+            if(!mc.level.isLoaded(packet.position())){resync(packet.position());return;}
             if(!(mc.level.getBlockEntity(packet.position()) instanceof CompositeCellEntity cell)){resync(packet.position());return;}
             var next=packet.delta()?CellDelta.apply(cell.view(),assembled.orElseThrow()):CellView.decode(assembled.orElseThrow());cell.install(next);
             if(!packet.delta())RESYNC.remove(packet.position());

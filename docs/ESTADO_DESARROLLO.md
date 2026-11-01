@@ -194,3 +194,11 @@ acotadas y la búsqueda de caras ocultas utiliza un índice espacial con respald
 exhaustivo. Estas son reducciones de trabajo identificadas por inspección, no
 resultados de rendimiento medidos ni una certificación F9. La evidencia y las
 limitaciones están en `docs/evidence/RENDIMIENTO_2026-10-31.md`.
+
+### Fronteras de cavidades y réplica (2026-10-31)
+
+Las caras de cavidades adyacentes del mismo fluido dejan de dibujarse en la
+frontera común. El modelo incorpora las cavidades vecinas a su clave y solicita
+reconstrucción al cambiar o retirarse una de ellas. Las réplicas recibidas antes
+que el chunk ahora esperan su carga y solicitan una instantánea. Ver el alcance
+y las comprobaciones pendientes en `docs/evidence/FLUIDOS_2026-10-31.md`.

@@ -25,13 +25,15 @@ public final class CompositeCellEntity extends BlockEntity {
     private Map<UUID,List<BoxMesh.Face>> contactFaces;
     public CompositeCellEntity(BlockPos pos,BlockState state){super(NmgContent.CELL_ENTITY.get(),pos,state);}
     @Override public void onLoad(){super.onLoad();LoadedCells.add(this);}
-    @Override public void setRemoved(){LoadedCells.remove(this);super.setRemoved();}
+    @Override public void setRemoved(){LoadedCells.remove(this);super.setRemoved();if(view.cavity().isPresent())invalidateNeighborMeshes();}
+    private void invalidateNeighborMeshes(){if(level!=null&&level.isClientSide())for(var direction:Direction.values()){var neighbor=worldPosition.relative(direction);if(level.isLoaded(neighbor)&&level.getBlockEntity(neighbor) instanceof CompositeCellEntity){var state=level.getBlockState(neighbor);level.sendBlockUpdated(neighbor,state,state,Block.UPDATE_CLIENTS);}}}
     public CellView view(){return view;}public boolean valid(){return valid;}
     public void install(CellView view){
         if(!view.occupied())throw new IllegalArgumentException("Empty cells must be restored to air");
         var previous=this.view;this.view=Objects.requireNonNull(view);LoadedCells.add(this);collisionCache=null;selectionCache=null;supportCache=null;contactFaces=null;preserved=null;valid=true;setChanged();requestModelDataUpdate();
         if(level instanceof net.minecraft.server.level.ServerLevel server)net.nicomar.nomoregrids.network.CellReplication.changed(server,worldPosition,previous,view);
         if(level!=null){updateLight();level.sendBlockUpdated(worldPosition,getBlockState(),getBlockState(),Block.UPDATE_ALL);}
+        if(!previous.cavity().equals(view.cavity()))invalidateNeighborMeshes();
     }
     private void updateLight(){
         if(level.isClientSide())return;var parts=new ArrayList<net.nicomar.nomoregrids.simulation.light.CellLighting.Part>();
