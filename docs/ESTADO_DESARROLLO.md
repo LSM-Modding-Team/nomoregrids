@@ -202,3 +202,10 @@ frontera común. El modelo incorpora las cavidades vecinas a su clave y solicita
 reconstrucción al cambiar o retirarse una de ellas. Las réplicas recibidas antes
 que el chunk ahora esperan su carga y solicitan una instantánea. Ver el alcance
 y las comprobaciones pendientes en `docs/evidence/FLUIDOS_2026-10-31.md`.
+
+### Transferencia experimental a fluido nativo (2026-10-31)
+
+Las cavidades sin piezas que coinciden exactamente con una fuente o un nivel
+nativo pueden transferirse a Minecraft junto con la eliminación transaccional de
+la autoridad NMG. Los patrones parciales no representables siguen en cavidades.
+El puente y sus limitaciones están en `docs/evidence/TRANSICION_FLUIDOS_2026-10-31.md`.

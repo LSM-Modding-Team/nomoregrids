@@ -56,6 +56,9 @@ public final class WorldFluids {
     }
     public OperationPlan prepare(OperationPlan plan)throws IOException{
         if(plan.changes().isEmpty()&&plan.effects().stream().noneMatch(e->e.key().startsWith("native:"))||plan.actor().equals(OperationPlan.WORLD_ACTOR)&&plan.effects().stream().anyMatch(e->e.key().startsWith("fluid:")))return plan;
+        // Releasing a native goal transfers control to vanilla; do not recapture
+        // the fluid merely because that goal is being removed.
+        if(plan.changes().isEmpty()&&plan.effects().stream().filter(e->e.key().startsWith("native:")).allMatch(e->e.after().isEmpty()))return plan;
         Set<CellPos> touched=new HashSet<>(plan.pieceCells());plan.effects().stream().filter(e->e.key().startsWith("native:")).forEach(e->touched.add(e.owner()));boolean wet=false;for(var c:touched)if(at(c).isPresent()||!level.getFluidState(WorldService.pos(c)).isEmpty())wet=true;if(!wet)return plan;
         var before=service.snapshot();var after=before.changed(plan.changes().stream().map(OperationPlan.Change::indexChange).toList(),PieceIndex.Limits.DEFAULT);
         var previous=new TreeMap<CellPos,CavityCell>();var masks=new TreeMap<CellPos,BitSet>();var region=new LinkedHashSet<CellPos>();var pending=new ArrayDeque<CellPos>();touched.stream().sorted().forEach(c->{region.add(c);pending.add(c);});
@@ -73,8 +76,14 @@ public final class WorldFluids {
             }
         }
         var displaced=CavitySimulation.displace(previous,masks,262144);var effects=new ArrayList<>(plan.effects());
+        for(var c:touched)if(!after.at(c).isEmpty()){
+            var goal=service.effects().get(WorldService.nativeKey(c));
+            if(goal!=null&&service.nativeGoal(c).filter(s->!s.getFluidState().isEmpty()).isPresent()&&effects.stream().noneMatch(e->e.key().equals(WorldService.nativeKey(c))))
+                effects.add(new OperationPlan.Effect(WorldService.nativeKey(c),c,Optional.of(goal.data()),Optional.empty()));
+        }
         for(var entry:displaced.entrySet()){
             var c=entry.getKey();if(!touched.contains(c)&&!at(c).isPresent()&&!level.getFluidState(WorldService.pos(c)).isEmpty())continue;
+            if(projectNative(c,entry.getValue(),after,effects))continue;
             addEffect(c,entry.getValue(),effects);
         }
         return new OperationPlan(plan.id(),plan.actor(),plan.kind(),plan.changes(),plan.resourcesBefore(),plan.resourcesAfter(),effects);
@@ -82,6 +91,18 @@ public final class WorldFluids {
     private void addEffect(CellPos c,CavityCell next,List<OperationPlan.Effect> changes){
         var before=at(c).map(CavityCodec::encode);var after=next.amount(Kind.WATER)+next.amount(Kind.LAVA)==0?Optional.<BinaryData>empty():Optional.of(CavityCodec.encode(next));
         if(!before.equals(after)){changes.removeIf(e->e.key().equals(key(c)));changes.add(new OperationPlan.Effect(key(c),c,before,after));}
+    }
+    /** Transfer an exact fluid image in the same durable transaction as its removal. */
+    private boolean projectNative(CellPos c,CavityCell next,PieceIndex after,List<OperationPlan.Effect> changes){
+        if(!after.at(c).isEmpty()||changes.stream().anyMatch(e->e.key().equals(WorldService.nativeKey(c))))return false;
+        var pos=WorldService.pos(c);if(!level.isLoaded(pos))return false;var block=level.getBlockState(pos);
+        if(!block.isAir()&&!(block.getBlock() instanceof net.nicomar.nomoregrids.world.CompositeCellBlock))return false;
+        var image=NativeFluidProjection.exact(next);if(image.isEmpty())return false;var state=image.orElseThrow();
+        var fluid=state.kind()==Kind.WATER?Fluids.WATER:Fluids.LAVA;
+        var nativeState=(state.source()?fluid.getSource(false):fluid.getFlowing(state.amount(),false)).createLegacyBlock();
+        var old=service.effects().get(key(c));changes.removeIf(e->e.key().equals(key(c)));
+        if(old!=null)changes.add(new OperationPlan.Effect(key(c),c,Optional.of(old.data()),Optional.empty()));
+        changes.add(service.nativeChange(c,nativeState));return true;
     }
     public void incoming(CellPos c,FluidState fluid)throws IOException{
         var old=at(c).orElseGet(()->new CavityCell(mask(c,service.snapshot(),Set.of()),new byte[4096],Kind.EMPTY));Kind type=kind(fluid);if(type==Kind.EMPTY)return;
@@ -115,7 +136,7 @@ public final class WorldFluids {
         if(!stale)for(var c:input.keySet())if(!Objects.equals(effectGeneration.get(key(c)),service.effects().get(key(c)))){stale=true;break;}
         if(stale){for(var c:input.keySet())schedule(c,workingKind,now+delay(workingKind));job=null;return;}
         if(!job.advance(65536))return;var result=job.result();job=null;var effects=new ArrayList<OperationPlan.Effect>();var combined=new HashMap<>(input);combined.putAll(result);var reactions=CavitySimulation.react(combined);var pieces=new ArrayList<OperationPlan.Change>();
-        for(var e:result.entrySet()){addEffect(e.getKey(),reactions.fluids().get(e.getKey()),effects);if(e.getValue().amount(Kind.WATER)+e.getValue().amount(Kind.LAVA)>0)schedule(e.getKey(),workingKind,now+delay(workingKind));}
+        for(var e:result.entrySet()){var c=e.getKey();var next=reactions.fluids().get(c);if(!reactions.products().containsKey(c)&&projectNative(c,next,service.snapshot(),effects))continue;addEffect(c,next,effects);if(e.getValue().amount(Kind.WATER)+e.getValue().amount(Kind.LAVA)>0)schedule(c,workingKind,now+delay(workingKind));}
         for(var product:reactions.products().entrySet())if(result.containsKey(product.getKey())&&service.snapshot().at(product.getKey()).isEmpty()){
             var p=NativeStates.capture(NativeStates.resolve(product.getValue(),Map.of()),level,WorldService.pos(product.getKey()),UUID.randomUUID());pieces.add(new OperationPlan.Change(p.pieceId(),Optional.empty(),Optional.of(p)));addEffect(product.getKey(),reactions.fluids().get(product.getKey()),effects);
         }service.executeWorld(pieces,effects);
